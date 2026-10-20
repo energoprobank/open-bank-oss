@@ -110,7 +110,7 @@ object PadesSigning {
         val keyPair = keyPairGenerator.generateKeyPair()
 
         val now = Instant.now()
-        val subject = X500Name("CN=$commonName, O=OpenBank")
+        val subject = X500Name("CN=$commonName, O=Energo-Pro Bank")
         val certificateBuilder = JcaX509v3CertificateBuilder(
             subject,
             BigInteger.valueOf(now.toEpochMilli()),

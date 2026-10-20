@@ -216,8 +216,8 @@ openbank:
     opa-pdp-producer:
       enabled: true
   bank:
-    bic: ${OPENBANK_BIC:OPBKCZ22}
-    bank-code: ${OPENBANK_BANK_CODE:2000}
+    bic: ${OPENBANK_BIC:EPROCZPP}
+    bank-code: ${OPENBANK_BANK_CODE:8899}
   domestic:
     # Activation is deliberately split from the consumer above. Backfill/projection can be proven
     # first; only after the future workload endpoint is enabled may this finalizer be turned on.

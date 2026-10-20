@@ -197,7 +197,7 @@ openbank:
     task-queue: openbank-sepa-payment
   bank:
     # OpenBank's own BIC — used as the debtor agent (DbtrAgt) in the pacs.008 (ADR-0104 D3).
-    bic: ${OPENBANK_BIC:OPBKCZ22}
+    bic: ${OPENBANK_BIC:EPROCZPP}
   sepa:
     scheme-submission:
       # ADR-0104 D3 pilot. OFF by default: when off, behaviour is exactly as before (screening only).

@@ -41,7 +41,7 @@ class PdfBoxPadesSealAdapterTest {
 
         val signatures = Loader.loadPDF(signed).use { it.signatureDictionaries }
         assertThat(signatures).hasSize(1)
-        assertThat(signatures[0].name).isEqualTo("OpenBank")
+        assertThat(signatures[0].name).isEqualTo("Energo-Pro Bank")
     }
 
     @Test
@@ -125,7 +125,7 @@ class PdfBoxPadesSealAdapterTest {
         val sealed = adapter.sealExternalDisclosure(blankPdf(), disclosureId)
 
         val signature = Loader.loadPDF(sealed).use { it.signatureDictionaries.single() }
-        assertThat(signature.name).isEqualTo("OpenBank")
+        assertThat(signature.name).isEqualTo("Energo-Pro Bank")
         assertThat(signature.reason).contains("External document disclosure").contains(disclosureId.toString())
     }
 

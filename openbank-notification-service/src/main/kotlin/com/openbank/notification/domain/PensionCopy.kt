@@ -50,12 +50,12 @@ object PensionCopy {
                 "Změna účtu pro výplatu penze" to
                     "<h2>Změna účtu pro výplatu</h2><p>U smlouvy <b>$contract</b> byl podepsán nový účet pro " +
                     "výplaty končící <b>${vars.v("accountLast4")}</b>. Platí od ${vars.v("effectiveFrom")}.</p>" +
-                    "<p>Pokud jsi změnu neprováděl(a) ty, okamžitě kontaktuj OpenBank.</p>"
+                    "<p>Pokud jsi změnu neprováděl(a) ty, okamžitě kontaktuj Energo-Pro Bank.</p>"
             } else {
                 "Pension payout account changed" to
                     "<h2>Payout account changed</h2><p>A new payout account ending <b>${vars.v("accountLast4")}</b> " +
                     "was signed for contract <b>$contract</b>. It takes effect on ${vars.v("effectiveFrom")}.</p>" +
-                    "<p>If you did not make this change, contact OpenBank immediately.</p>"
+                    "<p>If you did not make this change, contact Energo-Pro Bank immediately.</p>"
             }
             NotificationTemplate.PENSION_PAYOUT_EXECUTED -> if (cs) {
                 "Výplata z penzijního účtu" to

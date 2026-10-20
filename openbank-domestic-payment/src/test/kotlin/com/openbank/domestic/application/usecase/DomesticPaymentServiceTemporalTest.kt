@@ -66,6 +66,7 @@ class DomesticPaymentServiceTemporalTest {
             metrics,
             TASK_QUEUE,
             env.workflowClient,
+            DomesticPaymentService.DEFAULT_OWN_BANK_CODE,
         )
 
         coEvery { repo.save(any(), any()) } answers { firstArg() }
@@ -139,7 +140,7 @@ class DomesticPaymentServiceTemporalTest {
     fun `createPayment derives INTERNAL_CLIENT scope for an own-bank creditor with unknown party`() {
         coEvery { repo.findByIdempotencyKey(any()) } returns null
 
-        val result = runBlocking { service.createPayment(command(creditorBankCode = "0000")) }
+        val result = runBlocking { service.createPayment(command(creditorBankCode = "8899")) }
 
         assertThat(result.payment.transferScope).isEqualTo(DomesticTransferScope.INTERNAL_CLIENT)
     }
@@ -150,7 +151,7 @@ class DomesticPaymentServiceTemporalTest {
         coEvery { repo.findByIdempotencyKey(any()) } returns null
         coEvery { accountLookupPort.findPartyByIban(any()) } returns actorId
 
-        val result = runBlocking { service.createPayment(command(creditorBankCode = "0000", actorId = actorId)) }
+        val result = runBlocking { service.createPayment(command(creditorBankCode = "8899", actorId = actorId)) }
 
         assertThat(result.payment.transferScope).isEqualTo(DomesticTransferScope.OWN_ACCOUNTS)
     }

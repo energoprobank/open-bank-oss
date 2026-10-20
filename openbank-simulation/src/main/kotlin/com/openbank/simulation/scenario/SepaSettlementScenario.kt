@@ -35,7 +35,7 @@ object SepaSettlementScenario {
 
     private const val MAX_MINOR_UNITS = 500_000L // up to 5000.00 in a 2-dp currency
     private const val IBAN_PREFIX_LENGTH = 24
-    private const val CREDITOR_BIC = "OPENBACZPXXX"
+    private const val CREDITOR_BIC = "EPROCZPPXXX" // placeholder, branding/brand.yaml bank.bic11
 
     fun step(world: World) {
         var leg = openLeg(world)

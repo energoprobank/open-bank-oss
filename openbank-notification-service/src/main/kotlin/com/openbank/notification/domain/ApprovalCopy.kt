@@ -54,12 +54,13 @@ object ApprovalCopy {
                     "<h2>Čeká na tvůj podpis</h2><p>${vars.v("initiatorName")} ve firmě " +
                     "<b>${vars.v("entityName")}</b> chce provést ${describe(vars, cs, accusative = true)} " +
                     "a potřebuje k tomu tvůj podpis." +
-                    expiry(vars, cs) + "</p><p>Otevři aplikaci OpenBank a požadavek podepiš, nebo zamítni.</p>"
+                    expiry(vars, cs) +
+                    "</p><p>Otevři aplikaci Energo-Pro Bank a požadavek podepiš, nebo zamítni.</p>"
             } else {
                 "Waiting for your signature" to
                     "<h2>Waiting for your signature</h2><p>${vars.v("initiatorName")} at " +
                     "<b>${vars.v("entityName")}</b> prepared $what and needs your signature." +
-                    expiry(vars, cs) + "</p><p>Open the OpenBank app to sign or reject it.</p>"
+                    expiry(vars, cs) + "</p><p>Open the Energo-Pro Bank app to sign or reject it.</p>"
             }
             NotificationTemplate.APPROVAL_COMPLETED -> if (cs) {
                 "Požadavek je podepsaný" to

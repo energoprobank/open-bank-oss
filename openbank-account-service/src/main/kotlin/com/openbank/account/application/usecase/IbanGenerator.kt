@@ -21,15 +21,15 @@ import org.eclipse.microprofile.config.inject.ConfigProperty
  * national scheme. Both checks now hold; see [CzechAccountNumber] for the weighting.
  *
  * [bankCode] is the 4-digit ČNB-assigned bank identifier (config `openbank.account.bank-code`).
- * The sandbox default is the reserved placeholder `0000`, which is **not** assigned to any real
- * Czech bank, so generated IBANs never impersonate a live institution (the earlier `2010` default
- * is Fio banka's real code). The bank code does not participate in the mod-11 account checksum —
+ * The default is the Energo-Pro Bank PLACEHOLDER `8899` (branding/brand.yaml `bank.bank_code`; the
+ * upstream sandbox used `0000`), which is **not** assigned to any real Czech bank, so generated
+ * IBANs never impersonate a live institution (the earlier `2010` default is Fio banka's real code). The bank code does not participate in the mod-11 account checksum —
  * that is the prefix+base — so any 4-digit value still yields a nationally valid BBAN. A production
  * deployment MUST set the real assigned code.
  */
 @ApplicationScoped
 class IbanGenerator(
-    @ConfigProperty(name = "openbank.account.bank-code", defaultValue = "0000")
+    @ConfigProperty(name = "openbank.account.bank-code", defaultValue = "8899")
     private val bankCode: String,
 ) {
     private val countryCode = "CZ"

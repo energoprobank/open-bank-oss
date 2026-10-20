@@ -378,10 +378,11 @@ class BusinessAgreementService(
         val SUPPORTED_LOCALES = listOf("CS", "EN")
 
         // Bank identity exactly as the retail templates print it (DocumentTemplateSeed letterhead).
-        private const val BANK_NAME = "OpenBank a.s."
-        private const val BANK_ICO = "000 00 001"
-        private const val BANK_SEAT_CS = "Na Příkopě 1, 110 00 Praha 1"
-        private const val BANK_SEAT_EN = "Na Příkopě 1, 110 00 Prague 1"
+        // PLACEHOLDER legal entity from branding/brand.yaml (bank.legal_name, company_id, address).
+        private const val BANK_NAME = "Energo-Pro Bank a.s."
+        private const val BANK_ICO = "000 00 019"
+        private const val BANK_SEAT_CS = "Ukázková 1, 110 00 Praha"
+        private const val BANK_SEAT_EN = "Ukázková 1, 110 00 Prague"
 
         private const val PDF = "application/pdf"
         private const val INPUT_DIGEST = "businessAgreementInputSha256"

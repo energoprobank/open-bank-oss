@@ -222,7 +222,7 @@ class DelegatedDomesticPaymentServiceTest {
         debtorBankCode = "0800",
         debtorName = "Grantor",
         creditorAccountNumber = "0987654321",
-        creditorBankCode = "0000",
+        creditorBankCode = "8899",
         creditorName = "Grantee",
         amount = Money.of(BigDecimal("1500.00"), "CZK"),
         variableSymbol = null,

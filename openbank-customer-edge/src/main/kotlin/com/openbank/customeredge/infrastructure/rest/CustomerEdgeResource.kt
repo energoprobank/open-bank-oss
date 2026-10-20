@@ -182,7 +182,7 @@ class CustomerEdgeResource(
     lateinit var consentServiceUrl: String
 
     /** The bank's own SWIFT/BIC — the senderBic on outbound MT103s. */
-    @ConfigProperty(name = "openbank.edge.bank-bic", defaultValue = "OPENCZPPXXX")
+    @ConfigProperty(name = "openbank.edge.bank-bic", defaultValue = "EPROCZPPXXX")
     lateinit var bankBic: String
 
     @ConfigProperty(name = "openbank.edge.sca-service-url")
@@ -1149,7 +1149,7 @@ class CustomerEdgeResource(
             ?: return badRequest("Missing creditorIdentifier")
         val debtorIban = extractTextField(objectMapper, accountJson, "accountNumber")
             ?: return badRequest("Account IBAN unavailable")
-        val debtorName = fetchPartyLegalName(customer.partyId) ?: "OpenBank Customer"
+        val debtorName = fetchPartyLegalName(customer.partyId) ?: "Energo-Pro Bank Customer"
         val req = objectMapper.createObjectNode()
         req.put("accountId", accountId.toString())
         req.put("debtorIban", debtorIban)
@@ -1474,7 +1474,7 @@ class CustomerEdgeResource(
             put("partyId", partyId.toString())
             put("granteeId", BANK_GRANTEE)
             put("granteeType", "INTERNAL_SERVICE")
-            put("granteeName", "OpenBank")
+            put("granteeName", "Energo-Pro Bank")
             putArray("scopes").add(scope)
             // 365 days: the non-AISP bucket's maximum. It is a ceiling, not a promise — the customer
             // can revoke at any time, and nothing re-arms the consent when it lapses.
@@ -4787,7 +4787,7 @@ class CustomerEdgeResource(
             )
             FALLBACK_CARD_PRODUCT_CODE
         }
-        val name = fetchPartyLegalName(customer.partyId) ?: "OpenBank Customer"
+        val name = fetchPartyLegalName(customer.partyId) ?: "Energo-Pro Bank Customer"
         val req = objectMapper.createObjectNode()
         req.put("partyId", customer.partyId.toString())
         req.put("accountId", acct.toString())
@@ -4872,7 +4872,7 @@ class CustomerEdgeResource(
             ?.let { return it }
         // The card is embossed in the GRANTEE's name — it is their instrument, and a card carrying
         // the grantor's name would misrepresent who is presenting it at a terminal. No usable name
-        // means no card: an additional card reading "OpenBank Customer" is not one anybody can use.
+        // means no card: an additional card reading "Energo-Pro Bank Customer" is not one anybody can use.
         val name = fetchPartyLegalName(req.granteePartyId)
             ?: return cardError(
                 BAD_REQUEST_STATUS,
@@ -5105,7 +5105,7 @@ class CustomerEdgeResource(
         if (extractOwnerPartyId(accountJson) != customer.partyId.toString()) {
             return forbidden("Account does not belong to caller")
         }
-        val displayName = fetchPartyLegalName(customer.partyId) ?: "OpenBank"
+        val displayName = fetchPartyLegalName(customer.partyId) ?: "Energo-Pro Bank"
         val masked = PaymentSessionStore.maskIban(extractTextField(objectMapper, accountJson, "accountNumber"))
         val amount = extractTextField(objectMapper, body, "requestedAmount")
         val token = sessions.create(creditorId.toString(), customer.partyId.toString(), displayName, amount, masked)

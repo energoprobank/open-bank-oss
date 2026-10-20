@@ -606,7 +606,7 @@ private fun Throwable.causedByUniqueViolation(): Boolean {
 /** Purposes whose push text carries no dynamic-linking data. */
 internal val STATIC_PUSH_MESSAGES: Map<ScaPurpose, String> = mapOf(
     ScaPurpose.CONSENT_GRANT to "Potvrďte udělení přístupu k vašemu účtu",
-    ScaPurpose.LOGIN to "Potvrďte přihlášení do OpenBank",
+    ScaPurpose.LOGIN to "Potvrďte přihlášení do Energo-Pro Bank",
     ScaPurpose.AGENT_ACTION to "Potvrďte akci bankovního agenta",
     ScaPurpose.SENSITIVE_DATA_ACCESS to "Potvrďte přístup k citlivým údajům",
     ScaPurpose.DOCUMENT_SIGNING to "Potvrďte podpis dokumentu",

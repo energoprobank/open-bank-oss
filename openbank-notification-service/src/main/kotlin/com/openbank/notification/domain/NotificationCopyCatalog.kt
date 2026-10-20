@@ -56,16 +56,16 @@ object NotificationCopyCatalog {
         PENSION_TRANSFER_STATUS, PENSION_INCENTIVE_RECEIVED, PENSION_INCENTIVE_RETURNED,
         -> PensionCopy.render(template, vars, language)
         NotificationTemplate.ACCOUNT_OPENED ->
-            "Your OpenBank account is ready" to
-                "<h2>Welcome to OpenBank!</h2><p>Your account <b>${vars.v(
+            "Your Energo-Pro Bank account is ready" to
+                "<h2>Welcome to Energo-Pro Bank!</h2><p>Your account <b>${vars.v(
                     "accountNumber",
                 )}</b> has been opened.</p>"
         NotificationTemplate.ACCOUNT_CLOSED ->
-            "Your OpenBank account has been closed" to
+            "Your Energo-Pro Bank account has been closed" to
                 "<h2>Account Closed</h2><p>Your account <b>${vars.v("accountNumber")}</b> has been closed. " +
                 "Statements and transaction history remain available on request.</p>"
         NotificationTemplate.ACCOUNT_FROZEN ->
-            "Your OpenBank account has been frozen" to
+            "Your Energo-Pro Bank account has been frozen" to
                 "<h2>Account Frozen</h2><p>Access to your account <b>${vars.v("accountNumber")}</b> has been " +
                 "temporarily suspended. Reason: ${vars.v("reason")}. Please contact support.</p>"
         NotificationTemplate.TRANSACTION_COMPLETED ->
@@ -82,7 +82,8 @@ object NotificationCopyCatalog {
                 "Open your authenticated account view for the current balance.</p>"
         NotificationTemplate.KYC_APPROVED ->
             "Identity verification approved" to
-                "<h2>KYC Approved</h2><p>Your identity has been verified. You can now use all OpenBank services.</p>"
+                "<h2>KYC Approved</h2><p>Your identity has been verified. " +
+                "You can now use all Energo-Pro Bank services.</p>"
         NotificationTemplate.KYC_REJECTED ->
             "Identity verification failed" to
                 "<h2>KYC Rejected</h2><p>We could not verify your identity. Reason: ${vars.v(
@@ -91,17 +92,17 @@ object NotificationCopyCatalog {
         NotificationTemplate.CONSENT_GRANTED ->
             "Access to your account data was granted" to
                 "<h2>Consent Granted</h2><p>You granted access to your account data " +
-                "(<b>${vars.v("scope")}</b>). You can withdraw this at any time in the OpenBank app.</p>"
+                "(<b>${vars.v("scope")}</b>). You can withdraw this at any time in the Energo-Pro Bank app.</p>"
         NotificationTemplate.CONSENT_REVOKED ->
             "Access to your account data was withdrawn" to
                 "<h2>Consent Withdrawn</h2><p>Access to your account data " +
                 "(<b>${vars.v("scope")}</b>) has been withdrawn. No further data will be shared under it.</p>"
         NotificationTemplate.OTP_CODE ->
-            "Your OpenBank verification code" to
+            "Your Energo-Pro Bank verification code" to
                 "<h2>Verification Code</h2><p>Your code is: <b>${vars.v("code")}</b>. Valid for 5 minutes.</p>"
         NotificationTemplate.WELCOME ->
-            "Welcome to OpenBank" to
-                "<h2>Welcome!</h2><p>Thank you for joining OpenBank, ${vars.v("name")}.</p>"
+            "Welcome to Energo-Pro Bank" to
+                "<h2>Welcome!</h2><p>Thank you for joining Energo-Pro Bank, ${vars.v("name")}.</p>"
         NotificationTemplate.SCA_APPROVAL ->
             "Approve your payment" to
                 "<p>${vars.v("detail").ifBlank { "You have a payment waiting for your approval." }}</p>"
@@ -114,7 +115,7 @@ object NotificationCopyCatalog {
         NotificationTemplate.DELEGATION_OFFERED ->
             "You have a delegated access offer to review" to
                 "<h2>Delegated Access Offer</h2><p>Someone has offered you delegated access to their " +
-                "<b>${vars.v("resourceType")}</b>. Open the OpenBank app to accept or decline.</p>"
+                "<b>${vars.v("resourceType")}</b>. Open the Energo-Pro Bank app to accept or decline.</p>"
         NotificationTemplate.DELEGATION_ACCEPTED ->
             "Your delegated access offer was accepted" to
                 "<h2>Offer Accepted</h2><p>Your delegated access offer for your " +
@@ -146,12 +147,12 @@ object NotificationCopyCatalog {
         NotificationTemplate.DELEGATION_FIRST_USE ->
             "Delegated access was used for a payment" to
                 "<h2>Delegated Access Used</h2><p>A person you authorised used delegated access " +
-                "for a confirmed payment. Open the OpenBank app to review your delegated access.</p>"
+                "for a confirmed payment. Open the Energo-Pro Bank app to review your delegated access.</p>"
         NotificationTemplate.DELEGATION_RECERTIFICATION_DUE ->
             "Review delegated access" to
                 "<h2>Review Delegated Access</h2><p>A delegated access grant is due for review " +
                 "under your <b>${vars.v("audience")}</b> review cadence. Access remains active until " +
-                "you explicitly keep, narrow or revoke it in the OpenBank app.</p>"
+                "you explicitly keep, narrow or revoke it in the Energo-Pro Bank app.</p>"
     }
 }
 

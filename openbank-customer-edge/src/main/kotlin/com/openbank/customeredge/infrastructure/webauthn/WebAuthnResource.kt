@@ -103,7 +103,7 @@ class WebAuthnResource(
             rpId = rpId,
             userId = Base64UrlUtil.encodeToString(userId),
             userName = partyId,
-            displayName = "OpenBank",
+            displayName = "Energo-Pro Bank",
         )
         return Response.ok(body).build()
     }
@@ -162,7 +162,7 @@ class WebAuthnResource(
             ?: keycloakClient.ensureUser(
                 email = "party+$partyId@openbank.internal",
                 partyId = partyId,
-                displayName = "OpenBank Customer",
+                displayName = "Energo-Pro Bank Customer",
             )
 
         credentialStore.save(

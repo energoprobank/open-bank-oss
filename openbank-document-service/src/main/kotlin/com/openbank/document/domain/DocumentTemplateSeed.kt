@@ -31,7 +31,16 @@ object DocumentTemplateSeed {
     private const val SEEDED_BY = "system"
     private const val DEMO_CLASSIFICATION = "restricted"
 
-    // v1.1.0 (2026-07-14): added the OpenBank letterhead (inline-SVG logo). Published templates
+    // Energo-Pro Bank rebrand (2026-10-20): every PUBLISHED template below moved one minor
+    // version (1.1.0 -> 1.2.0 for VOP and the retail agreements, 1.0.0 -> 1.1.0 for the ADR-0248
+    // and business templates) with NEW fixed ids (...050-...069) for the new letterhead and the
+    // placeholder legal entity from branding/brand.yaml. Same mechanism as v1.1.0 below: the
+    // seeder inserts the missing ids on the next boot and retires the previous PUBLISHED row per
+    // code, so no Flyway migration is needed and documents already rendered keep their pinned
+    // (now RETIRED) template version. The DRAFT pension rows (...040-...047) name no bank and are
+    // unchanged — V15's MD5 fingerprints pin their bodies.
+    //
+    // v1.1.0 (2026-07-14): added the upstream letterhead (inline-SVG logo). Published templates
     // are immutable (DocumentTemplate.publish()/domain rule), so this is a NEW version — new fixed
     // IDs, not an in-place edit of the v1.0.0 rows already seeded. Superseding the v1.0.0 rows is
     // now handled automatically: DocumentTemplateSeeder retires the current PUBLISHED sibling for
@@ -41,49 +50,49 @@ object DocumentTemplateSeed {
     // already left dangling as PUBLISHED before that policy existed.
     val templates: List<DocumentTemplate> = listOf(
         template(
-            id = "1e575a01-0000-4000-9000-000000000011",
+            id = "1e575a01-0000-4000-9000-000000000050",
             code = "VOP_CS",
-            version = "1.1.0",
+            version = "1.2.0",
             name = "Všeobecné obchodní podmínky",
             locale = "cs",
             bodyHtml = VOP_CS_BODY,
         ),
         template(
-            id = "1e575a01-0000-4000-9000-000000000012",
+            id = "1e575a01-0000-4000-9000-000000000051",
             code = "VOP_EN",
-            version = "1.1.0",
+            version = "1.2.0",
             name = "General Terms and Conditions",
             locale = "en",
             bodyHtml = VOP_EN_BODY,
         ),
         template(
-            id = "1e575a01-0000-4000-9000-000000000013",
+            id = "1e575a01-0000-4000-9000-000000000052",
             code = "RAMCOVA_SMLOUVA_CS",
-            version = "1.1.0",
+            version = "1.2.0",
             name = "Rámcová smlouva o poskytování platebních služeb",
             locale = "cs",
             bodyHtml = FRAMEWORK_AGREEMENT_CS_BODY,
         ),
         template(
-            id = "1e575a01-0000-4000-9000-000000000014",
+            id = "1e575a01-0000-4000-9000-000000000053",
             code = "RAMCOVA_SMLOUVA_EN",
-            version = "1.1.0",
+            version = "1.2.0",
             name = "Framework Agreement for Payment Services",
             locale = "en",
             bodyHtml = FRAMEWORK_AGREEMENT_EN_BODY,
         ),
         template(
-            id = "1e575a01-0000-4000-9000-000000000015",
+            id = "1e575a01-0000-4000-9000-000000000054",
             code = "UCET_SMLOUVA_CS",
-            version = "1.1.0",
+            version = "1.2.0",
             name = "Smlouva o zřízení a vedení běžného účtu",
             locale = "cs",
             bodyHtml = ACCOUNT_AGREEMENT_CS_BODY,
         ),
         template(
-            id = "1e575a01-0000-4000-9000-000000000016",
+            id = "1e575a01-0000-4000-9000-000000000055",
             code = "UCET_SMLOUVA_EN",
-            version = "1.1.0",
+            version = "1.2.0",
             name = "Current Account Opening Agreement",
             locale = "en",
             bodyHtml = ACCOUNT_AGREEMENT_EN_BODY,
@@ -91,120 +100,120 @@ object DocumentTemplateSeed {
         // ADR-0248: monthly statement, PAD Art. 5 annual statement of fees, and payment
         // confirmation. All three render only through the existing non-persisting
         // `POST /api/v1/documents/templates/preview` endpoint — never stored, never a
-        // `Document` row, never a `document.generated` outbox event (ADR-0248 Decision). New
-        // codes at version 1.0.0, not superseding any existing row.
+        // `Document` row, never a `document.generated` outbox event (ADR-0248 Decision). Added
+        // as new codes at 1.0.0; 1.1.0 is the Energo-Pro rebrand.
         template(
-            id = "1e575a01-0000-4000-9000-000000000017",
+            id = "1e575a01-0000-4000-9000-000000000056",
             code = "MESICNI_VYPIS_CS",
-            version = "1.0.0",
+            version = "1.1.0",
             name = "Měsíční výpis z účtu",
             locale = "cs",
             bodyHtml = MONTHLY_STATEMENT_CS_BODY,
         ),
         template(
-            id = "1e575a01-0000-4000-9000-000000000018",
+            id = "1e575a01-0000-4000-9000-000000000057",
             code = "MESICNI_VYPIS_EN",
-            version = "1.0.0",
+            version = "1.1.0",
             name = "Monthly Account Statement",
             locale = "en",
             bodyHtml = MONTHLY_STATEMENT_EN_BODY,
         ),
         template(
-            id = "1e575a01-0000-4000-9000-000000000019",
+            id = "1e575a01-0000-4000-9000-000000000058",
             code = "ROCNI_VYPIS_POPLATKU_CS",
-            version = "1.0.0",
+            version = "1.1.0",
             name = "Roční výpis poplatků",
             locale = "cs",
             bodyHtml = ANNUAL_FEE_STATEMENT_CS_BODY,
         ),
         template(
-            id = "1e575a01-0000-4000-9000-000000000020",
+            id = "1e575a01-0000-4000-9000-000000000059",
             code = "ROCNI_VYPIS_POPLATKU_EN",
-            version = "1.0.0",
+            version = "1.1.0",
             name = "Annual Statement of Fees",
             locale = "en",
             bodyHtml = ANNUAL_FEE_STATEMENT_EN_BODY,
         ),
         template(
-            id = "1e575a01-0000-4000-9000-000000000021",
+            id = "1e575a01-0000-4000-9000-000000000060",
             code = "POTVRZENI_O_PLATBE_CS",
-            version = "1.0.0",
+            version = "1.1.0",
             name = "Potvrzení o provedení platby",
             locale = "cs",
             bodyHtml = PAYMENT_CONFIRMATION_CS_BODY,
         ),
         template(
-            id = "1e575a01-0000-4000-9000-000000000022",
+            id = "1e575a01-0000-4000-9000-000000000061",
             code = "POTVRZENI_O_PLATBE_EN",
-            version = "1.0.0",
+            version = "1.1.0",
             name = "Payment Confirmation",
             locale = "en",
             bodyHtml = PAYMENT_CONFIRMATION_EN_BODY,
         ),
         // Business onboarding (legal entity): the framework agreement the company signs and the
-        // three disclosures annexed to it (bodies in BusinessTemplateBodies.kt). New codes at
-        // 1.0.0 — the seeder inserts them into an already-seeded database by fixed id, and there
-        // is no PUBLISHED sibling to retire, so V5's one-published-per-code index is untouched.
+        // three disclosures annexed to it (bodies in BusinessTemplateBodies.kt). Added as new
+        // codes at 1.0.0; 1.1.0 is the Energo-Pro rebrand, which the seeder inserts by fixed id
+        // after retiring the 1.0.0 row, so V5's one-published-per-code index still holds.
         template(
-            id = "1e575a01-0000-4000-9000-000000000030",
+            id = "1e575a01-0000-4000-9000-000000000062",
             code = "RAMCOVA_SMLOUVA_PO_CS",
-            version = "1.0.0",
+            version = "1.1.0",
             name = "Rámcová smlouva o platebních službách a běžném účtu pro podnikatele",
             locale = "cs",
             bodyHtml = BUSINESS_AGREEMENT_CS_BODY,
         ),
         template(
-            id = "1e575a01-0000-4000-9000-000000000031",
+            id = "1e575a01-0000-4000-9000-000000000063",
             code = "RAMCOVA_SMLOUVA_PO_EN",
-            version = "1.0.0",
+            version = "1.1.0",
             name = "Framework Agreement for Payment Services and Business Current Account",
             locale = "en",
             bodyHtml = BUSINESS_AGREEMENT_EN_BODY,
         ),
         template(
-            id = "1e575a01-0000-4000-9000-000000000032",
+            id = "1e575a01-0000-4000-9000-000000000064",
             code = "SAZEBNIK_PO_CS",
-            version = "1.0.0",
+            version = "1.1.0",
             name = "Sazebník poplatků pro podnikatele",
             locale = "cs",
             bodyHtml = BUSINESS_FEES_CS_BODY,
         ),
         template(
-            id = "1e575a01-0000-4000-9000-000000000033",
+            id = "1e575a01-0000-4000-9000-000000000065",
             code = "SAZEBNIK_PO_EN",
-            version = "1.0.0",
+            version = "1.1.0",
             name = "Business Schedule of Fees",
             locale = "en",
             bodyHtml = BUSINESS_FEES_EN_BODY,
         ),
         template(
-            id = "1e575a01-0000-4000-9000-000000000034",
+            id = "1e575a01-0000-4000-9000-000000000066",
             code = "PREDSMLUVNI_INFORMACE_PO_CS",
-            version = "1.0.0",
+            version = "1.1.0",
             name = "Předsmluvní informace k platebním službám",
             locale = "cs",
             bodyHtml = BUSINESS_PRECONTRACT_CS_BODY,
         ),
         template(
-            id = "1e575a01-0000-4000-9000-000000000035",
+            id = "1e575a01-0000-4000-9000-000000000067",
             code = "PREDSMLUVNI_INFORMACE_PO_EN",
-            version = "1.0.0",
+            version = "1.1.0",
             name = "Pre-contractual Information on Payment Services",
             locale = "en",
             bodyHtml = BUSINESS_PRECONTRACT_EN_BODY,
         ),
         template(
-            id = "1e575a01-0000-4000-9000-000000000036",
+            id = "1e575a01-0000-4000-9000-000000000068",
             code = "INFORMACE_POJISTENI_VKLADU_CS",
-            version = "1.0.0",
+            version = "1.1.0",
             name = "Informace pro vkladatele o pojištění vkladů",
             locale = "cs",
             bodyHtml = DEPOSIT_INSURANCE_CS_BODY,
         ),
         template(
-            id = "1e575a01-0000-4000-9000-000000000037",
+            id = "1e575a01-0000-4000-9000-000000000069",
             code = "INFORMACE_POJISTENI_VKLADU_EN",
-            version = "1.0.0",
+            version = "1.1.0",
             name = "Depositor Information Sheet",
             locale = "en",
             bodyHtml = DEPOSIT_INSURANCE_EN_BODY,
@@ -309,46 +318,64 @@ object DocumentTemplateSeed {
 // VOP — Všeobecné obchodní podmínky / General Terms and Conditions
 // ---------------------------------------------------------------------------------------------
 
-// Letterhead — inline SVG, not an <img src="..."> reference: the real render pipeline's
-// PdfRenderPort (WeasyPrint/Gotenberg) never fetches external resources by design (SSRF
-// mitigation), and the admin-ui preview also sandboxes the iframe without network access —
-// inline SVG markup needs neither, so it renders identically in the editor preview, a
-// browser "open in new window" view, and the actual generated PDF. Two locale variants
-// (only the city name differs) so every document, not just the party-identification
-// clause, opens with a real letterhead rather than a bare heading.
+// Letterhead — the brand mark is an inline `data:` URI, never an <img src="https://..."> reference:
+// the real render pipeline's PdfRenderPort (openbank-document-renderer's RestrictedURLFetcher)
+// fetches nothing but `data:` URIs by design (SSRF mitigation), and the admin-ui preview sandboxes
+// the iframe with `img-src data:` — so the mark renders identically in the editor preview, a
+// browser "open in new window" view, and the actual generated PDF. Two locale variants (only the
+// city name differs) so every document, not just the party-identification clause, opens with a
+// real letterhead rather than a bare heading.
+//
+// Identity values are the PLACEHOLDER legal entity from branding/brand.yaml (bank.legal_name,
+// bank.address); replace them there and here before any document leaves a demo environment.
+// Colours: #3688DD (Curious Blue) only for the mark and the rule (it fails AA as text on white);
+// #0A1324 (Firefly) for text.
+
+// Energo-Pro mark (Curious Blue #3688DD), 187x59 4-bit palette PNG (~1 KB) derived from
+// branding/generated/mark-blue.png by a 2x downscale; shown at 89x28 so it stays sharp in print.
+private const val LETTERHEAD_MARK_PNG_BASE64 =
+    "iVBORw0KGgoAAAANSUhEUgAAALsAAAA7BAMAAADRDuaBAAAAMFBMVEU2iN02iN02iN02iN02iN02iN02iN02iN02iN02iN02" +
+    "iN02iN02iN02iN02iN02iN0aRMCwAAAAEHRSTlMAESIzRFVmd4iZqrvM3e7/dpUBFQAAAy5JREFUeNq1mEFoE1EQhl+SNbXV" +
+    "Q0APihZzUCoKUg/1ZqlHQWsvelGwKrQK1Xpp9VBNECzxEvXgQTTYIgWpWq0nIUKsoHhILOpJJY2goi2060FrkzS7vlJkJ9md" +
+    "ebMPHAjJwu7H2/dm/vknQmhG023TVsZPXXqPzYnPmvSL9v/AB1q6bzXL7/08uv3YB3tzdypv2vPyVz2Tbndy2VtO5ZaP8poQ" +
+    "wUkm3WpmsdeezP1Lk7K8bOcuvsKB70pNOU+8FWIFl24vqOEtKbPmdXvZ+C/KlT+oLp7fQtSx6fZzBfxhbWXG/Sze6qDgoR5X" +
+    "2ZeECPMXXyaX/sb9wIQQR/n4r8TSBzwUqxIVIT7dwouqaQpZzg4+fhql7zWRGg9MsumVs5hwHfamF4VYxd+alwg9OIDr31Uu" +
+    "PDcS8aYbY8gji5EqPfg0eJCInVjKjBEl3upczbTptKFgEn3fNhEoOAfXoUMPXEC3848QDc7VEy36afy0hoSIOeoQ0cEfIQQk" +
+    "Igzn6roOfRthXd7BipUVEO5yB8gcr5Qs0G0zAzfqkV81CySJ+79BfyA3im4qUvtcsY96IA6lWKnL4276Osozyj4SMqEukwaz" +
+    "5FGtpBbK9TbCjW20Fa9aG6R5saLgYJfaRIa6e95ND5uKRKiHWdlArsVDjZIqr9gLzy1G3Tzspq8n6XK9Btwow6ZT2KWTGZWP" +
+    "bocb1Uq5D4+U300XSQQmYhzqMs8enJNxPpFIXLk5Ono/nU4/y2azeRlzs/KTfw/XW6Yb7gsdrTNMKG13cPp3rVEqBrOOsIFF" +
+    "rTawvapnHcDFIKpD32rCJMLlpozPOmsOdWEB3aZMoo0YfRH1DkZqjj1vYCWCe4e6An+SxIbOEr52ti8tocPJjygj7VQxASsA" +
+    "xis8MVbyXW8U8fd3WTWjil/e/n7mGDWh8eeNTq8+Yo2QRbOaTS96+ftphZflz6lD7pZZuaEqeXbOl139vjKolDD+GDwuggWf" +
+    "cB/DmHR+G6DCXGaJ7yYufhjYVuv1Caback92Qdbf8sFaH/r4XYM5Si79u3FGfs/e6/PVkXiJY12Sypd/2r/HbyvKc+Ljcc3/" +
+    "O/8C2BCgrv9Hl/MAAAAASUVORK5CYII="
+
 internal const val LETTERHEAD_CS = """
-<div style="display:flex;align-items:center;gap:12px;padding-bottom:16px;margin-bottom:24px;border-bottom:2px solid #4f46e5;">
-<svg width="42" height="42" viewBox="0 0 42 42" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="OpenBank">
-<rect width="42" height="42" rx="10" fill="#4f46e5"/>
-<text x="21" y="28" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif" font-size="16" font-weight="700" fill="#ffffff" text-anchor="middle">OB</text>
-</svg>
+<div style="display:flex;align-items:center;gap:14px;padding-bottom:16px;margin-bottom:24px;border-bottom:2px solid #3688DD;">
+<img src="data:image/png;base64,$LETTERHEAD_MARK_PNG_BASE64" width="89" height="28" alt="Energo-Pro Bank"/>
 <div>
-<div style="font-size:19px;font-weight:700;color:#0f172a;letter-spacing:-0.01em;">OpenBank</div>
-<div style="font-size:10.5px;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;">a.s. &middot; Na Příkopě 1, 110&nbsp;00 Praha 1</div>
+<div style="font-size:19px;font-weight:700;color:#0A1324;letter-spacing:-0.01em;">Energo-Pro Bank</div>
+<div style="font-size:10.5px;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;">a.s. &middot; Ukázková 1, 110&nbsp;00 Praha</div>
 </div>
 </div>
 """
 
 internal const val LETTERHEAD_EN = """
-<div style="display:flex;align-items:center;gap:12px;padding-bottom:16px;margin-bottom:24px;border-bottom:2px solid #4f46e5;">
-<svg width="42" height="42" viewBox="0 0 42 42" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="OpenBank">
-<rect width="42" height="42" rx="10" fill="#4f46e5"/>
-<text x="21" y="28" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif" font-size="16" font-weight="700" fill="#ffffff" text-anchor="middle">OB</text>
-</svg>
+<div style="display:flex;align-items:center;gap:14px;padding-bottom:16px;margin-bottom:24px;border-bottom:2px solid #3688DD;">
+<img src="data:image/png;base64,$LETTERHEAD_MARK_PNG_BASE64" width="89" height="28" alt="Energo-Pro Bank"/>
 <div>
-<div style="font-size:19px;font-weight:700;color:#0f172a;letter-spacing:-0.01em;">OpenBank</div>
-<div style="font-size:10.5px;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;">a.s. &middot; Na Příkopě 1, 110&nbsp;00 Prague 1</div>
+<div style="font-size:19px;font-weight:700;color:#0A1324;letter-spacing:-0.01em;">Energo-Pro Bank</div>
+<div style="font-size:10.5px;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;">a.s. &middot; Ukázková 1, 110&nbsp;00 Prague</div>
 </div>
 </div>
 """
 
 private const val VOP_CS_BODY = """$LETTERHEAD_CS
 <h1>Všeobecné obchodní podmínky</h1>
-<p style="color:#64748b;font-size:12px;">OpenBank a.s. &middot; účinné od {{document.date}}</p>
+<p style="color:#64748b;font-size:12px;">Energo-Pro Bank a.s. &middot; účinné od {{document.date}}</p>
 
 <h2>Článek 1 &ndash; Úvodní ustanovení</h2>
 <p>Tyto Všeobecné obchodní podmínky (dále jen &bdquo;VOP&ldquo;) upravují vzájemná práva a povinnosti mezi
-společností OpenBank a.s. (dále jen &bdquo;Banka&ldquo;) a klientem, kterým může být fyzická nebo právnická
+společností Energo-Pro Bank a.s. (dále jen &bdquo;Banka&ldquo;) a klientem, kterým může být fyzická nebo právnická
 osoba (dále jen &bdquo;Klient&ldquo;), při poskytování bankovních produktů a služeb, zejména platebních
 účtů, platebních služeb a souvisejících produktů (dále jen &bdquo;Produkty&ldquo;). VOP tvoří nedílnou
 součást každé smlouvy uzavřené mezi Bankou a Klientem, není-li v konkrétní smlouvě sjednáno jinak.</p>
@@ -400,11 +427,11 @@ Klienta informuje způsobem sjednaným v příslušné smlouvě.</p>
 
 private const val VOP_EN_BODY = """$LETTERHEAD_EN
 <h1>General Terms and Conditions</h1>
-<p style="color:#64748b;font-size:12px;">OpenBank a.s. &middot; effective from {{document.date}}</p>
+<p style="color:#64748b;font-size:12px;">Energo-Pro Bank a.s. &middot; effective from {{document.date}}</p>
 
 <h2>Article 1 &ndash; Introductory provisions</h2>
 <p>These General Terms and Conditions (the &ldquo;GTC&rdquo;) govern the mutual rights and obligations
-between OpenBank a.s. (the &ldquo;Bank&rdquo;) and its customer, whether a natural or legal person (the
+between Energo-Pro Bank a.s. (the &ldquo;Bank&rdquo;) and its customer, whether a natural or legal person (the
 &ldquo;Customer&rdquo;), in connection with the provision of banking products and services, in particular
 payment accounts, payment services and related products (the &ldquo;Products&rdquo;). The GTC form an
 integral part of every agreement concluded between the Bank and the Customer, unless the specific
@@ -462,7 +489,7 @@ and will notify the Customer in the manner agreed in the relevant agreement.</p>
 private const val FRAMEWORK_AGREEMENT_CS_BODY = """$LETTERHEAD_CS
 <h1>Rámcová smlouva o poskytování platebních služeb</h1>
 
-<p><strong>OpenBank a.s.</strong>, se sídlem Na Příkopě 1, 110 00 Praha 1, IČO 000 00 001, zapsaná v
+<p><strong>Energo-Pro Bank a.s.</strong>, se sídlem Ukázková 1, 110 00 Praha, IČO 000 00 019, zapsaná v
 obchodním rejstříku vedeném Městským soudem v Praze (dále jen &bdquo;Banka&ldquo;)</p>
 <p>a</p>
 <p><strong>{{party.name}}</strong>{{#if party.address}}, bytem/se sídlem {{party.address}}{{/if}}
@@ -514,8 +541,8 @@ obchodní podmínky Banky.</p>
 private const val FRAMEWORK_AGREEMENT_EN_BODY = """$LETTERHEAD_EN
 <h1>Framework Agreement for Payment Services</h1>
 
-<p><strong>OpenBank a.s.</strong>, with its registered office at Na Příkopě 1, 110 00 Prague 1, Company
-ID 000 00 001, registered with the Municipal Court in Prague (the &ldquo;Bank&rdquo;)</p>
+<p><strong>Energo-Pro Bank a.s.</strong>, with its registered office at Ukázková 1, 110 00 Prague, Company
+ID 000 00 019, registered with the Municipal Court in Prague (the &ldquo;Bank&rdquo;)</p>
 <p>and</p>
 <p><strong>{{party.name}}</strong>{{#if party.address}}, of {{party.address}}{{/if}}
 (the &ldquo;Customer&rdquo;)</p>
@@ -570,7 +597,7 @@ form an integral part of this Agreement.</p>
 private const val ACCOUNT_AGREEMENT_CS_BODY = """$LETTERHEAD_CS
 <h1>Smlouva o zřízení a vedení běžného účtu</h1>
 
-<p><strong>OpenBank a.s.</strong>, se sídlem Na Příkopě 1, 110 00 Praha 1, IČO 000 00 001
+<p><strong>Energo-Pro Bank a.s.</strong>, se sídlem Ukázková 1, 110 00 Praha, IČO 000 00 019
 (dále jen &bdquo;Banka&ldquo;)</p>
 <p>a</p>
 <p><strong>{{party.name}}</strong>{{#if party.address}}, bytem/se sídlem {{party.address}}{{/if}}
@@ -613,8 +640,8 @@ ve VOP.</p>
 private const val ACCOUNT_AGREEMENT_EN_BODY = """$LETTERHEAD_EN
 <h1>Current Account Opening Agreement</h1>
 
-<p><strong>OpenBank a.s.</strong>, with its registered office at Na Příkopě 1, 110 00 Prague 1, Company
-ID 000 00 001 (the &ldquo;Bank&rdquo;)</p>
+<p><strong>Energo-Pro Bank a.s.</strong>, with its registered office at Ukázková 1, 110 00 Prague, Company
+ID 000 00 019 (the &ldquo;Bank&rdquo;)</p>
 <p>and</p>
 <p><strong>{{party.name}}</strong>{{#if party.address}}, of {{party.address}}{{/if}}
 {{#if party.email}}, email {{party.email}}{{/if}} (the &ldquo;Customer&rdquo;)</p>
@@ -661,7 +688,7 @@ manner agreed in the GTC.</p>
 private const val MONTHLY_STATEMENT_CS_BODY = """$LETTERHEAD_CS
 <h1>Měsíční výpis z účtu</h1>
 <p style="color:#64748b;font-size:12px;">
-  OpenBank a.s. &middot; výpis za období {{document.periodFrom}} &ndash; {{document.periodTo}}
+  Energo-Pro Bank a.s. &middot; výpis za období {{document.periodFrom}} &ndash; {{document.periodTo}}
 </p>
 
 <h2>Identifikace účtu</h2>
@@ -717,7 +744,7 @@ private const val MONTHLY_STATEMENT_CS_BODY = """$LETTERHEAD_CS
 private const val MONTHLY_STATEMENT_EN_BODY = """$LETTERHEAD_EN
 <h1>Monthly Account Statement</h1>
 <p style="color:#64748b;font-size:12px;">
-  OpenBank a.s. &middot; statement for the period {{document.periodFrom}} &ndash; {{document.periodTo}}
+  Energo-Pro Bank a.s. &middot; statement for the period {{document.periodFrom}} &ndash; {{document.periodTo}}
 </p>
 
 <h2>Account identification</h2>
@@ -776,7 +803,7 @@ private const val MONTHLY_STATEMENT_EN_BODY = """$LETTERHEAD_EN
 
 private const val ANNUAL_FEE_STATEMENT_CS_BODY = """$LETTERHEAD_CS
 <h1>Roční výpis poplatků</h1>
-<p style="color:#64748b;font-size:12px;">OpenBank a.s. &middot; kalendářní rok {{document.year}}</p>
+<p style="color:#64748b;font-size:12px;">Energo-Pro Bank a.s. &middot; kalendářní rok {{document.year}}</p>
 
 <h2>Identifikace účtu</h2>
 <p>
@@ -822,7 +849,7 @@ private const val ANNUAL_FEE_STATEMENT_CS_BODY = """$LETTERHEAD_CS
 
 private const val ANNUAL_FEE_STATEMENT_EN_BODY = """$LETTERHEAD_EN
 <h1>Annual Statement of Fees</h1>
-<p style="color:#64748b;font-size:12px;">OpenBank a.s. &middot; calendar year {{document.year}}</p>
+<p style="color:#64748b;font-size:12px;">Energo-Pro Bank a.s. &middot; calendar year {{document.year}}</p>
 
 <h2>Account identification</h2>
 <p>

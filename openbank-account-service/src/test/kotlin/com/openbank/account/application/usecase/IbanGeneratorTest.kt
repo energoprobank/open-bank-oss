@@ -66,16 +66,16 @@ class IbanGeneratorTest {
     }
 
     @Test
-    fun `default sandbox bank code 0000 still yields valid Czech IBANs`() {
-        // 0000 is the reserved sandbox placeholder (not a real ČNB-assigned code, unlike 2010 = Fio).
+    fun `default placeholder bank code 8899 still yields valid Czech IBANs`() {
+        // 8899 is the Energo-Pro Bank placeholder (not a real ČNB-assigned code, unlike 2010 = Fio).
         // The bank code is outside the mod-11 weighting, so an unassigned code is still BBAN-valid.
-        val sandbox = IbanGenerator("0000")
+        val sandbox = IbanGenerator("8899")
         repeat(200) {
             val iban = sandbox.generate(CurrencyCode.CZK)
             assertThat(Iban.isValid(iban.value))
-                .withFailMessage("IBAN %s under bank code 0000 fails ISO mod-97", iban.value)
+                .withFailMessage("IBAN %s under bank code 8899 fails ISO mod-97", iban.value)
                 .isTrue()
-            assertThat(iban.bban).startsWith("0000")
+            assertThat(iban.bban).startsWith("8899")
             assertThat(CzechAccountNumber.isValidBase(iban.bban.substring(10, 20)))
                 .withFailMessage("base of %s fails mod-11", iban.value)
                 .isTrue()

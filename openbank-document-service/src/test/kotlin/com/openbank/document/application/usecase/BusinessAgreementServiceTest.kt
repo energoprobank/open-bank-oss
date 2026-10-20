@@ -92,7 +92,7 @@ class BusinessAgreementServiceTest {
         val agreement = service.ensure(cmd())
 
         assertThat(agreement.templateCode).isEqualTo("RAMCOVA_SMLOUVA_PO_CS")
-        assertThat(agreement.templateVersion).isEqualTo("1.0.0")
+        assertThat(agreement.templateVersion).isEqualTo("1.1.0")
         assertThat(agreement.ceremonyStatus).isEqualTo(CeremonyStatus.PENDING)
         assertThat(agreement.signers.map { it.partyRef }).containsExactly(alice, bob)
         assertThat(ceremonies.opened.single().signerPartyRefs).containsExactly(alice, bob)
@@ -105,7 +105,7 @@ class BusinessAgreementServiceTest {
                 "INFORMACE_POJISTENI_VKLADU_CS",
             )
         assertThat(agreement.disclosures.first().title).isEqualTo("Všeobecné obchodní podmínky")
-        assertThat(agreement.disclosures.first().version).isEqualTo("1.1.0")
+        assertThat(agreement.disclosures.first().version).isEqualTo("1.2.0")
         assertThat(agreement.sealedSha256).isNull()
 
         val stored = docs.all()

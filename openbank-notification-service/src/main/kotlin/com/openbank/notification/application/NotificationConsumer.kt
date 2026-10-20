@@ -99,11 +99,11 @@ class NotificationConsumer @Inject constructor(
          * fixed string is the body. Full detail is fetched on tap via the authenticated,
          * party-scoped GET /api/v1/notifications/{id}/self.
          */
-        const val GENERIC_PUSH_BODY = "Open the OpenBank app to view details."
+        const val GENERIC_PUSH_BODY = "Open the Energo-Pro Bank app to view details."
 
         /** PII-free fallback e-mail body. Full detail remains behind the authenticated app. */
         const val GENERIC_FALLBACK_EMAIL_BODY =
-            "A notification is waiting in the OpenBank app. Open the app to view details."
+            "A notification is waiting in the Energo-Pro Bank app. Open the app to view details."
 
         /**
          * The consent scope a MARKETING send is checked against, per target channel (ADR-0198 D4).

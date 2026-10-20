@@ -165,7 +165,7 @@ class OperatorMessageService {
     private fun render(template: OperatorMessageTemplate, vars: Map<String, String>): Pair<String, String> =
         when (template) {
             OperatorMessageTemplate.GENERIC_NOTICE ->
-                (vars.getValue("subject").ifBlank { "A message from OpenBank" }) to
+                (vars.getValue("subject").ifBlank { "A message from Energo-Pro Bank" }) to
                     "<p>${HtmlEscape.escape(vars.getValue("note"))}</p>"
             OperatorMessageTemplate.SUPPORT_FOLLOWUP ->
                 "Following up on your support request" to

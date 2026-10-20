@@ -77,7 +77,7 @@ quarkus:
     port: 1025
     start-tls: DISABLED
     auth-methods: DISABLED
-    from: noreply@openbank.cz
+    from: noreply@energoprobank.example
   redis:
     hosts: redis://localhost:6379
   shutdown:

@@ -116,7 +116,7 @@ class PdfBoxPadesSealAdapter(
                     "real organizational PKCS12 certificate (OpenBao KV, ADR-0162 D4 continued) " +
                     "before this service handles a real signature ceremony.",
             )
-            PadesSigning.generateEphemeralIdentity("OpenBank Document Service (DEV-ONLY EPHEMERAL)")
+            PadesSigning.generateEphemeralIdentity("Energo-Pro Bank Document Service (DEV-ONLY EPHEMERAL)")
         }
     }
 
@@ -191,7 +191,7 @@ class PdfBoxPadesSealAdapter(
     }
 
     private companion object {
-        const val ORGANIZATION_NAME = "OpenBank"
-        const val SEAL_REASON = "Document signed via OpenBank signature ceremony"
+        const val ORGANIZATION_NAME = "Energo-Pro Bank"
+        const val SEAL_REASON = "Document signed via Energo-Pro Bank signature ceremony"
     }
 }

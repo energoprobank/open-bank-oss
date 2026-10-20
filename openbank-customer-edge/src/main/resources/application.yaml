@@ -170,7 +170,7 @@ openbank:
     # atomic swap) is rolled out — an older one would create a second order and cancel nothing.
     features:
       standingorders-replace: ${EDGE_FEATURE_STANDINGORDERS_REPLACE:false}
-    bank-bic: ${OPENBANK_BANK_BIC:OPENCZPPXXX}
+    bank-bic: ${OPENBANK_BANK_BIC:EPROCZPPXXX}
     sca-service-url:     ${SCA_SERVICE_URL:http://sca-service.sca.svc:8110}
     party-service-url:   ${PARTY_SERVICE_URL:http://party-service.party.svc:8111}
     pid-service-url:     ${PID_SERVICE_URL:http://pid-service.pid.svc:8105}

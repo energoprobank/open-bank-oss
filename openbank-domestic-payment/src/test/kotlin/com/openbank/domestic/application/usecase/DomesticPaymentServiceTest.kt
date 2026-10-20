@@ -70,6 +70,7 @@ class DomesticPaymentServiceTest {
             metrics,
             "openbank-domestic-payments",
             workflowClient,
+            DomesticPaymentService.DEFAULT_OWN_BANK_CODE,
         )
 
         coEvery { paymentRepository.save(any(), any()) } answers { firstArg() }

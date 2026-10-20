@@ -77,7 +77,7 @@ class DocumentTemplateSeedTest {
         "signature" to mapOf("block" to "Podepsáno elektronicky / Signed electronically"),
         // Business onboarding (RAMCOVA_SMLOUVA_PO / SAZEBNIK_PO / PREDSMLUVNI_INFORMACE_PO /
         // INFORMACE_POJISTENI_VKLADU) — the shape BusinessAgreementService supplies.
-        "bank" to mapOf("name" to "OpenBank a.s.", "seat" to "Na Příkopě 1, 110 00 Praha 1", "ico" to "000 00 001"),
+        "bank" to mapOf("name" to "Energo-Pro Bank a.s.", "seat" to "Ukázková 1, 110 00 Praha", "ico" to "000 00 019"),
         "entity" to mapOf(
             "name" to "Stavby Horák s.r.o.",
             "ico" to "27074358",
@@ -95,7 +95,7 @@ class DocumentTemplateSeedTest {
         "signingRule" to "Za společnost jednají dva jednatelé společně.",
         "agreement" to mapOf("date" to "2026-09-17", "number" to "PO-3F2A9C1D0B4E"),
         "disclosures" to listOf(
-            mapOf("title" to "Všeobecné obchodní podmínky", "code" to "VOP_CS", "version" to "1.1.0"),
+            mapOf("title" to "Všeobecné obchodní podmínky", "code" to "VOP_CS", "version" to "1.2.0"),
             mapOf("title" to "Sazebník poplatků pro podnikatele", "code" to "SAZEBNIK_PO_CS", "version" to "1.0.0"),
         ),
         "fees" to listOf(
@@ -166,6 +166,22 @@ class DocumentTemplateSeedTest {
         assertThat(templates.map { it.code }).doesNotHaveDuplicates()
     }
 
+    /**
+     * Every published template opens with the Energo-Pro Bank letterhead and names the placeholder
+     * legal entity from branding/brand.yaml; nothing still carries the upstream bank name or seat.
+     */
+    @TestFactory
+    fun `published templates carry the Energo-Pro Bank letterhead and no upstream bank identity`() =
+        DocumentTemplateSeed.templates.filter { it.status == TemplateStatus.PUBLISHED }.map { template ->
+            DynamicTest.dynamicTest(template.code) {
+                assertThat(template.bodyHtml)
+                    .contains("Energo-Pro Bank", "Ukázková 1", "data:image/png;base64,iVBORw0KGgo", "#3688DD")
+                    .doesNotContain("OpenBank")
+                    .doesNotContain("Na Příkopě 1,")
+                    .doesNotContain("000 00 001")
+            }
+        }
+
     @TestFactory
     fun `ADR-0248 templates are seeded as HANDLEBARS-engine, published, restricted rows`() = listOf(
         "MESICNI_VYPIS_CS",
@@ -175,11 +191,11 @@ class DocumentTemplateSeedTest {
         "POTVRZENI_O_PLATBE_CS",
         "POTVRZENI_O_PLATBE_EN",
     ).map { code ->
-        DynamicTest.dynamicTest("$code is HANDLEBARS/PUBLISHED/restricted at version 1.0.0") {
+        DynamicTest.dynamicTest("$code is HANDLEBARS/PUBLISHED/restricted at version 1.1.0") {
             val template = DocumentTemplateSeed.templates.single { it.code == code }
             assertThat(template.engine).isEqualTo(TemplateEngine.HANDLEBARS)
             assertThat(template.status).isEqualTo(TemplateStatus.PUBLISHED)
-            assertThat(template.version).isEqualTo("1.0.0")
+            assertThat(template.version).isEqualTo("1.1.0")
             assertThat(template.classification).isEqualTo("restricted")
             assertThat(template.productRef).isNull()
         }
@@ -199,7 +215,7 @@ class DocumentTemplateSeedTest {
         BUSINESS_CODES.map { code ->
             DynamicTest.dynamicTest(code) {
                 val template = DocumentTemplateSeed.templates.single { it.code == code }
-                assertThat(template.version).isEqualTo("1.0.0")
+                assertThat(template.version).isEqualTo("1.1.0")
                 assertThat(template.status).isEqualTo(TemplateStatus.PUBLISHED)
                 assertThat(template.locale).isEqualTo(code.takeLast(2).lowercase())
 
@@ -208,7 +224,7 @@ class DocumentTemplateSeedTest {
                 val rendered = strict.compileInline(template.bodyHtml).apply(data)
 
                 assertThat(rendered).doesNotContain("{{").doesNotContain("}}")
-                assertThat(rendered).contains("OpenBank a.s.")
+                assertThat(rendered).contains("Energo-Pro Bank a.s.")
                 // Real bank documents: nothing may present itself as a sample or placeholder.
                 assertThat(rendered.lowercase()).doesNotContain("sample").doesNotContain("vzor")
                 if (code.startsWith("RAMCOVA_SMLOUVA_PO")) {

@@ -57,7 +57,7 @@ object OversightWebhook {
      */
     fun renderText(signal: OversightSignal): String {
         val label = signal.template.name.replace('_', ' ')
-        val line = "${emoji(signal.template)} OpenBank oversight: $label (status ${signal.status.name}) " +
+        val line = "${emoji(signal.template)} Energo-Pro Bank oversight: $label (status ${signal.status.name}) " +
             "at ${signal.occurredAt} UTC. No customer data — anonymized oversight signal (ADR-0059)."
         // Defense in depth (ADR-0059 D3): scrub any PII-looking token that a future
         // schema change might introduce, so two independent controls must fail to leak.

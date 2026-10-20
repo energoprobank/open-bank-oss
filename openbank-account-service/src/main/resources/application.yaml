@@ -317,6 +317,9 @@ openbank:
     opa-pdp-producer:
       enabled: true
   account:
+    # 4-digit ČNB bank code embedded in generated CZ IBANs. 8899 is a PLACEHOLDER (not in the ČNB
+    # registry) — see branding/brand.yaml. Same env var as domestic-payment's own-bank code.
+    bank-code: ${OPENBANK_BANK_CODE:8899}
     onboarding:
       # Catch-up for ACTIVE business parties with no business current account (created before
       # business accounts were opened, or activated before this code was deployed). Needs

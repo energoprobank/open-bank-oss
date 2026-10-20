@@ -180,7 +180,7 @@ openbank:
       enabled: true
   bank:
     # OpenBank's own BIC — used as the debtor agent (DbtrAgt) in the pacs.008 (ADR-0104 D4).
-    bic: ${OPENBANK_BIC:OPBKCZ22}
+    bic: ${OPENBANK_BIC:EPROCZPP}
   sct-inst:
     execution-timeout-seconds: 10
     recall-window-days: 10

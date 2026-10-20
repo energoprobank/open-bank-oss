@@ -65,6 +65,9 @@ class DomesticPaymentService(
     private val temporalTaskQueue: String,
     private val workflowClient: WorkflowClient,
     private val clock: Clock,
+    // This bank's own ČNB bank code — a creditor at this code is an internal transfer. Same key
+    // SchemeGatewayAdapter reads (application.yaml: OPENBANK_BANK_CODE, placeholder 8899).
+    private val ownBankCode: String = DEFAULT_OWN_BANK_CODE,
 ) : DomesticPaymentUseCase,
     DelegatedDomesticPaymentUseCase {
 
@@ -78,6 +81,8 @@ class DomesticPaymentService(
         @ConfigProperty(name = "openbank.temporal.task-queue", defaultValue = "openbank-domestic-payments")
         temporalTaskQueue: String,
         workflowClient: WorkflowClient,
+        @ConfigProperty(name = "openbank.bank.bank-code")
+        ownBankCode: String,
     ) : this(
         paymentRepository,
         delegatedSpendBindingRepository,
@@ -87,13 +92,15 @@ class DomesticPaymentService(
         temporalTaskQueue,
         workflowClient,
         Clock.systemUTC(),
+        ownBankCode,
     )
 
     companion object {
         private const val PAYMENT_CREATED_EVENT = "domestic.payment.created"
         private const val PAYMENT_STATUS_CHANGED_EVENT = "domestic.payment.status-changed"
 
-        private const val OWN_BANK_CODE = "0000"
+        /** branding/brand.yaml bank.bank_code — PLACEHOLDER, the deployed value comes from config. */
+        const val DEFAULT_OWN_BANK_CODE = "8899"
         private const val IDEMPOTENCY_KEY_MAX_LENGTH = 128
         private const val DELEGATED_ACTOR_SCOPE_PREFIX = "openbank:delegated-spend:v1"
 
@@ -111,7 +118,7 @@ class DomesticPaymentService(
         creditorIban: String,
         debitOwnerPartyId: UUID?,
     ): DomesticTransferScope {
-        if (creditorBankCode.trim() != OWN_BANK_CODE) return DomesticTransferScope.EXTERNAL
+        if (creditorBankCode.trim() != ownBankCode.trim()) return DomesticTransferScope.EXTERNAL
         val creditorPartyId = accountLookupPort.findPartyByIban(creditorIban)
         return when {
             creditorPartyId == null -> DomesticTransferScope.INTERNAL_CLIENT
