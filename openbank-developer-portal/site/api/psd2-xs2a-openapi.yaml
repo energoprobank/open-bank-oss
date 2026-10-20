@@ -21,8 +21,9 @@ info:
     name: Apache-2.0
     url: https://www.apache.org/licenses/LICENSE-2.0
 servers:
-  - url: https://api.open-bank.tech/psd2
-    description: OpenBank PSD2 XS2A — Berlin Group base (sandbox)
+  # PLACEHOLDER host (.example never routes) until Energo-Pro Bank has a public API domain.
+  - url: https://api.energoprobank.example/psd2
+    description: Energo-Pro Bank PSD2 XS2A — Berlin Group base (sandbox, placeholder host)
 tags:
   - name: AIS
     description: Account Information Service
