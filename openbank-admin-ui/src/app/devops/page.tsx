@@ -21,6 +21,7 @@ import type { DevOpsFinding } from '@/lib/devops/contracts'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { RemediationReviewDialog } from '@/components/devops/RemediationReviewDialog'
 import { DORA_METRIC_LABEL } from '@/lib/devops/doraMetricLabels'
+import { BRAND } from '@/lib/brand'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -345,7 +346,7 @@ function DevOpsContent() {
     <div style={{ padding: '28px 32px', maxWidth: '1400px', animation: 'fadeIn 0.2s ease-out' }}>
 
       <PageHeader
-        breadcrumb={<div className="breadcrumb"><span>OpenBank</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">DevOps</span></div>}
+        breadcrumb={<div className="breadcrumb"><span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">DevOps</span></div>}
         icon={<GitBranch size={20} aria-hidden="true" />}
         title={t('DevOps metriky', 'DevOps Metrics')}
         subtitle={t('DORA metriky, pokrytí testy a zdraví pipeline — Google State of DevOps 2023', 'DORA metrics, test coverage, and pipeline health — Google State of DevOps 2023')}

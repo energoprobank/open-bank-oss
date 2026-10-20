@@ -25,6 +25,7 @@ import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { svcUrl } from '@/lib/services/bff'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { AuthGuard, Can } from '@/components/auth/AuthGuard'
+import { BRAND } from '@/lib/brand'
 
 /** Mirrors lending-service `PackActivationView`. `listActive()` synthesises id = all-zero UUID for
  *  every row (it projects the in-memory registry, not a workflow row) — never key a list on it. */
@@ -215,7 +216,7 @@ export default function CompliancePacksPage() {
     <div>
       <PageHeader
         breadcrumb={<div className="breadcrumb">
-            <span>OpenBank</span><span className="breadcrumb-sep">/</span>
+            <span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span>
             <span>{t('Úvěry', 'Lending')}</span><span className="breadcrumb-sep">/</span>
             <span className="breadcrumb-current">{t('Compliance packy', 'Compliance packs')}</span>
           </div>}

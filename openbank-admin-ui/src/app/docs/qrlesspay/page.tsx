@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { Bluetooth, ShieldCheck, Radio, KeyRound, ScanLine, Info, Circle, CheckCircle, ArrowLeftRight, EyeOff, Hash, ScrollText, Printer } from 'lucide-react'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { DocsPageHeader } from '@/components/docs/DocsPageHeader'
+import { BRAND } from '@/lib/brand'
 
 const ACCENT = 'var(--accent)'
 const ACCENT_TEXT = 'var(--accent-text)'
@@ -23,7 +24,7 @@ export default function QrlessPayPage() {
     <div className="qrlesspay-doc">
       <DocsPageHeader
         crumbs={<>
-          <span>OpenBank</span><span className="breadcrumb-sep">/</span>
+          <span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span>
           <span>{t('Dokumentace', 'Docs')}</span><span className="breadcrumb-sep">/</span>
           <span className="breadcrumb-current">QRlessPay</span>
         </>}
@@ -155,7 +156,7 @@ export default function QrlessPayPage() {
       {/* SDK / Third-party bank integration */}
       <Section
         title={t('SDK a integrace pro banky třetích stran', 'SDK & third-party bank integration')}
-        subtitle={t('QRlessPay je otevřený protokol — každá banka může implementovat roli plátce i příjemce nezávisle na OpenBank. SDK plánujeme publikovat pod Apache-2.0.', 'QRlessPay is an open protocol — any bank can implement both payer and payee roles independently of OpenBank. We plan to publish the SDK under Apache-2.0.')}
+        subtitle={t(`QRlessPay je otevřený protokol — každá banka může implementovat roli plátce i příjemce nezávisle na ${BRAND.name}. SDK plánujeme publikovat pod Apache-2.0.`, `QRlessPay is an open protocol — any bank can implement both payer and payee roles independently of ${BRAND.name}. We plan to publish the SDK under Apache-2.0.`)}
       >
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(295px, 1fr))', gap: 12, marginBottom: 14 }}>
           {[

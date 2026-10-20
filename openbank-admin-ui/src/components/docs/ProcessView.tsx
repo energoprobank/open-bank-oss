@@ -23,6 +23,7 @@ import { useLanguage } from '@/lib/i18n/LanguageContext'
 import type { Process, Status, TechNode } from '@/lib/docs/process/schema'
 import { overallScore } from '@/lib/docs/process/score'
 import { STATUS_META, StatusDot } from '@/lib/docs/status'
+import { BRAND } from '@/lib/brand'
 
 type Mode = 'reality' | 'target'
 type Lens = 'story' | 'token' | 'tech'
@@ -52,7 +53,7 @@ export function ProcessView({ proc }: { proc: Process }) {
     <div>
       <DocsPageHeader
         crumbs={<>
-            <span>OpenBank</span><span className="breadcrumb-sep">/</span>
+            <span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span>
             <span>Docs</span><span className="breadcrumb-sep">/</span>
             <span className="breadcrumb-current">{proc.title}</span>
           </>}

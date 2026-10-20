@@ -17,7 +17,7 @@ import { DevicesPanel } from '@/components/party/DevicesPanel'
 import { DocumentsPanel } from '@/components/party/DocumentsPanel'
 import { CustomerPortfolioPanel } from '@/components/party/CustomerPortfolioPanel'
 import { CustomerContextGraph } from '@/components/party/CustomerContextGraph'
-import { ExplorerGuide } from '@/components/brand/ExplorerGuide'
+import { BrandGuide } from '@/components/brand/BrandGuide'
 import { clearSelectedCustomerGraphFacts, selectCustomerGraphFacts } from '@/lib/context/customerGraphClient'
 
 const CUSTOMER_360_TIMEOUT_MS = 10_000
@@ -117,12 +117,12 @@ export default function Customer360Page() {
       />
 
       {!selected && (
-        <ExplorerGuide compact mascot="lioness" title={t('Začněte člověkem, ne UUID', 'Start with a person, not a UUID')}>
+        <BrandGuide compact title={t('Začněte člověkem, ne UUID', 'Start with a person, not a UUID')}>
           {t(
-            'Hledejte přirozeně podle jména nebo e-mailu a vyberte správnou party. Explorer pak poskládá odvozený pohled napříč doménami — autoritativní detail vždy zůstává ve zdrojové službě.',
-            'Search naturally by name or email, then select the right party. Explorer will assemble the derived cross-domain view — authoritative detail always remains in the source service.',
+            'Hledejte přirozeně podle jména nebo e-mailu a vyberte správnou party. Konzole pak poskládá odvozený pohled napříč doménami — autoritativní detail vždy zůstává ve zdrojové službě.',
+            'Search naturally by name or email, then select the right party. The console then assembles the derived cross-domain view — authoritative detail always remains in the source service.',
           )}
-        </ExplorerGuide>
+        </BrandGuide>
       )}
 
       <PartySearch onSelect={load360} selectedId={selected?.id} busy={loading} />

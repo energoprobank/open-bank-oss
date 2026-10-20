@@ -16,6 +16,7 @@ import { PartySearch, type PartyHit } from '@/components/party/PartySearch'
 import { accountPartySelection } from '@/lib/accounts/partySelection'
 import { AccountOpeningContractError, parseAccountOpeningProducts, parseOpenedAccount, type AccountOpeningProduct } from '@/lib/accounts/openingContract'
 import { classifyBffFailure, svcUrl } from '@/lib/services/bff'
+import { BRAND } from '@/lib/brand'
 
 
 const ACCOUNT_TYPES = ['CURRENT', 'SAVINGS', 'TERM_DEPOSIT', 'NOSTRO', 'GL_ASSET', 'GL_LIABILITY', 'GL_INCOME', 'GL_EXPENSE']
@@ -155,7 +156,7 @@ export default function NewAccountPage() {
       <PageHeader
         title={t('Otevřít nový účet', 'Open New Account')}
         subtitle={t('Vytvořte nový bankovní účet pro zákazníka', 'Create a new bank account for a customer party')}
-        breadcrumb={<div className="breadcrumb"><span>OpenBank</span><span className="breadcrumb-sep">/</span><Link href="/accounts" style={{ color: 'var(--text-tertiary)', textDecoration: 'none' }}>{t('Účty', 'Accounts')}</Link><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Otevřít účet', 'Open Account')}</span></div>}
+        breadcrumb={<div className="breadcrumb"><span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span><Link href="/accounts" style={{ color: 'var(--text-tertiary)', textDecoration: 'none' }}>{t('Účty', 'Accounts')}</Link><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Otevřít účet', 'Open Account')}</span></div>}
         actions={<Link href="/accounts" className="btn btn-secondary"><ArrowLeft size={13} aria-hidden="true"/> {t('Zpět', 'Back')}</Link>}
       />
 

@@ -18,6 +18,7 @@ import { TrendingUp, RefreshCw, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { parseFunnelAnalytics, type FunnelAnalytics } from '@/lib/onboarding/funnelAnalyticsContract'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { BRAND } from '@/lib/brand'
 
 // ── Step labels (contract order WELCOME→SIGN) ─────────────────────────────────
 
@@ -147,7 +148,7 @@ export default function OnboardingAnalyticsPage() {
         icon={<TrendingUp size={18} aria-hidden="true" />}
         title={t('Konverze onboardingu', 'Onboarding Conversion')}
         subtitle={t('Historická analýza funnelu — krok po kroku, kde a proč prospekti odpadají', 'Historical funnel analysis — where and why prospects drop off, step by step')}
-        breadcrumb={<div className="breadcrumb"><span>OpenBank</span><span className="breadcrumb-sep">/</span><Link href="/onboarding" style={{ color: 'inherit', textDecoration: 'none' }}>{t('Onboarding', 'Onboarding')}</Link><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Konverze', 'Conversion')}</span></div>}
+        breadcrumb={<div className="breadcrumb"><span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span><Link href="/onboarding" style={{ color: 'inherit', textDecoration: 'none' }}>{t('Onboarding', 'Onboarding')}</Link><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Konverze', 'Conversion')}</span></div>}
         actions={<div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
           <label style={{ display: 'flex', flexDirection: 'column', gap: '2px', fontSize: '11px', color: 'var(--text-muted)' }}>
             {t('Od', 'From')}

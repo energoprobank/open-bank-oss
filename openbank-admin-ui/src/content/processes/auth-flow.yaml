@@ -8,7 +8,7 @@ icon: "ShieldCheck"
 
 # --- Lens 1: Story ---------------------------------------------------------
 story:
-  - text: "Klikneš „Přihlásit\" v OpenBank konzoli."
+  - text: "Klikneš „Přihlásit\" v konzoli Energo-Pro Bank."
     status: live
   - text: "Přesměrování na bankovní login (Keycloak, brandovaný theme)."
     status: live

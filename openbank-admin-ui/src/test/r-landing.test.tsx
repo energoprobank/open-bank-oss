@@ -20,7 +20,7 @@ describe('referral (MGM) landing page', () => {
   it('renders the invite screen for a valid token and stores it for post-login attribution', () => {
     render(<ReferralLanding />)
 
-    expect(screen.getByRole('heading', { level: 1, name: /you've been invited to openbank/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: /you've been invited to energo-pro bank/i })).toBeInTheDocument()
     expect(screen.getByText(/rewards you both once you open your account/i)).toBeInTheDocument()
     expect(sessionStorage.getItem(REFERRAL_TOKEN_STORAGE_KEY)).toBe(VALID_TOKEN)
 

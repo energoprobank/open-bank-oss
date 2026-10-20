@@ -12,17 +12,17 @@
   margin-bottom: 18px;
   padding: 28px;
   overflow: hidden;
-  background: linear-gradient(118deg, #111a35 0%, #172657 54%, #30338f 100%);
-  border: 1px solid rgba(129, 140, 248, 0.42);
+  background: linear-gradient(118deg, #0a1324 0%, #0f2340 54%, #163a6b 100%);
+  border: 1px solid rgba(54, 136, 221, 0.42);
   border-radius: 18px;
-  box-shadow: 0 18px 42px rgba(31, 41, 105, 0.17);
+  box-shadow: 0 18px 42px rgba(10, 19, 36, 0.17);
 }
-.dashboard :global(.page-header)::after { position: absolute; top: -96px; right: 15%; width: 260px; height: 260px; content: ''; pointer-events: none; background: radial-gradient(circle, rgba(165, 180, 252, 0.28), transparent 67%); }
+.dashboard :global(.page-header)::after { position: absolute; top: -96px; right: 15%; width: 260px; height: 260px; content: ''; pointer-events: none; background: radial-gradient(circle, rgba(54, 136, 221, 0.32), transparent 67%); }
 .dashboard :global(.page-title) { color: #fff; font-size: 29px; letter-spacing: -0.045em; }
 .dashboard :global(.page-subtitle) { max-width: 680px; color: #cbd5e1; font-size: 14px; }
 
 .headerIcon {
-  color: #a5b4fc;
+  color: #8bbcef;
 }
 
 .headerActions {
@@ -35,7 +35,7 @@
   margin-bottom: 16px;
   padding: 18px;
   border-color: #dbe4f2;
-  background: linear-gradient(120deg, #ffffff, #f5f7ff);
+  background: linear-gradient(120deg, #ffffff, #f5f9fd);
   box-shadow: 0 12px 28px rgba(30, 41, 59, 0.06);
 }
 
@@ -93,7 +93,7 @@
 .workspaceLink:hover,
 .workspaceLink:focus-visible {
   border-color: var(--accent);
-  box-shadow: 0 8px 18px rgba(79, 70, 229, 0.14);
+  box-shadow: 0 8px 18px rgba(36, 112, 194, 0.14);
   transform: translateY(-1px);
   outline: none;
 }
@@ -153,7 +153,7 @@
   box-shadow: 0 14px 30px rgba(15, 23, 42, 0.13);
 }
 .healthOverview:hover { border-color: #3f568d; }
-.healthOverview .sectionLabel { color: #c7d2fe; }
+.healthOverview .sectionLabel { color: #b9d6f4; }
 
 .sectionLabel {
   margin: 0 0 14px;

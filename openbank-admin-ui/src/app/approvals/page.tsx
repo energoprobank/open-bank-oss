@@ -34,6 +34,7 @@ import type { ApprovalRiskClass } from '@/lib/approvals/risk'
 import { parseAgentProposalList, parseApprovalInbox, type AgentProposal as Proposal, type ApprovalInboxItem as InboxItem } from '@/lib/approvals/evidence'
 import { classifyBffFailure } from '@/lib/services/bff'
 import { DataUnavailable, type UnavailableKind } from '@/components/feedback/DataUnavailable'
+import { BRAND } from '@/lib/brand'
 
 type DecisionIntent = { proposal: Proposal; approve: boolean }
 
@@ -224,7 +225,7 @@ export default function ApprovalsPage() {
     <AuthGuard permission="approvals:view">
     <div>
       <PageHeader
-        breadcrumb={<div className="breadcrumb"><span>OpenBank</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Schvalování', 'Approvals')}</span></div>}
+        breadcrumb={<div className="breadcrumb"><span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Schvalování', 'Approvals')}</span></div>}
         icon={<ClipboardCheck size={18} aria-hidden="true" />}
         title={t('Fronta schvalování', 'Approval inbox')}
         subtitle={t('Doménové žádosti kontrolujte zde a rozhodněte v příslušné službě. Návrhy AI agentů vyžadují schválení člověkem odlišným od autora.', 'Review domain requests here and decide them in their governed service. AI agent proposals require approval by a human other than the author.')}

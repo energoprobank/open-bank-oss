@@ -6,7 +6,7 @@
   height: 100vh;
   overflow: hidden;
   color: var(--sidebar-text);
-  background: radial-gradient(circle at 14% -8%, #293a70 0, transparent 31%), linear-gradient(180deg, #0c1220 0%, #090d17 55%, #070b13 100%);
+  background: radial-gradient(circle at 14% -8%, rgba(54, 136, 221, 0.32) 0, transparent 31%), linear-gradient(180deg, #0d1830 0%, #0a1324 55%, #070e1b 100%);
   border-right: 1px solid rgba(148, 163, 184, 0.13);
   box-shadow: 16px 0 38px rgba(15, 23, 42, 0.09);
 }
@@ -19,15 +19,10 @@
 
 .brandLockup { display: flex; align-items: center; gap: 12px; }
 .brandMark {
-  display: grid;
-  width: 36px;
-  height: 36px;
-  place-items: center;
-  color: #fff;
-  background: linear-gradient(135deg, #8489ff, #5658e6 58%, #4344b8);
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: 12px;
-  box-shadow: 0 8px 20px rgba(91, 92, 226, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  /* Energo-Pro mark (white, ~3.2:1 aspect) — see branding/brand.yaml. */
+  flex: 0 0 auto;
+  width: 44px;
+  height: auto;
 }
 .brandText { min-width: 0; }
 .brandName { color: #f8fafc; font-size: 16px; font-weight: 800; letter-spacing: -0.03em; }
@@ -68,8 +63,8 @@
 }
 
 .navItem:hover { color: #f1f5f9; background: rgba(148, 163, 184, 0.1); transform: translateX(2px); }
-.active { color: #f7f7ff; background: linear-gradient(90deg, rgba(99, 102, 241, 0.34), rgba(99, 102, 241, 0.14)); border-color: rgba(165, 180, 252, 0.2); box-shadow: inset 3px 0 0 #8b8dff; }
-.active:hover { color: #fff; background: linear-gradient(90deg, rgba(99, 102, 241, 0.38), rgba(99, 102, 241, 0.18)); transform: none; }
+.active { color: #f5f9fd; background: linear-gradient(90deg, rgba(54, 136, 221, 0.34), rgba(54, 136, 221, 0.14)); border-color: rgba(127, 180, 236, 0.2); box-shadow: inset 3px 0 0 #3688dd; }
+.active:hover { color: #fff; background: linear-gradient(90deg, rgba(54, 136, 221, 0.38), rgba(54, 136, 221, 0.18)); transform: none; }
 .locked { color: #506078; opacity: 0.64; cursor: not-allowed; user-select: none; }
 .locked:hover { color: #506078; background: transparent; transform: none; }
 .navIcon { flex: 0 0 auto; }

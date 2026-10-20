@@ -13,6 +13,7 @@ import { SbomViewer } from '@/components/sbom/SbomViewer'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { DataUnavailable, type UnavailableKind } from '@/components/feedback/DataUnavailable'
 import { fetchCves, osvCoordinates, type CveEvidence, type CveSummary } from '@/lib/inventory/cveEvidence'
+import { BRAND } from '@/lib/brand'
 
 const POLL = 30_000
 
@@ -153,7 +154,7 @@ export default function TechInventoryPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       <PageHeader
-        breadcrumb={<div className="breadcrumb"><span>OpenBank</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Systém', 'System')}</span></div>}
+        breadcrumb={<div className="breadcrumb"><span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Systém', 'System')}</span></div>}
         icon={<Package size={20} aria-hidden="true" />}
         title={t('Tech Inventory', 'Tech Inventory')}
         subtitle={t('Verze runtime stacku napříč všemi službami. Generuje se z /api/v1/info každé služby.',

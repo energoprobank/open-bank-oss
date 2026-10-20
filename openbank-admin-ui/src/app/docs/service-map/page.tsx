@@ -25,6 +25,7 @@ import {
   type MapInfraEdge as InfraEdgeT, type MapInfraNode as InfraNodeT,
 } from '@/lib/governance/service-map-evidence'
 import { aggregateHealthStatuses } from '@/lib/health/workloadHealth'
+import { BRAND } from '@/lib/brand'
 
 // Editorial PROSE per node (display name, map group, one-line description), keyed by registry id.
 // This is NOT the service list: the nodes are one per runnable catalog module (see buildServices),
@@ -40,7 +41,7 @@ const EDITORIAL: Record<string, { name: string; group: string; desc: string }> =
   'fx': { name: 'FX Service', group: 'core', desc: 'Foreign exchange rates and conversion' },
   'pid': { name: 'PID Service', group: 'identity', desc: 'Party identity documents, external IDs' },
   'party': { name: 'Party Service', group: 'identity', desc: 'Customer/company master data, PEP/sanctions flags' },
-  'agent': { name: 'Agent Service', group: 'platform', desc: 'AI agent MCP server, OpenBank tools for LLMs' },
+  'agent': { name: 'Agent Service', group: 'platform', desc: 'AI agent MCP server, banking tools for LLMs' },
   'notification': { name: 'Notification Service', group: 'platform', desc: 'Email/SMS/Push notifications, template engine' },
   'security-scanner': { name: 'Security Scanner', group: 'platform', desc: 'Continuous vulnerability scanning' },
   'card-issuance': { name: 'Card Issuance', group: 'cards', desc: 'Card issuance and lifecycle management' },
@@ -593,7 +594,7 @@ export default function ServiceMapPage() {
     fx: 'Kurzy a převody cizích měn',
     pid: 'Identifikační doklady party, externí ID',
     party: 'Kmenová data klienta/firmy, příznaky PEP/sankce',
-    agent: 'AI agent MCP server, OpenBank nástroje pro LLM',
+    agent: 'AI agent MCP server, bankovní nástroje pro LLM',
     notification: 'E-mail/SMS/Push notifikace, šablonovací engine',
     'security-scanner': 'Průběžné skenování zranitelností',
     'card-issuance': 'Vydávání karet a správa jejich životního cyklu',
@@ -639,7 +640,7 @@ export default function ServiceMapPage() {
     <div>
       <DocsPageHeader
         crumbs={<>
-            <span>OpenBank</span><span className="breadcrumb-sep">/</span>
+            <span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span>
             <span>{t('Dokumentace', 'Docs')}</span><span className="breadcrumb-sep">/</span>
             <span className="breadcrumb-current">{t('Mapa služeb', 'Service Map')}</span>
           </>}

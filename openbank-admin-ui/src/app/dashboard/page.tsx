@@ -15,7 +15,7 @@ import { hasPermission, type Permission } from '@/lib/auth/roles'
 import { personaForRoles, personaLabel, workspaceFor } from '@/lib/auth/persona'
 import { fleetHealthState, summarizeFleetHealth } from '@/lib/dashboard/fleetHealth'
 import styles from './Dashboard.module.css'
-import { ExplorerGuide } from '@/components/brand/ExplorerGuide'
+import { BrandGuide } from '@/components/brand/BrandGuide'
 import { DataUnavailable } from '@/components/feedback/DataUnavailable'
 import { ContentSourceNote } from '@/components/docs/ContentSourceNote'
 import type { ContentSourceMetadata } from '@/lib/evidence/contentSource'
@@ -205,12 +205,12 @@ export default function DashboardPage() {
 
       <ContentSourceNote source={contentSource} />
 
-      <ExplorerGuide title={t('Vítejte ve svém operačním kokpitu', 'Welcome to your operations cockpit')}>
+      <BrandGuide title={t('Vítejte ve svém operačním kokpitu', 'Welcome to your operations cockpit')}>
         {t(
-          'Začněte pracovními frontami podle svých oprávnění. Červená znamená skutečný problém; šedá služba jen čeká na nasazení. Explorer nemá rád falešné poplachy — a vy je nemusíte řešit.',
-          'Start with the work queues matched to your permissions. Red means a real problem; a grey service is merely awaiting deployment. Explorer dislikes false alarms, so you do not have to chase them.',
+          'Začněte pracovními frontami podle svých oprávnění. Červená znamená skutečný problém; šedá služba jen čeká na nasazení. Falešné poplachy tu nehledejte — nemusíte je řešit.',
+          'Start with the work queues matched to your permissions. Red means a real problem; a grey service is merely awaiting deployment. False alarms are kept out, so you do not have to chase them.',
         )}
-      </ExplorerGuide>
+      </BrandGuide>
 
       <section className={`card ${styles.workspace}`} aria-labelledby="workspace-heading">
         <div className={styles.workspaceHeading}>

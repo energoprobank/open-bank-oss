@@ -1,0 +1,68 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) OpenBank contributors. Licensed under the Apache License, Version 2.0.
+
+# Energo-Pro Bank — brand & bank-identity source of truth.
+#
+# Every user-facing surface takes its name, colours, logos and bank identity from the values
+# below. The surfaces cannot read this file at runtime (separate build contexts, Quarkus config,
+# Keycloak theme, static sites), so each one carries a copy; branding/README.md lists where.
+# Change a value here first, then update the copies listed there.
+
+brand:
+  name: Energo-Pro Bank
+  short_name: Energo-Pro
+  admin_portal:
+    en: Energo-Pro Bank Admin Portal
+    cs: Energo-Pro Bank Administrace
+
+colors:
+  # Primary brand blue. Logo / decorative use and accents on dark (Firefly) surfaces —
+  # 5.06:1 on Firefly. On white it is only 3.67:1, which fails WCAG AA for text.
+  curious_blue: "#3688DD"
+  # Same hue darkened to clear AA on every light surface (5.82:1 on white): text and links.
+  # Buttons with white labels use #2470C2 (5.03:1). Dark-mode accent: #8BBCEF.
+  curious_blue_accessible: "#1F66B3"
+  curious_blue_hover: "#1D5FA8"
+  # Light background / accent surface.
+  polar: "#F5F9FD"
+  # Dark primary / text accent; sidebar and dark headers.
+  firefly: "#0A1324"
+
+logos:
+  # Originals as supplied. The colour horizontal lockup is only 201x45 — fine for headers,
+  # too small to scale up; request an SVG from brand owners for print/PDF.
+  source_color_horizontal: branding/source/logo-color-horizontal.png
+  source_black_stacked: branding/source/logo-black-stacked.png
+  # Derived by branding/tools/gen-logos.py from the stacked black logo.
+  white: branding/generated/logo-white.png        # on Firefly / dark surfaces
+  firefly: branding/generated/logo-firefly.png    # on light surfaces
+  mark_blue: branding/generated/mark-blue.png
+  mark_white: branding/generated/mark-white.png
+  favicon: branding/generated/favicon.ico
+  icon_512: branding/generated/icon-512.png
+  apple_touch_icon: branding/generated/apple-touch-icon.png
+
+bank:
+  country: CZ
+  default_currency: CZK
+  # PLACEHOLDERS — invented values, not assigned by any authority. Replace before any
+  # interbank connectivity. 8899 is absent from the ČNB registry snapshot
+  # (openbank-customer-edge/src/main/resources/banks.json, 2026-07-31).
+  # BIC8 and its BIC11 primary-office form; services keep whichever length they used upstream.
+  bic: EPROCZPP
+  bic11: EPROCZPPXXX
+  bank_code: "8899"
+  # PLACEHOLDERS — the legal entity is not decided yet. Used by PDF letterheads, agreements and
+  # document seals; replace all three before any document leaves a demo environment.
+  legal_name: Energo-Pro Bank a.s.
+  company_id: "00000019"   # IČO — mod-11-valid dummy, not a registered company
+  address:
+    street: Ukázková 1
+    city: Praha
+    postal_code: "110 00"
+    country: CZ
+
+contact:
+  # PLACEHOLDER sender domain (.example is reserved and never routes) until a real one exists.
+  noreply_email: noreply@energoprobank.example
+  support_email: support@energoprobank.example

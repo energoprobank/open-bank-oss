@@ -19,6 +19,7 @@ import { AuthGuard } from '@/components/auth/AuthGuard'
 import { DataUnavailable } from '@/components/feedback/DataUnavailable'
 import type { UnavailableKind } from '@/components/feedback/DataUnavailable'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { BRAND } from '@/lib/brand'
 
 interface PersonaRow {
   id: string
@@ -88,7 +89,7 @@ export default function CommunicationStudioPage() {
           )}
           breadcrumb={
             <div className="breadcrumb">
-              <span>OpenBank</span>
+              <span>{BRAND.shortName}</span>
               <span className="breadcrumb-sep">/</span>
               <span className="breadcrumb-current">{t('Komunikace', 'Communication')}</span>
             </div>

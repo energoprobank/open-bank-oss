@@ -8,10 +8,15 @@ import { cookies, headers } from 'next/headers'
 import { AppProviders } from '@/components/layout/AppProviders'
 import { LANG_COOKIE, parseLanguage } from '@/lib/i18n/language'
 import { THEME_COOKIE_KEY, parseTheme } from '@/lib/theme/theme'
+import { BRAND } from '@/lib/brand'
 
 export const metadata: Metadata = {
-  title: 'OpenBank Admin · Secure operations portal',
-  description: 'Sign in to the OpenBank operator workspace with your assigned access.',
+  title: `${BRAND.name} Admin · Secure operations portal`,
+  description: `Sign in to the ${BRAND.name} operator workspace with your assigned access.`,
+  icons: {
+    icon: [{ url: '/favicon.ico', sizes: 'any' }, { url: '/brand/energopro/icon-512.png', type: 'image/png' }],
+    apple: '/brand/energopro/apple-touch-icon.png',
+  },
   robots: { index: false, follow: false },
 }
 

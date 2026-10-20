@@ -52,9 +52,9 @@ describe('AIOps agent card interactions', () => {
 
     render(<IAOpsPage />)
 
-    expect(screen.queryByAltText('Original team of five OpenBank AI agent robots')).toBeNull()
+    expect(screen.queryByAltText('Illustration of a team of five AI agent robots')).toBeNull()
     await act(async () => { resolve(response(GOVERNANCE)); await pending })
-    const hero = await screen.findByAltText('Original team of five OpenBank AI agent robots')
+    const hero = await screen.findByAltText('Illustration of a team of five AI agent robots')
     expect(hero).toHaveAttribute('loading', 'lazy')
     expect(hero).toHaveAttribute('decoding', 'async')
     expect(hero).toHaveAttribute('width', '1200')

@@ -13,6 +13,7 @@ import { cookies } from 'next/headers'
 import { ChevronLeft, ShieldAlert, ShieldCheck, AlertTriangle, FileText } from 'lucide-react'
 import { loadThreatModelIndex, missingThreatModels } from '@/lib/governance/docs'
 import { DocsPageHeader } from '@/components/docs/DocsPageHeader'
+import { BRAND } from '@/lib/brand'
 
 export const dynamic = 'force-dynamic'
 
@@ -28,7 +29,7 @@ export default async function ThreatModelRegistryPage() {
     <div>
       <DocsPageHeader
         crumbs={<>
-            <span>OpenBank</span><span className="breadcrumb-sep">/</span>
+            <span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span>
             <Link href="/docs" style={{ color: 'inherit', textDecoration: 'none' }}>Docs</Link>
             <span className="breadcrumb-sep">/</span>
             <span className="breadcrumb-current">{t('Threat modely', 'Threat models')}</span>

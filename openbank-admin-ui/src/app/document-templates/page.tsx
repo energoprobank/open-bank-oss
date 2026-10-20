@@ -21,6 +21,7 @@ import { DataUnavailable, type UnavailableKind } from '@/components/feedback/Dat
 import { PartySearch, partyDisplayName, type PartyHit } from '@/components/party/PartySearch'
 import { looksLikeUuid } from '@/lib/validation/iban'
 import { PageHeader, StatusBadge, Tabs, type TabItem, type Tone } from '@/components/ui'
+import { BRAND } from '@/lib/brand'
 
 // Go through the BFF proxy directly (svcUrl → /api/svc/document-service/...), the
 // same pattern product-catalog/standing-orders/kyc now use — NOT a dedicated
@@ -489,7 +490,7 @@ export default function DocumentTemplatesPage() {
   return (
     <AuthGuard permission="templates:view">
       <div style={{ padding: '28px 32px', maxWidth: '1400px' }}>
-        <PageHeader breadcrumb={<div className="breadcrumb"><span>OpenBank</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Šablony dokumentů', 'Document Templates')}</span></div>} icon={<FileSignature size={20} aria-hidden="true" />} title={t('Šablony dokumentů', 'Document Templates')} subtitle={t('Správa šablon smluv, formulářů a vygenerovaných dokumentů (openbank-document-service)', 'Manage contract/form templates and generated documents (openbank-document-service)')} actions={<div style={{ display: 'flex', gap: '8px' }}>
+        <PageHeader breadcrumb={<div className="breadcrumb"><span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Šablony dokumentů', 'Document Templates')}</span></div>} icon={<FileSignature size={20} aria-hidden="true" />} title={t('Šablony dokumentů', 'Document Templates')} subtitle={t('Správa šablon smluv, formulářů a vygenerovaných dokumentů (openbank-document-service)', 'Manage contract/form templates and generated documents (openbank-document-service)')} actions={<div style={{ display: 'flex', gap: '8px' }}>
             {canEdit && tab === 'templates' && (
               <button className="btn btn-primary" type="button" onClick={openCreateModal} disabled={loading}>
                 <Plus size={14} /> {t('Nová šablona', 'New Template')}

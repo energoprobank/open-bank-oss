@@ -18,6 +18,7 @@ import { DataUnavailable } from '@/components/feedback/DataUnavailable'
 import type { UnavailableKind } from '@/components/feedback/DataUnavailable'
 import { PageHeader, StatusBadge } from '@/components/ui'
 import type { FlakyTestFinding } from '@/app/api/flaky-test-hunter/findings/route'
+import { BRAND } from '@/lib/brand'
 
 function FlakyTestFindingDetailContent() {
   const params = useParams<{ id: string }>()
@@ -49,7 +50,7 @@ function FlakyTestFindingDetailContent() {
   return (
     <div style={{ padding: '28px 32px', maxWidth: '1000px', animation: 'fadeIn 0.2s ease-out' }}>
       <PageHeader
-        breadcrumb={<div className="breadcrumb"><span>OpenBank</span><span className="breadcrumb-sep">/</span><Link href="/iaops" className="breadcrumb-current" style={{ textDecoration: 'none' }}>{t('IAOps', 'IAOps')}</Link><span className="breadcrumb-sep">/</span><Link href="/iaops/flaky-test-hunter" className="breadcrumb-current" style={{ textDecoration: 'none' }}>{t('Flaky testy', 'Flaky tests')}</Link><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{id}</span></div>}
+        breadcrumb={<div className="breadcrumb"><span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span><Link href="/iaops" className="breadcrumb-current" style={{ textDecoration: 'none' }}>{t('IAOps', 'IAOps')}</Link><span className="breadcrumb-sep">/</span><Link href="/iaops/flaky-test-hunter" className="breadcrumb-current" style={{ textDecoration: 'none' }}>{t('Flaky testy', 'Flaky tests')}</Link><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{id}</span></div>}
         icon={<Bug size={20} aria-hidden="true" />}
         title={finding?.title ?? id}
         subtitle={finding?.component}
@@ -102,7 +103,7 @@ function FlakyTestFindingDetailContent() {
           {finding.rootCause && (
             <div className="card" style={{ marginBottom: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-                <FileText size={14} style={{ color: '#6366f1' }} />
+                <FileText size={14} style={{ color: 'var(--accent)' }} />
                 <span style={{ fontSize: '13px', fontWeight: 700 }}>{t('Příčina', 'Root cause')}</span>
               </div>
               <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0, whiteSpace: 'pre-wrap' }}>{finding.rootCause}</p>
@@ -112,10 +113,10 @@ function FlakyTestFindingDetailContent() {
           {finding.proposedFixDiff && (
             <div className="card" style={{ marginBottom: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-                <GitPullRequest size={14} style={{ color: '#6366f1' }} />
+                <GitPullRequest size={14} style={{ color: 'var(--accent)' }} />
                 <span style={{ fontSize: '13px', fontWeight: 700 }}>{t('Navržená oprava', 'Proposed fix')}</span>
                 {finding.proposalUrl && (
-                  <a href={finding.proposalUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: '11px', fontWeight: 700, color: '#6366f1', textDecoration: 'none', marginLeft: 'auto' }}>
+                  <a href={finding.proposalUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: '11px', fontWeight: 700, color: 'var(--accent-text)', textDecoration: 'none', marginLeft: 'auto' }}>
                     {t('Zobrazit PR →', 'View PR →')}
                   </a>
                 )}

@@ -13,6 +13,7 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { AuthGuard, Can } from '@/components/auth/AuthGuard'
 import { AgentCallError, classifyAgentFailure, type AgentFailureKind } from '@/lib/agent/mcpFailure'
+import { BRAND } from '@/lib/brand'
 
 interface ToolDef {
   name: string
@@ -91,14 +92,14 @@ export default function AgentPage() {
     <div>
       <PageHeader
         breadcrumb={<div className="breadcrumb">
-            <span>OpenBank</span>
+            <span>{BRAND.shortName}</span>
             <span className="breadcrumb-sep">/</span>
             <span>{t('Systém', 'System')}</span>
             <span className="breadcrumb-sep">/</span>
             <span className="breadcrumb-current">Agent (MCP)</span>
           </div>}
         title={t('Agent služba', 'Agent Service')}
-        subtitle={t('MCP server zpřístupňující nástroje OpenBank AI agentům · JSON-RPC 2.0 přes HTTP', 'MCP server exposing OpenBank tools to AI agents · JSON-RPC 2.0 over HTTP')}
+        subtitle={t(`MCP server zpřístupňující nástroje ${BRAND.name} AI agentům · JSON-RPC 2.0 přes HTTP`, `MCP server exposing ${BRAND.name} tools to AI agents · JSON-RPC 2.0 over HTTP`)}
         icon={<Bot aria-hidden="true" size={18} style={{ color: 'var(--accent)' }} />}
         actions={<button type="button" className="btn btn-secondary" onClick={loadTools} disabled={loading} aria-busy={loading} aria-label={t('Obnovit nástroje agenta', 'Refresh agent tools')}>
           <RefreshCw size={13} aria-hidden="true" className={cn(loading && 'animate-spin')} />
@@ -275,8 +276,8 @@ export default function AgentPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '12px' }}>
           {([
             {
-              nameCs: 'OpenBank Agent Service',
-              nameEn: 'OpenBank Agent Service',
+              nameCs: 'Agent Service',
+              nameEn: 'Agent Service',
               status: serverInfo && !failure ? 'UP' : failure === 'not_deployed' ? 'NOT-DEPLOYED' : failure ? 'DEGRADED' : 'UNKNOWN',
               statusCs: serverInfo && !failure ? 'Dostupný' : failure === 'not_deployed' ? 'Nenasazený' : failure ? 'Nedostupný' : 'Ověřuji',
               statusEn: serverInfo && !failure ? 'Available' : failure === 'not_deployed' ? 'Not deployed' : failure ? 'Unavailable' : 'Checking',

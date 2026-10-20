@@ -2,7 +2,7 @@
 'use client'
 
 import { ArrowRight, BookOpenCheck, Building2, Landmark, ShieldCheck, UserRound } from 'lucide-react'
-import { ExplorerGuide } from '@/components/brand/ExplorerGuide'
+import { BrandGuide } from '@/components/brand/BrandGuide'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import styles from './DelegationEducation.module.css'
 
@@ -152,10 +152,8 @@ export function DelegationEducation() {
 
   return (
     <>
-      <ExplorerGuide
+      <BrandGuide
         compact
-        priority
-        mascot="lioness"
         eyebrow={t('Průvodce oprávněními', 'Access guide')}
         title={t('Nejdřív porozumět. Potom teprve rozhodovat.', 'Understand first. Decide second.')}
         action={(
@@ -173,7 +171,7 @@ export function DelegationEducation() {
           'Vlastník není role z katalogu. Dispoziční role je pouze šablona; skutečný delegovaný přístup určuje konkrétní grant, jeho stav, zdroj, práva a podmínky. Životní cyklus delegací zde pouze čtete — správci mohou měnit jen katalog šablon.',
           'An owner is not a catalog role. A delegation role is only a preset; actual delegated access comes from a specific grant, its status, resource, rights and conditions. Delegation lifecycles are read-only here — administrators can change only the preset catalog.',
         )}
-      </ExplorerGuide>
+      </BrandGuide>
 
       <section className={`card ${styles.education}`} aria-labelledby="delegation-education-title">
         <header className={styles.header}>

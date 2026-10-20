@@ -13,6 +13,7 @@ import { DataUnavailable, type UnavailableKind } from '@/components/feedback/Dat
 import { AuthGuard, Can } from '@/components/auth/AuthGuard'
 import { PageHeader, StatusBadge, statusTone, type Tone } from '@/components/ui'
 import { PID_LOOKUP_TYPES, isPidLookupType, parsePidExternalIdLookup, type PidLookupType, type PidRecordEvidence } from '@/lib/pid/pidRecordContract'
+import { BRAND } from '@/lib/brand'
 
 const PID_SERVICE = '/api/svc/pid-service'
 
@@ -254,7 +255,7 @@ export default function PidPage() {
           icon={<Map size={18} aria-hidden="true" />}
           title={t('Osobní identifikační údaje (PID)', 'Personal Identification Data (PID)')}
           subtitle={t('Správa identit, dokladů a identifikátorů klientů', 'Management of identities, documents, and client identifiers')}
-          breadcrumb={<div className="breadcrumb"><span>OpenBank</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">PID</span></div>}
+          breadcrumb={<div className="breadcrumb"><span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">PID</span></div>}
           actions={<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button

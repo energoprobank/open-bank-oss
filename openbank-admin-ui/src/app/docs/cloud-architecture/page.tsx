@@ -12,6 +12,7 @@ import { eksVersion, platformVersions } from '@/lib/platform-versions'
 import { LIVE_UNAVAILABLE_NOTE, nodesText, versionText, type Inventory, type PlatformView } from '@/lib/platform-view'
 import { usePlatformView } from '@/lib/use-platform-view'
 import { DocsPageHeader } from '@/components/docs/DocsPageHeader'
+import { BRAND } from '@/lib/brand'
 
 // Bilingual string tuple: [Czech, English] — spread into t(cs, en) at render.
 type Bilingual = [string, string]
@@ -262,7 +263,7 @@ export default function CloudArchitecturePage() {
     <div>
       <DocsPageHeader
         crumbs={<>
-            <span>OpenBank</span><span className="breadcrumb-sep">/</span>
+            <span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span>
             <span>{t('Dokumentace', 'Docs')}</span><span className="breadcrumb-sep">/</span>
             <span className="breadcrumb-current">{t('Cloud architektura', 'Cloud Architecture')}</span>
           </>}

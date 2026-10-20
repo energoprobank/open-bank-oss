@@ -6,6 +6,7 @@
 
 import { useRef, useEffect } from 'react'
 import Link from 'next/link'
+import { BRAND } from '@/lib/brand'
 import { usePathname } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import {
@@ -383,13 +384,10 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; onClose
       {/* Brand */}
       <div className={styles.brand}>
         <div className={styles.brandLockup}>
-          <div className={styles.brandMark}>
-            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 21V9"/>
-            </svg>
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element -- static brand asset; next/image adds nothing for a 34px mark */}
+          <img className={styles.brandMark} src={BRAND.logo.markOnDark} alt="" aria-hidden="true" width={44} height={14} />
           <div className={styles.brandText}>
-            <div className={styles.brandName}>OpenBank</div>
+            <div className={styles.brandName}>{BRAND.name}</div>
             <div className={styles.brandSubtitle}>{t('Administrace', 'Admin Portal')}</div>
           </div>
         </div>
@@ -440,7 +438,7 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; onClose
 
       {/* Footer */}
       <div className={styles.footer}>
-        <div className={styles.footerVersion}>{t('OpenBank Admin portál', 'OpenBank Admin Portal')}</div>
+        <div className={styles.footerVersion}>{t(BRAND.adminPortal.cs, BRAND.adminPortal.en)}</div>
         <div className={styles.footerScope}>EBA · PSD2 · CNB · GDPR</div>
       </div>
     </aside>

@@ -14,6 +14,7 @@ import { ChevronLeft, ShieldCheck, Radio, FileText } from 'lucide-react'
 import { loadComplianceCatalog, type ControlStatus, type ComplianceControl } from '@/lib/governance/compliance'
 import { DocsPageHeader } from '@/components/docs/DocsPageHeader'
 import { ContentSourceNote } from '@/components/docs/ContentSourceNote'
+import { BRAND } from '@/lib/brand'
 
 export const dynamic = 'force-dynamic'
 
@@ -44,7 +45,7 @@ export default async function ControlTowerPage() {
       <div>
         <DocsPageHeader
           crumbs={<>
-              <span>OpenBank</span><span className="breadcrumb-sep">/</span>
+              <span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span>
               <Link href="/docs" style={{ color: 'inherit', textDecoration: 'none' }}>Docs</Link>
               <span className="breadcrumb-sep">/</span>
               <span className="breadcrumb-current">{t('Control Tower', 'Control Tower')}</span>
@@ -81,7 +82,7 @@ export default async function ControlTowerPage() {
     <div>
       <DocsPageHeader
         crumbs={<>
-            <span>OpenBank</span><span className="breadcrumb-sep">/</span>
+            <span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span>
             <Link href="/docs" style={{ color: 'inherit', textDecoration: 'none' }}>Docs</Link>
             <span className="breadcrumb-sep">/</span>
             <span className="breadcrumb-current">{t('Control Tower', 'Control Tower')}</span>

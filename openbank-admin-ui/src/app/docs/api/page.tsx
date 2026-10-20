@@ -12,6 +12,7 @@ import { ContentSourceNote } from '@/components/docs/ContentSourceNote'
 import type { ContentSourceMetadata } from '@/lib/evidence/contentSource'
 import { buildRegistry } from '@/lib/services/registry'
 import { aggregateNamedWorkloadStatuses } from '@/lib/health/workloadHealth'
+import { BRAND } from '@/lib/brand'
 
 // Card → Kubernetes Deployment/Service name (the BFF's canonical key, ADR-0056).
 // `specId` is the repo module directory (so the code-derived catalog lookup below can
@@ -74,7 +75,7 @@ const EDITORIAL: Record<string, { name: string; group: string; version: string; 
   'consent': { name: 'Consent Service', group: 'PSD2', version: 'v1', desc: 'PSD2 consent management, AIS/PIS/CBPII (Open Banking user approvals)' },
   'psd2': { name: 'PSD2 Service', group: 'PSD2', version: 'v1', desc: 'Berlin Group NextGenPSD2 API gateway (Regulated API interface)' },
   'tpp-registry': { name: 'TPP Registry', group: 'PSD2', version: 'v1', desc: 'Third Party Provider registry, EBA sync (Verified external consumers)' },
-  'agent': { name: 'Agent Service (MCP)', group: 'Platform', version: 'v1', desc: 'AI agent MCP server, OpenBank tools (Intelligent assistant backend)' },
+  'agent': { name: 'Agent Service (MCP)', group: 'Platform', version: 'v1', desc: 'AI agent MCP server, banking tools (Intelligent assistant backend)' },
   'sca': { name: 'SCA Service', group: 'PSD2', version: 'v1', desc: 'Strong Customer Authentication, OTP (Multi-factor auth provider)' },
   'party': { name: 'Party Service', group: 'Identity', version: 'v1', desc: 'Customer/company master data, PEP flags (Central customer record)' },
   'notification': { name: 'Notification Service', group: 'Platform', version: 'v1', desc: 'Email/SMS/Push notifications (Omnichannel delivery)' },
@@ -108,7 +109,7 @@ const SERVICE_DESC_CS: Record<string, string> = {
   consent:           'Správa souhlasů PSD2, AIS/PIS/CBPII (Schválení uživatele v Open Bankingu)',
   psd2:              'API brána Berlin Group NextGenPSD2 (Regulované API rozhraní)',
   'tpp-registry':               'Registr poskytovatelů třetích stran, synchronizace s EBA (Ověření externí konzumenti)',
-  agent:             'AI agent MCP server, nástroje OpenBank (Backend inteligentního asistenta)',
+  agent:             'AI agent MCP server, bankovní nástroje (Backend inteligentního asistenta)',
   sca:               'Silné ověření klienta, OTP (Poskytovatel vícefaktorového ověření)',
   party:             'Kmenová data klientů/firem, příznaky PEP (Centrální záznam klienta)',
   notification:      'E-mailové/SMS/Push notifikace (Omnikanálové doručování)',
@@ -589,7 +590,7 @@ export default function ApiCatalogPage() {
     <div>
       <DocsPageHeader
         crumbs={<>
-            <span>OpenBank</span><span className="breadcrumb-sep">/</span>
+            <span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span>
             <span>{t('Dokumentace', 'Docs')}</span><span className="breadcrumb-sep">/</span>
             <span className="breadcrumb-current">{t('API Katalog', 'API Catalog')}</span>
           </>}
@@ -610,8 +611,8 @@ export default function ApiCatalogPage() {
           <button key={tab} type="button" aria-pressed={activeTab === tab} onClick={() => setActiveTab(tab)} style={{
             padding: '8px 16px', fontSize: '13px', fontWeight: 600,
             background: 'transparent', border: 'none',
-            borderBottom: activeTab === tab ? '2px solid #6366f1' : '2px solid transparent',
-            color: activeTab === tab ? '#6366f1' : 'var(--text-secondary)',
+            borderBottom: activeTab === tab ? '2px solid var(--accent)' : '2px solid transparent',
+            color: activeTab === tab ? 'var(--accent-text)' : 'var(--text-secondary)',
             cursor: 'pointer', fontFamily: 'inherit', marginBottom: '-1px',
           }}>
             <span aria-hidden="true">{tab === 'rest' ? '⚡' : '📨'}</span>{tab === 'rest' ? ' REST APIs' : ' AsyncAPI / Kafka'}

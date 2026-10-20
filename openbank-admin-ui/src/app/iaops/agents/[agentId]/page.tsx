@@ -20,6 +20,7 @@ import type { AgentDiagnostic, AgentMeshSummary } from '@/lib/governance/agentDi
 import { OutcomeMetricsCard } from '@/components/agent/AgentOutcomes'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { StatusBadge } from '@/components/ui/StatusBadge'
+import { BRAND } from '@/lib/brand'
 
 // ── Types (mirror /api/iaops/agents/[agentId]) ─────────────────────────────
 interface Schedule { daily: string | null; reactive: string | null }
@@ -172,7 +173,7 @@ function AgentDetailContent() {
   return (
     <div style={{ padding: '28px 32px', maxWidth: '1100px', animation: 'fadeIn 0.2s ease-out' }}>
       <PageHeader
-        breadcrumb={<div className="breadcrumb"><span>OpenBank</span><span className="breadcrumb-sep">/</span><Link href="/iaops" className="breadcrumb-current" style={{ textDecoration: 'none' }}>{t('IAOps', 'IAOps')}</Link><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{agentId}</span></div>}
+        breadcrumb={<div className="breadcrumb"><span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span><Link href="/iaops" className="breadcrumb-current" style={{ textDecoration: 'none' }}>{t('IAOps', 'IAOps')}</Link><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{agentId}</span></div>}
         icon={<Users size={20} aria-hidden="true" />}
         title={persona.name}
         subtitle={persona.role}

@@ -16,8 +16,9 @@ import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { AuthGuard } from '@/components/auth/AuthGuard'
 import { DataUnavailable, type UnavailableKind } from '@/components/feedback/DataUnavailable'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { ExplorerGuide } from '@/components/brand/ExplorerGuide'
+import { BrandGuide } from '@/components/brand/BrandGuide'
 import { parseTempoSearch, parseTempoTrace, type FlatSpan, type TraceSummary } from '@/lib/observability/tempo-evidence'
+import { BRAND } from '@/lib/brand'
 
 // Stable per-service hue so the same service keeps its colour across spans.
 function serviceColor(service: string): string {
@@ -115,7 +116,7 @@ export default function TraceExplorerPage() {
           icon={<GitBranch size={18} aria-hidden="true" />}
           title={t('Trace Explorer', 'Trace Explorer')}
           subtitle={t('Sleduj jeden požadavek napříč službami — distribuované trasy z Tempa s časováním každého spanu.', 'Watch a single request hop across services — distributed traces from Tempo with per-span timing.')}
-          breadcrumb={<div className="breadcrumb"><span>OpenBank</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Trasování', 'Tracing')}</span></div>}
+          breadcrumb={<div className="breadcrumb"><span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Trasování', 'Tracing')}</span></div>}
           actions={<button type="button" onClick={loadTraces} className="btn btn-secondary" disabled={loading} aria-busy={loading} aria-label={t('Obnovit trasy z Tempa', 'Refresh traces from Tempo')} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <RefreshCw size={14} aria-hidden="true" className={loading ? 'spin' : undefined} />
             {t('Obnovit', 'Refresh')}
@@ -123,12 +124,12 @@ export default function TraceExplorerPage() {
         />
 
         {!selected && !unavailable && !loading && (
-          <ExplorerGuide compact title={t('Najděte nejpomalejší předávku', 'Find the slowest hand-off')}>
+          <BrandGuide compact title={t('Najděte nejpomalejší předávku', 'Find the slowest hand-off')}>
             {t(
-              'Vyberte trasu a čtěte waterfall zleva doprava. Dlouhý span ukazuje, kde požadavek čekal; změna barvy znamená přechod do další služby. Explorer doporučuje začít u nejdelšího pruhu, ne u nejhlasitějšího logu.',
-              'Select a trace and read the waterfall from left to right. A long span shows where the request waited; a colour change marks a hand-off to another service. Explorer recommends starting with the longest bar, not the loudest log.',
+              'Vyberte trasu a čtěte waterfall zleva doprava. Dlouhý span ukazuje, kde požadavek čekal; změna barvy znamená přechod do další služby. Začněte u nejdelšího pruhu, ne u nejhlasitějšího logu.',
+              'Select a trace and read the waterfall from left to right. A long span shows where the request waited; a colour change marks a hand-off to another service. Start with the longest bar, not the loudest log.',
             )}
-          </ExplorerGuide>
+          </BrandGuide>
         )}
 
         {/*

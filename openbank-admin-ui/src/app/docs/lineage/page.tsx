@@ -23,6 +23,7 @@ import {
   type LineageRelation as Rel,
   type LineageRole as Role,
 } from '@/lib/governance/lineage-evidence'
+import { BRAND } from '@/lib/brand'
 
 // ---------------------------------------------------------------------------
 // Data-lineage flow (ADR-0071). Companion to the service map, but the graph here
@@ -160,7 +161,7 @@ export default function LineageFlowPage() {
     <div style={{ padding: '28px 32px', maxWidth: '1400px' }}>
       <DocsPageHeader
         crumbs={<>
-            <span>OpenBank</span><span className="breadcrumb-sep">/</span>
+            <span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span>
             <span>{t('Dokumentace', 'Docs')}</span><span className="breadcrumb-sep">/</span>
             <span className="breadcrumb-current">{t('Datová lineage', 'Data Lineage')}</span>
           </>}

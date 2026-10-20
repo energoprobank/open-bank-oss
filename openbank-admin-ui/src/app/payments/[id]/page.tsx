@@ -14,6 +14,7 @@ import { readStashedRow } from '@/lib/services/rowHandoff'
 import { parsePaymentDetailEvidence, type PaymentDetailEvidence, type PaymentRail } from '@/lib/payments/detailEvidence'
 import { DataUnavailable, type UnavailableKind } from '@/components/feedback/DataUnavailable'
 import { PageHeader, StatusBadge, statusTone, type Tone } from '@/components/ui'
+import { BRAND } from '@/lib/brand'
 
 // These two statuses are specific to payment processing. Keep their explicit
 // meaning here rather than broadening the cross-domain status vocabulary:
@@ -137,7 +138,7 @@ function PaymentDetailContent() {
       <PageHeader
         title={`${id.slice(0, 8)}…`}
         subtitle={t('Detail platebního příkazu', 'Payment order detail')}
-        breadcrumb={<div className="breadcrumb"><span>OpenBank</span><span className="breadcrumb-sep">/</span><Link href="/payments" style={{ color: 'var(--text-tertiary)', textDecoration: 'none' }}>{t('Platby', 'Payments')}</Link><span className="breadcrumb-sep">/</span><span className="breadcrumb-current mono" style={{ fontSize: '12px' }}>{id.slice(0, 12)}…</span></div>}
+        breadcrumb={<div className="breadcrumb"><span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span><Link href="/payments" style={{ color: 'var(--text-tertiary)', textDecoration: 'none' }}>{t('Platby', 'Payments')}</Link><span className="breadcrumb-sep">/</span><span className="breadcrumb-current mono" style={{ fontSize: '12px' }}>{id.slice(0, 12)}…</span></div>}
         actions={<div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           {payment?.status && <StatusBadge status={payment.status} tone={paymentStatusTone(payment.status)} />}
           {payment?.type && <span className="tag">{payment.type}</span>}

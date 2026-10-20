@@ -20,6 +20,7 @@ import { AgentInsightsPanel } from '@/components/agent/AgentInsightsPanel'
 import type { AgentFinding } from '@/components/agent/AgentInsightsPanel'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { StatusBadge, type Tone } from '@/components/ui'
+import { BRAND } from '@/lib/brand'
 
 // ── Helper components ─────────────────────────────────────────────────────────
 
@@ -276,7 +277,7 @@ function FinOpsContent() {
           'Správa verzí, licencí a efektivity zdrojů — ADR-0054',
           'Version lifecycle, cost posture, and resource efficiency — ADR-0054',
         )}
-        breadcrumb={<div className="breadcrumb"><span>OpenBank</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">FinOps</span></div>}
+        breadcrumb={<div className="breadcrumb"><span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">FinOps</span></div>}
         actions={<div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           {lastRefresh && !loading && (
             <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>

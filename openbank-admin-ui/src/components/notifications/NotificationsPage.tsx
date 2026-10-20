@@ -15,6 +15,7 @@ import { opsMessageApi } from '@/lib/api'
 import { PageHeader, StatusBadge } from '@/components/ui'
 import { readApprovalId } from '@/lib/approvals/triage'
 import { trapDialogFocus } from '@/lib/a11y/trapDialogFocus'
+import { BRAND } from '@/lib/brand'
 
 const NOTIFICATION_SERVICE = '/api/svc/notification-service'
 
@@ -207,7 +208,7 @@ export function NotificationsContent() {
   return (
     <div>
       <PageHeader
-        breadcrumb={<div className="breadcrumb"><span>OpenBank</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Oznámení', 'Notifications')}</span></div>}
+        breadcrumb={<div className="breadcrumb"><span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Oznámení', 'Notifications')}</span></div>}
         icon={<Bell size={18} aria-hidden="true" />}
         title={t('Oznámení', 'Notifications')}
         subtitle={t('Odchozí oznámení — e-maily, upozornění, webhooky', 'Outbound notification log — emails, alerts, webhooks')}

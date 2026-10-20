@@ -16,6 +16,7 @@ import { PartySearch } from '@/components/party/PartySearch'
 import { isValidIban, normalizeIban } from '@/lib/validation/iban'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { AUDIT_EVIDENCE_WINDOW, formatAuditPayload, parseAuditEvidenceList, type AuditEvidence } from '@/lib/audit/auditEvidence'
+import { BRAND } from '@/lib/brand'
 
 const AUDIT_SERVICE = '/api/svc/audit-service'
 
@@ -125,7 +126,7 @@ export default function AuditPage() {
   return (
     <div>
       <PageHeader
-        breadcrumb={<div className="breadcrumb"><span>OpenBank</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Auditní log', 'Audit Log')}</span></div>}
+        breadcrumb={<div className="breadcrumb"><span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Auditní log', 'Audit Log')}</span></div>}
         icon={<ScrollText size={18} aria-hidden="true" />}
         title={t('Auditní log', 'Audit Log')}
         subtitle={t('Nejnovější ověřitelné události a jejich původ', 'Latest verifiable events and their provenance')}

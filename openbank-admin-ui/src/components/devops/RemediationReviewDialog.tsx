@@ -105,7 +105,7 @@ export function RemediationReviewDialog({
           {finding.proposalPrUrl && (
             <div>
               <strong>{t('Návrh', 'Proposal')}:</strong>{' '}
-              <a href={finding.proposalPrUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#6366f1' }}>
+              <a href={finding.proposalPrUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-text)' }}>
                 {t('Zobrazit návrh →', 'View proposal →')}
               </a>
             </div>

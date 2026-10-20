@@ -18,6 +18,7 @@ import {
 } from '@/lib/docs/sensors'
 import { STATUS_META, type Status } from '@/lib/docs/status'
 import { StatusBadge } from '@/components/ui/StatusBadge'
+import { BRAND } from '@/lib/brand'
 
 const PLATFORM_LABEL: Record<Platform, { label: string; Icon: React.ElementType }> = {
   ios: { label: 'iOS', Icon: Apple },
@@ -108,7 +109,7 @@ export function SensorFamilyView({ family, lang }: { family: SensorFamily; lang:
       <div className="page-header">
         <div>
           <div className="breadcrumb">
-            <span>OpenBank</span><span className="breadcrumb-sep">/</span>
+            <span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span>
             <Link href="/docs" style={{ color: 'inherit', textDecoration: 'none' }}>{t('Dokumentace', 'Docs')}</Link>
             <span className="breadcrumb-sep">/</span>
             <Link href="/docs/sensors" style={{ color: 'inherit', textDecoration: 'none' }}>{t('Senzory', 'Sensors')}</Link>

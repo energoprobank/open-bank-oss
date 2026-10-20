@@ -13,6 +13,7 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { AuthGuard } from '@/components/auth/AuthGuard'
 import { parseCreatedParty } from '@/lib/party/createdParty'
 import styles from './page.module.css'
+import { BRAND } from '@/lib/brand'
 
 const PARTY_SERVICE = '/api/svc/party-service'
 
@@ -99,7 +100,7 @@ export default function NewPartyPage() {
         icon={<Users size={18} aria-hidden="true" />}
         title={t('Registrovat nový subjekt', 'Register New Party')}
         subtitle={t('Vytvořte nového zákazníka nebo společnost v platformě', 'Create a new customer or company in the platform')}
-        breadcrumb={<div className="breadcrumb"><span>OpenBank</span><span className="breadcrumb-sep">/</span><Link href="/parties" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>{t('Subjekty', 'Parties')}</Link><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Nový subjekt', 'New Party')}</span></div>}
+        breadcrumb={<div className="breadcrumb"><span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span><Link href="/parties" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>{t('Subjekty', 'Parties')}</Link><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Nový subjekt', 'New Party')}</span></div>}
         actions={<Link href="/parties" className="btn btn-secondary" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}><ArrowLeft size={13} aria-hidden="true" /> {t('Zpět', 'Back')}</Link>}
       />
 

@@ -19,6 +19,7 @@ import {
   type OnboardingRecord,
   type OnboardingStage as Stage,
 } from '@/lib/onboarding/evidence'
+import { BRAND } from '@/lib/brand'
 
 const SVC = 'onboarding-service'
 
@@ -177,7 +178,7 @@ export default function OnboardingPage() {
         title={t('Onboarding cockpit', 'Onboarding Cockpit')}
         subtitle={t('Přehled průběhu onboardingu zákazníků — fáze po fázi', 'Customer onboarding funnel — stage by stage')}
         icon={<ClipboardList size={18} aria-hidden="true" />}
-        breadcrumb={<div className="breadcrumb"><span>OpenBank</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Onboarding', 'Onboarding')}</span></div>}
+        breadcrumb={<div className="breadcrumb"><span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Onboarding', 'Onboarding')}</span></div>}
         actions={<div style={{ display: 'flex', gap: '8px' }}>
           <Link href="/onboarding/analytics" className="btn btn-secondary" style={{ textDecoration: 'none' }}>
             <TrendingUp size={13} style={{ color: 'var(--accent)' }} />

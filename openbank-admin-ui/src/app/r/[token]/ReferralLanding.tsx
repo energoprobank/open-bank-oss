@@ -8,6 +8,7 @@ import { useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import { Gift, ShieldCheck, UserPlus, Sparkles } from 'lucide-react'
 import { DataUnavailable } from '@/components/feedback/DataUnavailable'
+import { BRAND } from '@/lib/brand'
 import styles from './referral-landing.module.css'
 
 // Issued by openbank-referral-service: base64url (no padding), 16–128 chars.
@@ -55,7 +56,7 @@ export function ReferralLanding() {
   return (
     <main className={styles.page}>
       <header className={styles.header}>
-        <a className={styles.brand} href="/auth/login">OpenBank</a>
+        <a className={styles.brand} href="/auth/login">{BRAND.name}</a>
       </header>
 
       {valid ? (
@@ -63,9 +64,9 @@ export function ReferralLanding() {
           <section className={styles.hero} aria-labelledby="invite-title">
             <div className={styles.heroCopy}>
               <p className={styles.eyebrow}><ShieldCheck size={16} aria-hidden="true" />Personal invitation</p>
-              <h1 id="invite-title">You&apos;ve been invited to OpenBank.</h1>
+              <h1 id="invite-title">You&apos;ve been invited to {BRAND.name}.</h1>
               <p className={styles.intro}>
-                A friend thinks you&apos;d like banking here — and OpenBank rewards you both once you open
+                A friend thinks you&apos;d like banking here — and {BRAND.name} rewards you both once you open
                 your account. Your invitation is personal: it was created just for this link.
               </p>
               <div className={styles.actions}>
@@ -108,7 +109,7 @@ export function ReferralLanding() {
       )}
 
       <footer className={styles.footer}>
-        <span>admin.open-bank.tech</span>
+        <span>{BRAND.legalName}</span>
       </footer>
     </main>
   )

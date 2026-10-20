@@ -10,6 +10,7 @@ import { useSearchParams } from "next/navigation"
 import { Suspense, useState } from "react"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { safeCallbackPath } from "@/lib/auth/safeCallbackPath"
+import { BRAND } from "@/lib/brand"
 import styles from "../recovery.module.css"
 
 const COPY = {
@@ -66,7 +67,7 @@ function ErrorContent() {
     <main className={styles.page}>
       <section className={styles.card} aria-labelledby="auth-error-title">
         <header className={styles.header}>
-          <a className={styles.brand} href="/auth/login">OpenBank <span>Admin</span></a>
+          <a className={styles.brand} href="/auth/login">{BRAND.name} <span>Admin</span></a>
           <button type="button" className={styles.languageButton} onClick={() => setLanguage(language === "en" ? "cs" : "en")} aria-label={copy.switchLanguage}>
             <Languages size={16} aria-hidden="true" />{copy.locale}
           </button>

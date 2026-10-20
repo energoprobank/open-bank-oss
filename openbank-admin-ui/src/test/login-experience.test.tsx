@@ -8,6 +8,7 @@ import { signIn } from 'next-auth/react'
 import LoginPage from '@/app/auth/login/page'
 import { LanguageProvider } from '@/lib/i18n/LanguageContext'
 import { safeCallbackPath } from '@/lib/auth/safeCallbackPath'
+import { BRAND } from '@/lib/brand'
 
 let query = new URLSearchParams()
 
@@ -44,10 +45,8 @@ describe('login experience', () => {
     renderPage()
 
     expect(screen.getByRole('heading', { name: 'Explore operations with confidence.' })).toBeInTheDocument()
-    expect(screen.getByText(/Your OpenBank Explorer is ready/)).toBeInTheDocument()
+    expect(screen.getByText(/Your operations workspace is ready/)).toBeInTheDocument()
     expect(screen.getByText('Decisions with context')).toBeInTheDocument()
-    const lionScene = screen.getByRole('button', { name: 'OpenBank Explorer over Prague' })
-    expect(lionScene).toHaveAttribute('aria-pressed', 'true')
     const button = screen.getByRole('button', { name: 'Continue with Keycloak SSO' })
     fireEvent.click(button)
 
@@ -62,21 +61,19 @@ describe('login experience', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Your session expired')
     fireEvent.click(screen.getByRole('button', { name: 'Přepnout do češtiny' }))
     expect(screen.getByRole('heading', { name: 'Prozkoumejte provoz s jistotou.' })).toBeInTheDocument()
-    expect(screen.getByText(/OpenBank Explorer vás provede/)).toBeInTheDocument()
+    expect(screen.getByText(/Vaše provozní prostředí je připraveno/)).toBeInTheDocument()
     expect(screen.getByRole('alert')).toHaveTextContent('Vaše relace vypršela')
   })
 
-  it('rotates between the Prague Explorer scenes', () => {
+  it('shows the static Energo-Pro logo on the story panel, with no scene rotation', () => {
     vi.useFakeTimers()
     const { container } = renderPage()
 
-    expect(container.querySelectorAll('img')).toHaveLength(1)
-    expect(screen.queryByRole('button', { name: 'OpenBank Explorer lioness over Prague' })).toBeNull()
-    act(() => vi.advanceTimersByTime(1_500))
-    const lionessScene = screen.getByRole('button', { name: 'OpenBank Explorer lioness over Prague' })
-    expect(container.querySelectorAll('img')).toHaveLength(2)
-    expect(lionessScene).toHaveAttribute('aria-pressed', 'false')
-    act(() => vi.advanceTimersByTime(6_500))
-    expect(lionessScene).toHaveAttribute('aria-pressed', 'true')
+    const logos = Array.from(container.querySelectorAll('img')).map(img => img.getAttribute('src'))
+    expect(logos).toEqual([BRAND.logo.onDark])
+    expect(container.querySelector('img[src*="explorer"]')).toBeNull()
+    act(() => vi.advanceTimersByTime(10_000))
+    expect(Array.from(container.querySelectorAll('img')).map(img => img.getAttribute('src'))).toEqual([BRAND.logo.onDark])
+    expect(screen.queryByRole('group', { name: /scenes/i })).toBeNull()
   })
 })

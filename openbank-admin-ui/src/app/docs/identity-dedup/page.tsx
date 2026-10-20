@@ -8,6 +8,7 @@ import { Fingerprint, ShieldCheck, GitMerge, KeyRound, Layers, AlertTriangle, Lo
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { DocsPageHeader } from '@/components/docs/DocsPageHeader'
 import { PrintDocumentButton } from '@/components/docs/PrintDocumentButton'
+import { BRAND } from '@/lib/brand'
 
 const fade = (color: string, amount: number) => `color-mix(in srgb, ${color} ${amount}%, transparent)`
 
@@ -118,7 +119,7 @@ export default function IdentityDedupPage() {
     <div className="docs-printable">
       <DocsPageHeader
         crumbs={<>
-            <span>OpenBank</span>
+            <span>{BRAND.shortName}</span>
             <span className="breadcrumb-sep">/</span>
             <span>{t('Dokumentace', 'Docs')}</span>
             <span className="breadcrumb-sep">/</span>

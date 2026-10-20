@@ -17,6 +17,7 @@ import { DataUnavailable, type UnavailableKind } from '@/components/feedback/Dat
 import { classifyBffFailure, svcUrl } from '@/lib/services/bff'
 import { validateAccountBalance, validateAccountDetail } from '@/lib/accounts/detailContract'
 import type { Account, AccountBalance } from '@/types'
+import { BRAND } from '@/lib/brand'
 
 const STATUS_PILL: Record<string, string> = {
   ACTIVE:             'pill pill-success',
@@ -162,7 +163,7 @@ export default function AccountDetailPage() {
       <PageHeader
         title={account.accountNumber}
         subtitle={`${account.accountType} · ${account.currencyCode}`}
-        breadcrumb={<div className="breadcrumb"><span>OpenBank</span><span className="breadcrumb-sep">/</span><Link href="/accounts" style={{ color: 'var(--text-tertiary)', textDecoration: 'none' }}>{t('Účty', 'Accounts')}</Link><span className="breadcrumb-sep">/</span><span className="breadcrumb-current mono" style={{ fontSize: '12px' }}>{account.accountNumber}</span></div>}
+        breadcrumb={<div className="breadcrumb"><span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span><Link href="/accounts" style={{ color: 'var(--text-tertiary)', textDecoration: 'none' }}>{t('Účty', 'Accounts')}</Link><span className="breadcrumb-sep">/</span><span className="breadcrumb-current mono" style={{ fontSize: '12px' }}>{account.accountNumber}</span></div>}
         actions={<div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <span className={STATUS_PILL[account.status] ?? 'pill pill-neutral'}>{account.status}</span>
           <Link href="/accounts" className="btn btn-secondary"><ArrowLeft size={13} aria-hidden="true"/> {t('Zpět', 'Back')}</Link>

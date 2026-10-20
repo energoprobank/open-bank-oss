@@ -207,7 +207,7 @@ export function UiMessageEditor({ value, onChange, disabled }: {
     `${key} ${cs} ${en}`.toLocaleLowerCase().includes(query.toLocaleLowerCase()))
   const groups = [...new Set(visible.map(([key]) => groupOf(key)))].filter(group => query || group === selectedGroup)
   return <fieldset disabled={disabled} style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 16 }}>
-    <legend>{t('Hlášky lva a lvice v aplikaci', 'Lion and lioness app messages')}</legend>
+    <legend>{t('Hlášky v aplikaci', 'In-app messages')}</legend>
     <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
       {t('Krátce, srozumitelně a empaticky. Při výpadku se omluvíme; při čekání na platbu aktivně hledáme výsledek. Prázdné pole použije výchozí text aplikace. Změny projdou schválením.',
         'Keep it short, clear and empathetic. Apologise during outages; actively check pending payments. Empty fields use the bundled app text. Changes require approval.')}

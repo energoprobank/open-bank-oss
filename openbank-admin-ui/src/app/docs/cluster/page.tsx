@@ -17,6 +17,7 @@ import {
   Boxes, Box, Lock, Network, Cpu, Globe, Shield, Key, CheckCircle2, CircleDashed, Circle,
   ChevronRight, RefreshCw, FileText, BadgeCheck, AlertTriangle, Building2, Server,
 } from 'lucide-react'
+import { BRAND } from '@/lib/brand'
 
 type Status = 'live' | 'partial' | 'planned'
 
@@ -189,7 +190,7 @@ export default function ClusterDossierPage() {
     <div>
       <DocsPageHeader
         crumbs={<>
-            <span>OpenBank</span><span className="breadcrumb-sep">/</span>
+            <span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span>
             <span>{t('Dokumentace', 'Docs')}</span><span className="breadcrumb-sep">/</span>
             <span className="breadcrumb-current">{t('Cluster & kontejner', 'Cluster & container')}</span>
           </>}

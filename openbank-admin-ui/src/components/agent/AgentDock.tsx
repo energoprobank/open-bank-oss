@@ -9,6 +9,7 @@ import { usePathname } from 'next/navigation'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { isPublicSurface } from '@/lib/auth/publicSurface'
 import { Bot, Send, X, Loader2, Wrench, ShieldCheck, ShieldAlert, AlertTriangle } from 'lucide-react'
+import { BRAND } from '@/lib/brand'
 
 interface ToolCall { tool: string; allowed: boolean; resultPreview: string }
 /** isProposal (D4 ADR-0031): true when the assistant recommends an action requiring operator review. */
@@ -121,7 +122,7 @@ export function AgentDock() {
         <div
           id="agent-dock-panel"
           role="region"
-          aria-label={t('Panel asistenta OpenBank', 'OpenBank assistant panel')}
+          aria-label={t(`Panel asistenta ${BRAND.shortName}`, `${BRAND.shortName} assistant panel`)}
           style={{
             position: 'fixed', bottom: 88, right: 24, zIndex: 1000,
             width: 400, maxWidth: 'calc(100vw - 48px)', height: 540, maxHeight: 'calc(100vh - 120px)',
@@ -134,7 +135,7 @@ export function AgentDock() {
           <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}>
             <Bot size={16} aria-hidden="true" style={{ color: 'var(--accent)' }} />
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{t('OpenBank asistent', 'OpenBank Assistant')}</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{t(`Asistent ${BRAND.shortName}`, `${BRAND.shortName} Assistant`)}</div>
               <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{t('jen pro čtení · řízeno politikou · auditováno', 'read-only · policy-gated · audited')}</div>
             </div>
             {models.length > 0 && (

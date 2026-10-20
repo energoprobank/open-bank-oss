@@ -19,6 +19,7 @@ import {
   type DeadlineRule, type GeneratedReport,
 } from '@/lib/regulatory/generatedReports'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { BRAND } from '@/lib/brand'
 
 type Report = (typeof REPORTS)[number]
 
@@ -578,7 +579,7 @@ export default function RegulatoryPage() {
         icon={<FileText size={18} aria-hidden="true" />}
         title={t('Regulatorní výkaznictví', 'Regulatory Reporting')}
         subtitle={t('CNB SDAT · FAÚ · COREP/FINREP · ECB · FATCA/CRS · DORA ICT incidenty', 'CNB SDAT · FAÚ · COREP/FINREP · ECB · FATCA/CRS · DORA ICT incidents')}
-        breadcrumb={<div className="breadcrumb"><span>OpenBank</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Regulatorní výkaznictví', 'Regulatory Reporting')}</span></div>}
+        breadcrumb={<div className="breadcrumb"><span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Regulatorní výkaznictví', 'Regulatory Reporting')}</span></div>}
         actions={<a href="https://www.cnb.cz/cs/dohled-financni-trh/vykaznictvi/" target="_blank" rel="noreferrer" className="btn btn-secondary">
           <ExternalLink size={13} aria-hidden="true" />
           {t('CNB Výkaznictví', 'CNB Reporting')}

@@ -27,6 +27,7 @@ import { StatusBadge } from '@/components/ui'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { ContentSourceNote } from '@/components/docs/ContentSourceNote'
 import type { ContentSourceMetadata } from '@/lib/evidence/contentSource'
+import { BRAND } from '@/lib/brand'
 
 const LANE_BG: Record<string, string> = {
   compliance: '#fef2f2', core: '#eff6ff', psd2: '#fffbeb', payment: '#faf5ff',
@@ -325,7 +326,7 @@ export function BpmnView({ processes, contentSource }: { processes: BpmnProcess[
       <ContentSourceNote source={contentSource} />
       <DocsPageHeader
         crumbs={<>
-            <span>OpenBank</span><span className="breadcrumb-sep">/</span>
+            <span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span>
             <span>Docs</span><span className="breadcrumb-sep">/</span>
             <span className="breadcrumb-current">Business Processes</span>
           </>}

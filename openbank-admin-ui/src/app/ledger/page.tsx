@@ -15,6 +15,7 @@ import { ShortId, StatusBadge } from '@/components/ui'
 import { parseLedgerJournalPage, type LedgerJournalPage } from '@/lib/ledger/ledgerJournalContract'
 import { ContextualInsights } from '@/components/insights/ContextualInsights'
 import { LEDGER_INSIGHTS } from '@/components/insights/catalog'
+import { BRAND } from '@/lib/brand'
 
 const PAGE_SIZE = 20
 const BFF_FAILURES = new Set<UnavailableKind>([
@@ -135,7 +136,7 @@ export default function LedgerPage() {
   return (
     <AuthGuard permission="accounts:view">
     <div>
-      <PageHeader breadcrumb={<div className="breadcrumb"><span>OpenBank</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Hlavní kniha', 'General Ledger')}</span></div>} title={t('Hlavní kniha', 'General Ledger')} subtitle={t('Zápisy v podvojném účetnictví', 'Double-entry journal entries')} />
+      <PageHeader breadcrumb={<div className="breadcrumb"><span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Hlavní kniha', 'General Ledger')}</span></div>} title={t('Hlavní kniha', 'General Ledger')} subtitle={t('Zápisy v podvojném účetnictví', 'Double-entry journal entries')} />
 
       <Can permission="system:view">
         <ContextualInsights dashboardUid="openbank-ledger-int" panels={LEDGER_INSIGHTS}

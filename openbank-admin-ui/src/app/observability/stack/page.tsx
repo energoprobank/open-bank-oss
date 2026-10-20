@@ -14,6 +14,7 @@ import { lokiAppVersion } from '@/lib/platform-versions'
 import { LIVE_UNAVAILABLE_NOTE, formatVersion, versionText } from '@/lib/platform-view'
 import { usePlatformView } from '@/lib/use-platform-view'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { BRAND } from '@/lib/brand'
 
 // Static explainer — the LGTM(P) + GlitchTip correlation layer (ADR-0087), extended with
 // SLO-as-code, on-call, durable S3 retention and mobile RUM (ADR-0088 / ADR-0089). No backend
@@ -130,7 +131,7 @@ export default function ObservabilityStackPage() {
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
       <PageHeader
-        breadcrumb={<div className="breadcrumb"><span>OpenBank</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Observabilita', 'Observability')}</span></div>}
+        breadcrumb={<div className="breadcrumb"><span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Observabilita', 'Observability')}</span></div>}
         icon={<Globe size={20} aria-hidden="true" />}
         title={t('Jak funguje náš observability stack', 'How our observability stack works')}
         subtitle={t('Čtyři pilíře (metriky, logy, traces, profily) + mobilní pády se sbíhají do jednoho plátna v Grafaně; na to navazuje SLO-as-code (Pyrra), on-call s eskalací (GoAlert → ntfy), trvanlivé úložiště v S3, mobilní RUM, syntetické proby zvenčí (blackbox + k6) a AI root-cause analýza nad alerty (HolmesGPT). Páteří je trace_id a X-Correlation-ID — z každého bodu se proklikneš do souvisejícího kontextu. Vše čistě open-source, self-hosted, ve VPC.', 'Four pillars (metrics, logs, traces, profiles) + mobile crashes converge into one pane in Grafana; on top sit SLO-as-code (Pyrra), on-call with escalation (GoAlert → ntfy), durable S3 storage, mobile RUM, external synthetic probes (blackbox + k6) and AI root-cause analysis over alerts (HolmesGPT). The spine is trace_id and X-Correlation-ID — from any point you click through to the related context. All pure OSS, self-hosted, in-VPC.')}

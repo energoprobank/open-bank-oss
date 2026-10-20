@@ -22,6 +22,7 @@ import { classifyBffFailure } from '@/lib/services/bff'
 import { DataUnavailable, type UnavailableKind } from '@/components/feedback/DataUnavailable'
 import { parsePaymentListPage, type PaymentListItem, type PaymentSource } from '@/lib/payments/paymentListContract'
 import { parseVopEvidence } from '@/lib/payments/vopEvidence'
+import { BRAND } from '@/lib/brand'
 
 // ADR-0080 P1 (pentest FIND-S3-03/04): all backend access goes through same-origin BFF
 // routes — never NEXT_PUBLIC_ localhost URLs, which leaked the internal port map into the
@@ -645,7 +646,7 @@ function PaymentsContent() {
         title={t('Platby', 'Payments')}
         subtitle={t('Tuzemské a SEPA platební příkazy', 'Domestic and SEPA payment orders')}
         icon={<Banknote size={18} aria-hidden="true" />}
-        breadcrumb={<div className="breadcrumb"><span>OpenBank</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Platby', 'Payments')}</span></div>}
+        breadcrumb={<div className="breadcrumb"><span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Platby', 'Payments')}</span></div>}
         actions={activeTab !== 'sct-inst' ? (
           <button
             className="btn btn-secondary"

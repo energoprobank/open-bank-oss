@@ -4,10 +4,11 @@
 
 import type { Metadata } from 'next'
 import { ReferralLanding } from './ReferralLanding'
+import { BRAND } from '@/lib/brand'
 
 export const metadata: Metadata = {
-  title: "You've been invited — OpenBank",
-  description: 'A friend invited you to OpenBank. Open an account and you both get rewarded.',
+  title: `You've been invited — ${BRAND.name}`,
+  description: `A friend invited you to ${BRAND.name}. Open an account and you both get rewarded.`,
 }
 
 // Public member-get-member (referral) landing page served at /r/<token>. Must stay

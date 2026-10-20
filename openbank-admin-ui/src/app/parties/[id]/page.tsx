@@ -19,6 +19,7 @@ import { PageHeader, ShortId, StatusBadge } from '@/components/ui'
 import { opsMessageApi, OPERATOR_MESSAGE_TEMPLATE_VARS, type OperatorMessageTemplate, type ComposeMessageRequest } from '@/lib/api'
 import { parseKycCaseEvidence, type KycCaseEvidence } from '@/lib/parties/kycEvidenceContract'
 import { parsePartyEvidence, type PartyEvidence } from '@/lib/parties/partyEvidenceContract'
+import { BRAND } from '@/lib/brand'
 
 const PAGE_SIZE = 25
 
@@ -133,7 +134,7 @@ function PartyDetailPage() {
         icon={<Users size={18} aria-hidden="true" />}
         title={party.legalName}
         subtitle={<ShortId value={party.id} copyLabel={t('Kopírovat ID klienta', 'Copy customer ID')} />}
-        breadcrumb={<div className="breadcrumb"><span>OpenBank</span><span className="breadcrumb-sep">/</span><Link href="/parties" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>{t('Subjekty', 'Parties')}</Link><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{party.legalName}</span></div>}
+        breadcrumb={<div className="breadcrumb"><span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span><Link href="/parties" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>{t('Subjekty', 'Parties')}</Link><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{party.legalName}</span></div>}
         actions={<div style={{ display: 'flex', gap: '8px' }}>
           <button
             type="button"

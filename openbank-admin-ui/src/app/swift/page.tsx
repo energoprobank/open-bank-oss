@@ -16,6 +16,7 @@ import { ServiceStatusBadge } from '@/components/feedback/ServiceStatusBadge'
 import { StatusBadge } from '@/components/ui'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { parseSwiftMessages, swiftLifecycleGroup, swiftStatusTone, type SwiftMessage } from '@/lib/swift/swiftMessageContract'
+import { BRAND } from '@/lib/brand'
 
 export default function SwiftPage() {
   const { t, language } = useLanguage()
@@ -47,7 +48,7 @@ export default function SwiftPage() {
     <AuthGuard permission="payment-rails:view">
       <div style={{ padding: '28px 32px', maxWidth: '1400px', animation: 'fadeIn 0.2s ease-out' }}>
         <PageHeader
-          breadcrumb={<div className="breadcrumb"><span>OpenBank</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('SWIFT', 'SWIFT')}</span></div>}
+          breadcrumb={<div className="breadcrumb"><span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('SWIFT', 'SWIFT')}</span></div>}
           icon={<Globe size={20} aria-hidden="true" />}
           title={t('SWIFT zprávy', 'SWIFT Messaging')}
           subtitle={t('Mezinárodní platby a SWIFT MT/MX zprávy — ISO 20022', 'International payments and SWIFT MT/MX messages — ISO 20022')}

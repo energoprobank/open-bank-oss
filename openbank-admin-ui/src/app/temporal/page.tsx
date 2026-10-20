@@ -10,6 +10,7 @@ import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { MONEY_WORKFLOWS } from '@/lib/temporal/workflows'
 import { AuthGuard } from '@/components/auth/AuthGuard'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { BRAND } from '@/lib/brand'
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
@@ -309,7 +310,7 @@ export default function TemporalPage() {
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
 
         <PageHeader
-          breadcrumb={<div className="breadcrumb"><span>OpenBank</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">Temporal</span></div>}
+          breadcrumb={<div className="breadcrumb"><span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">Temporal</span></div>}
           icon={<Zap size={20} aria-hidden="true" />}
           title="Temporal"
           subtitle={t('Durable execution engine pro money-path workflows — challenger model nahrazující ruční outbox sagu', 'Durable execution engine for money-path workflows — challenger model replacing hand-rolled outbox saga')}
@@ -393,8 +394,8 @@ export default function TemporalPage() {
               </div>
               <p style={{ color: 'var(--text)', fontSize: '14px', lineHeight: '1.7', margin: '0 0 12px' }}>
                 {t(
-    'OpenBank dnes nemá sdílené orchestrační primitivum pro money-path workflowy: kompenzace řeší každá služba po svém, přes transakční outbox a vlastní stavové přechody. Ani třída OpenBankSaga, ani tabulka outbox_saga_state v repozitáři neexistují — tato stránka je návrh cílového stavu podle ADR-0101, ne popis nasazeného systému.',
-    'OpenBank has no shared orchestration primitive for money-path workflows today: each service handles compensation its own way, through the transactional outbox and its own state transitions. Neither an OpenBankSaga class nor an outbox_saga_state table exists in the repository — this page describes the ADR-0101 target state, not a deployed system.',
+    'Platforma dnes nemá sdílené orchestrační primitivum pro money-path workflowy: kompenzace řeší každá služba po svém, přes transakční outbox a vlastní stavové přechody. Ani třída OpenBankSaga, ani tabulka outbox_saga_state v repozitáři neexistují — tato stránka je návrh cílového stavu podle ADR-0101, ne popis nasazeného systému.',
+    'The platform has no shared orchestration primitive for money-path workflows today: each service handles compensation its own way, through the transactional outbox and its own state transitions. Neither an OpenBankSaga class nor an outbox_saga_state table exists in the repository — this page describes the ADR-0101 target state, not a deployed system.',
                 )}
               </p>
               <p style={{ color: 'var(--text)', fontSize: '14px', lineHeight: '1.7', margin: 0 }}>
@@ -405,11 +406,11 @@ export default function TemporalPage() {
               </p>
             </div>
 
-            {/* Money-path workflows in OpenBank */}
+            {/* Money-path workflows on the platform */}
             <div>
               <h2 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Activity size={16} color="var(--accent-text)" />
-                {t('Money-path workflowy v OpenBank', 'Money-path workflows in OpenBank')}
+                {t('Money-path workflowy na platformě', 'Money-path workflows on the platform')}
               </h2>
               <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px', maxWidth: 680 }}>
                 {t(

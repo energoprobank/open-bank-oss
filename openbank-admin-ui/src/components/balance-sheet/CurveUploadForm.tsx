@@ -113,7 +113,7 @@ export function CurveUploadForm({ sandbox, busy, onSubmit }: {
                 const on = !!state.curves[i.id]
                 return (
                   <button key={i.id} type="button" aria-pressed={on} onClick={() => toggleIndex(i.id)} className="card"
-                    style={{ textAlign: 'left', cursor: 'pointer', padding: 10, borderColor: on ? 'var(--primary, #6366f1)' : undefined, borderWidth: on ? 2 : 1 }}>
+                    style={{ textAlign: 'left', cursor: 'pointer', padding: 10, borderColor: on ? 'var(--accent, #1f66b3)' : undefined, borderWidth: on ? 2 : 1 }}>
                     <div style={{ fontWeight: 600, fontSize: 13 }}>{on ? '✓ ' : ''}{i.label}</div>
                     <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{lang === 'cs' ? i.cs : i.en}</div>
                   </button>
@@ -311,10 +311,10 @@ function CurvePreview({ rows, title }: { rows: GridRow[]; title: string }) {
         <line x1={P} y1={P} x2={P} y2={H - P} stroke="#94a3b8" />
         <text x={P - 4} y={y(hi) + 4} fontSize="10" textAnchor="end" fill="#64748b">{fmt(hi)}</text>
         <text x={P - 4} y={y(lo) + 4} fontSize="10" textAnchor="end" fill="#64748b">{fmt(lo)}</text>
-        <path d={path} fill="none" stroke="#6366f1" strokeWidth={2} />
+        <path d={path} fill="none" stroke="var(--accent, #1f66b3)" strokeWidth={2} />
         {pts.map((p, i) => (
           <g key={p.tenor}>
-            <circle cx={x(xs[i])} cy={y(p.rate)} r={3} fill="#6366f1" />
+            <circle cx={x(xs[i])} cy={y(p.rate)} r={3} fill="var(--accent, #1f66b3)" />
             <text x={x(xs[i])} y={H - P + 14} fontSize="10" textAnchor="middle" fill="#64748b">{p.tenor}</text>
           </g>
         ))}

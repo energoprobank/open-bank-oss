@@ -6,41 +6,42 @@
 
 import { ArrowLeft, Clock3, Cookie, FileCheck2, Languages, Mail, ShieldCheck, UserRoundCheck } from "lucide-react"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
+import { BRAND } from "@/lib/brand"
 import styles from "./privacy.module.css"
 
 const COPY = {
   en: {
     switchLanguage: "Přepnout do češtiny", locale: "Čeština", eyebrow: "Privacy, explained",
     title: "Know what happens to your operator data.",
-    intro: "OpenBank Admin uses only the identity, session and audit information needed to operate a governed banking workspace. There are no marketing or tracking cookies.",
+    intro: `${BRAND.name} Admin uses only the identity, session and audit information needed to operate a governed banking workspace. There are no marketing or tracking cookies.`,
     flowTitle: "The data journey",
     flow: [
-      ["Identity", "Keycloak supplies your name, email and assigned roles so OpenBank can authenticate you and enforce role-based access."],
+      ["Identity", `Keycloak supplies your name, email and assigned roles so ${BRAND.name} can authenticate you and enforce role-based access.`],
       ["Session", "A necessary NextAuth session cookie keeps you signed in until logout or token expiry."],
       ["Audit evidence", "Actions performed in the console create an audit trail for traceability and financial-sector obligations."],
     ],
-    controllerTitle: "Who controls the data", controller: "OpenBank Foundation (in formation), operator of the demonstration banking platform on open-bank.tech.",
+    controllerTitle: "Who controls the data", controller: `${BRAND.legalName}, operator of this banking workspace.`,
     purposeTitle: "Why the data is processed", purpose: "Identity and session data are required for authentication and access control. Audit records support obligations under the EBA ICT Risk Guidelines and PSD2, and the legitimate interest in traceable operations over banking data.",
     retentionTitle: "How long it is kept", retention: "The session cookie ends at logout or token expiry. Audit records are retained for the period required by financial-sector regulation.",
     rightsTitle: "Your rights", rights: "You can request access, correction or deletion where deletion does not conflict with regulatory retention duties. You may also lodge a complaint with the Czech Office for Personal Data Protection.",
-    contactTitle: "Contacts", controllerContact: "Privacy and rights requests", securityContact: "Security vulnerability reports", securityFile: "Published security contact",
+    contactTitle: "Contacts", controllerContact: "Privacy and rights requests", securityFile: "Security vulnerability reports",
     back: "Back to secure sign-in", note: "This notice is available before sign-in because operators should understand the boundary before entering the workspace.",
   },
   cs: {
     switchLanguage: "Switch to English", locale: "English", eyebrow: "Soukromí srozumitelně",
     title: "Víte, co se děje s údaji operátora.",
-    intro: "OpenBank Admin používá pouze údaje o identitě, relaci a auditu nezbytné pro řízené bankovní prostředí. Nepoužívá marketingové ani sledovací cookies.",
+    intro: `${BRAND.name} Admin používá pouze údaje o identitě, relaci a auditu nezbytné pro řízené bankovní prostředí. Nepoužívá marketingové ani sledovací cookies.`,
     flowTitle: "Cesta údajů",
     flow: [
-      ["Identita", "Keycloak předá jméno, e-mail a přidělené role, aby vás OpenBank mohl ověřit a řídit přístup podle rolí."],
+      ["Identita", `Keycloak předá jméno, e-mail a přidělené role, aby vás ${BRAND.name} mohla ověřit a řídit přístup podle rolí.`],
       ["Relace", "Nezbytná relační cookie NextAuth udržuje přihlášení do odhlášení nebo vypršení tokenu."],
       ["Auditní stopa", "Akce provedené v konzoli vytvářejí auditní stopu pro vysledovatelnost a povinnosti finančního sektoru."],
     ],
-    controllerTitle: "Kdo je správcem", controller: "OpenBank Foundation (v přípravě), provozovatel demonstrační bankovní platformy na doméně open-bank.tech.",
+    controllerTitle: "Kdo je správcem", controller: `${BRAND.legalName}, provozovatel tohoto bankovního prostředí.`,
     purposeTitle: "Proč údaje zpracováváme", purpose: "Identita a relační údaje jsou nutné pro autentizaci a řízení přístupu. Auditní záznamy podporují povinnosti podle EBA ICT Risk Guidelines a PSD2 a oprávněný zájem na vysledovatelnosti operací nad bankovními daty.",
     retentionTitle: "Jak dlouho údaje uchováváme", retention: "Relační cookie zaniká odhlášením nebo vypršením tokenu. Auditní záznamy uchováváme po dobu vyžadovanou předpisy finančního sektoru.",
     rightsTitle: "Vaše práva", rights: "Můžete požádat o přístup, opravu nebo výmaz tam, kde výmaz nekoliduje s regulatorní povinností uchování. Můžete také podat stížnost u Úřadu pro ochranu osobních údajů.",
-    contactTitle: "Kontakty", controllerContact: "Žádosti k soukromí a právům", securityContact: "Hlášení bezpečnostních zranitelností", securityFile: "Publikovaný bezpečnostní kontakt",
+    contactTitle: "Kontakty", controllerContact: "Žádosti k soukromí a právům", securityFile: "Hlášení bezpečnostních zranitelností",
     back: "Zpět k bezpečnému přihlášení", note: "Toto oznámení je dostupné před přihlášením, protože operátoři mají hranici zpracování znát ještě před vstupem do prostředí.",
   },
 } as const
@@ -55,7 +56,7 @@ export function PrivacyContent() {
     <main className={styles.page}>
       <a className={styles.skipLink} href="#privacy-content">{language === "en" ? "Skip to privacy details" : "Přeskočit k detailům soukromí"}</a>
       <header className={styles.header}>
-        <a className={styles.brand} href="/auth/login">OpenBank <span>Admin</span></a>
+        <a className={styles.brand} href="/auth/login">{BRAND.name} <span>Admin</span></a>
         <button type="button" className={styles.languageButton} onClick={() => setLanguage(language === "en" ? "cs" : "en")} aria-label={copy.switchLanguage}>
           <Languages size={16} aria-hidden="true" />{copy.locale}
         </button>
@@ -88,17 +89,16 @@ export function PrivacyContent() {
       </section>
 
       <section className={styles.contacts} aria-labelledby="contacts-title">
-        <div><p className={styles.eyebrow}><Mail size={16} aria-hidden="true" />OpenBank</p><h2 id="contacts-title">{copy.contactTitle}</h2></div>
+        <div><p className={styles.eyebrow}><Mail size={16} aria-hidden="true" />{BRAND.name}</p><h2 id="contacts-title">{copy.contactTitle}</h2></div>
         <div className={styles.contactLinks}>
-          <a href="mailto:hello@open-bank.tech"><span>{copy.controllerContact}</span><strong>hello@open-bank.tech</strong></a>
-          <a href="mailto:security@open-bank.tech"><span>{copy.securityContact}</span><strong>security@open-bank.tech</strong></a>
+          <a href={`mailto:${BRAND.supportEmail}`}><span>{copy.controllerContact}</span><strong>{BRAND.supportEmail}</strong></a>
           <a href="/.well-known/security.txt"><span>{copy.securityFile}</span><strong>security.txt</strong></a>
         </div>
       </section>
 
       <footer className={styles.footer}>
         <a href="/auth/login"><ArrowLeft size={17} aria-hidden="true" />{copy.back}</a>
-        <span>admin.open-bank.tech</span>
+        <span>{BRAND.legalName}</span>
       </footer>
     </main>
   )

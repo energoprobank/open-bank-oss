@@ -13,6 +13,7 @@ import { DataUnavailable, type UnavailableKind } from '@/components/feedback/Dat
 import { PageHeader, StatusBadge } from '@/components/ui'
 import { Can } from '@/components/auth/AuthGuard'
 import { parsePartyListPage, type PartyListItem, type PartyListPage } from '@/lib/party/partyListContract'
+import { BRAND } from '@/lib/brand'
 
 const PAGE_SIZE = 25
 
@@ -192,7 +193,7 @@ export default function PartiesPage() {
         icon={<Users size={18} aria-hidden="true" />}
         title={t('Subjekty', 'Parties')}
         subtitle={t('Zákazníci a společnosti registrované v platformě', 'Customers and companies registered in the platform')}
-        breadcrumb={<div className="breadcrumb"><span>OpenBank</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Subjekty', 'Parties')}</span></div>}
+        breadcrumb={<div className="breadcrumb"><span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Subjekty', 'Parties')}</span></div>}
         actions={<div style={{ display: 'flex', gap: '8px' }}>
           <button className="btn btn-secondary" type="button" onClick={() => load()} disabled={loading || inSearchMode}
             aria-busy={loading} aria-label={t('Obnovit subjekty', 'Refresh parties')}>

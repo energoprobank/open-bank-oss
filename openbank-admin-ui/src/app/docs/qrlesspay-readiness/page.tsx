@@ -8,6 +8,7 @@ import { ShieldCheck, ScrollText, Scale, Lock, Landmark, ListOrdered, Info } fro
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { DocsPageHeader } from '@/components/docs/DocsPageHeader'
 import { PrintDocumentButton } from '@/components/docs/PrintDocumentButton'
+import { BRAND } from '@/lib/brand'
 
 const ACCENT = 'var(--accent-text)'
 const INK = 'var(--text-primary)'
@@ -106,7 +107,7 @@ export default function QrlessPayReadinessPage() {
     <div className="docs-printable">
       <DocsPageHeader
         crumbs={<>
-          <span>OpenBank</span><span className="breadcrumb-sep">/</span>
+          <span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span>
           <span>{t('Dokumentace', 'Docs')}</span><span className="breadcrumb-sep">/</span>
           <Link href="/docs/qrlesspay" style={{ color: 'inherit' }}>QRlessPay</Link>
           <span className="breadcrumb-sep">/</span>

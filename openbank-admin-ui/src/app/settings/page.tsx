@@ -10,6 +10,7 @@ import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { AuthGuard } from '@/components/auth/AuthGuard'
 import { ROLE_LABELS } from '@/lib/auth/roles'
 import { PageHeader, Tabs, type TabItem } from '@/components/ui'
+import { BRAND } from '@/lib/brand'
 
 type Tab = 'profile' | 'notifications' | 'security' | 'api' | 'regional'
 
@@ -26,7 +27,7 @@ export default function SettingsPage() {
 
   return <AuthGuard permission="settings:view"><div>
     <PageHeader
-      breadcrumb={<div className="breadcrumb"><span>OpenBank</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Nastavení', 'Settings')}</span></div>}
+      breadcrumb={<div className="breadcrumb"><span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Nastavení', 'Settings')}</span></div>}
       icon={<User size={20} aria-hidden="true" />}
       title={t('Nastavení', 'Settings')}
       subtitle={t('Skutečné předvolby a přístup k účtu', 'Actual account preferences and access')}

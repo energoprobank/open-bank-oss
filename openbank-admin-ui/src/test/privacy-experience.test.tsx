@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { PrivacyContent } from '@/app/privacy/PrivacyContent'
 import { LanguageProvider } from '@/lib/i18n/LanguageContext'
+import { BRAND } from '@/lib/brand'
 
 const renderPage = () => render(<LanguageProvider><PrivacyContent /></LanguageProvider>)
 
@@ -25,8 +26,9 @@ describe('public privacy experience', () => {
     expect(screen.getByRole('heading', { name: 'Audit evidence' })).toBeInTheDocument()
     expect(screen.getByText(/EBA ICT Risk Guidelines and PSD2/)).toBeInTheDocument()
     expect(screen.getByText(/no marketing or tracking cookies/i)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /hello@open-bank.tech/ })).toHaveAttribute('href', 'mailto:hello@open-bank.tech')
-    expect(screen.getByRole('link', { name: /security@open-bank.tech/ })).toHaveAttribute('href', 'mailto:security@open-bank.tech')
+    expect(screen.getByRole('link', { name: new RegExp(BRAND.supportEmail) })).toHaveAttribute('href', `mailto:${BRAND.supportEmail}`)
+    expect(screen.getByRole('link', { name: /Security vulnerability reports/ })).toHaveAttribute('href', '/.well-known/security.txt')
+    expect(screen.queryByText(/open-bank\.tech|OpenBank/)).toBeNull()
   })
 
   it('switches the full notice to Czech and preserves the sign-in return', () => {

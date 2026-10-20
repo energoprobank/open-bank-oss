@@ -11,6 +11,7 @@ import { useFlowAnimation } from '@/components/topology/useFlowAnimation'
 import { ArrowMarker } from '@/components/topology/TopologyDefs'
 import { MONEY_WORKFLOWS } from '@/lib/temporal/workflows'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { BRAND } from '@/lib/brand'
 
 // ---------------------------------------------------------------------------
 // Temporal workflow flow (ADR-0100). The third animated topology view: each
@@ -79,7 +80,7 @@ export default function TemporalFlowPage() {
     <div style={{ padding: '28px 32px', maxWidth: '1400px' }}>
       <PageHeader
         breadcrumb={<div className="breadcrumb">
-            <span>OpenBank</span><span className="breadcrumb-sep">/</span>
+            <span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span>
             <span>Temporal</span><span className="breadcrumb-sep">/</span>
             <span className="breadcrumb-current">{t('Tok workflow', 'Workflow Flow')}</span>
           </div>}

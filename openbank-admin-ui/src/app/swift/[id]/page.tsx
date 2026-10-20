@@ -16,6 +16,7 @@ import { DataUnavailable, type UnavailableKind } from '@/components/feedback/Dat
 import { PageHeader } from '@/components/ui/PageHeader'
 import { StatusBadge } from '@/components/ui'
 import { parseSwiftMessages, swiftStatusTone, type SwiftMessage } from '@/lib/swift/swiftMessageContract'
+import { BRAND } from '@/lib/brand'
 
 export default function SwiftDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -94,7 +95,7 @@ export default function SwiftDetailPage() {
       <PageHeader
         title={message?.messageType ?? t('SWIFT zpráva', 'SWIFT message')}
         subtitle={t('Detail SWIFT zprávy — ISO 20022', 'SWIFT message detail — ISO 20022')}
-        breadcrumb={<div className="breadcrumb"><span>OpenBank</span><span className="breadcrumb-sep">/</span><Link href="/swift" style={{ color: 'var(--text-tertiary)', textDecoration: 'none' }}>{t('SWIFT zprávy', 'SWIFT')}</Link><span className="breadcrumb-sep">/</span><span className="breadcrumb-current mono" style={{ fontSize: '12px' }}>{id.slice(0, 12)}…</span></div>}
+        breadcrumb={<div className="breadcrumb"><span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span><Link href="/swift" style={{ color: 'var(--text-tertiary)', textDecoration: 'none' }}>{t('SWIFT zprávy', 'SWIFT')}</Link><span className="breadcrumb-sep">/</span><span className="breadcrumb-current mono" style={{ fontSize: '12px' }}>{id.slice(0, 12)}…</span></div>}
         actions={<div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           {message?.status && <StatusBadge status={message.status} tone={swiftStatusTone(message.status)} />}
           <Link href="/swift" className="btn btn-secondary"><ArrowLeft size={13} aria-hidden="true" /> {t('Zpět', 'Back')}</Link>

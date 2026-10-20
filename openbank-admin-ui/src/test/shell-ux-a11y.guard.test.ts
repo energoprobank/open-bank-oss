@@ -21,7 +21,7 @@ describe('shared shell interaction and icon accessibility contract', () => {
     expect(header).toContain('Switch to Czech')
     expect(header).toMatch(/<Search[^>]*aria-hidden="true"/)
     expect(header).toMatch(/<LogOut[^>]*aria-hidden="true"/)
-    expect(sidebar).toMatch(/<svg aria-hidden="true"/)
+    expect(sidebar).toMatch(/<img[^>]*alt=""[^>]*aria-hidden="true"/)
     expect(sidebar).toMatch(/<Icon aria-hidden="true" size=\{16\}/)
     expect(sidebar).toMatch(/<Lock aria-hidden="true"/)
   })

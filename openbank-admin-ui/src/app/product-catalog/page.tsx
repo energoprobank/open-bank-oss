@@ -19,6 +19,7 @@ import { svcUrl, classifyBffFailure, type BffFailure } from '@/lib/services/bff'
 import { DataUnavailable, type UnavailableKind } from '@/components/feedback/DataUnavailable'
 import { BADGE_CLASS, Drawer, PageHeader, StatusBadge, statusTone } from '@/components/ui'
 import { trustedHttpsUrl } from '@/lib/security/trustedUrls'
+import { BRAND } from '@/lib/brand'
 
 const TYPE_ICON: Record<string, React.ReactNode> = {
   SAVINGS:      <Banknote size={13} />,
@@ -583,7 +584,7 @@ export default function ProductCatalogPage() {
             icon={<Package size={18} aria-hidden="true" />}
             title={t('Katalog produktů', 'Product Catalog')}
             subtitle={t('Správa bankovních produktů, sazeb, poplatků a obchodních podmínek', 'Manage banking products, rates, fees and terms')}
-            breadcrumb={<div className="breadcrumb"><span>OpenBank</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Katalog produktů', 'Product Catalog')}</span></div>}
+            breadcrumb={<div className="breadcrumb"><span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Katalog produktů', 'Product Catalog')}</span></div>}
             actions={<div style={{ display: 'flex', gap: '8px' }}>
               <Can permission="accounts:create"><Link href="/accounts/new" className="btn btn-secondary">
                 <CreditCard size={14} aria-hidden="true" /> {t('Založit účet', 'Open Account')}

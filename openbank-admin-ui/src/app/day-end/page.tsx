@@ -38,6 +38,7 @@ import {
   parseCloseFailures, parseCloseRun, parseCloseRuns, parseReconciliationReport,
   type CloseFailure, type CloseRun, type ReconciliationReport,
 } from '@/lib/closings/evidence'
+import { BRAND } from '@/lib/brand'
 
 const POLL = 30_000
 // A healthy daily tie-out (23:30) is at most ~24h old; past 25h the day's close likely
@@ -75,7 +76,7 @@ function ClosingsContent() {
 
   return (
     <div>
-      <PageHeader breadcrumb={<div className="breadcrumb"><span>OpenBank</span><span className="breadcrumb-sep">/</span><span>{t('Účetnictví', 'Accounting')}</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Závěrky', 'Closings')}</span></div>} icon={<CalendarClock size={20} aria-hidden="true" />} title={t('Závěrky', 'Closings')} subtitle={t('Denní tie-out (EoD) a měsíční uzávěrka výpisů (EoM)', 'Daily tie-out (EoD) and monthly statement close (EoM)')} />
+      <PageHeader breadcrumb={<div className="breadcrumb"><span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span><span>{t('Účetnictví', 'Accounting')}</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Závěrky', 'Closings')}</span></div>} icon={<CalendarClock size={20} aria-hidden="true" />} title={t('Závěrky', 'Closings')} subtitle={t('Denní tie-out (EoD) a měsíční uzávěrka výpisů (EoM)', 'Daily tie-out (EoD) and monthly statement close (EoM)')} />
 
       {/* Tab nav — same pattern as /payments */}
       <div role="group" aria-label={t('Typ závěrky', 'Closing type')} style={{ display: 'flex', gap: '2px', marginBottom: '20px', borderBottom: '1px solid var(--border)' }}>

@@ -21,6 +21,7 @@ import { DataUnavailable } from '@/components/feedback/DataUnavailable'
 import type { UnavailableKind } from '@/components/feedback/DataUnavailable'
 import { PageHeader, StatCard, StatusBadge } from '@/components/ui'
 import type { FlakyTestFinding } from '@/app/api/flaky-test-hunter/findings/route'
+import { BRAND } from '@/lib/brand'
 
 const CHECK_TYPE_LABEL: Record<FlakyTestFinding['checkType'], { cs: string; en: string }> = {
   RUNBLOCKING_UNIT_MISSING:          { cs: 'runBlocking bez Unit',        en: 'runBlocking missing Unit' },
@@ -279,7 +280,7 @@ function FlakyTestHunterContent() {
           'Signály o nestabilních testech napříč monorepem — ADR-0168. Stav běhu workflow se ověřuje z Temporal; návrhy stále vyžadují lidské schválení.',
           'Test instability signals across the monorepo — ADR-0168. Workflow execution status is read from Temporal; proposals still require human approval.',
         )}
-        breadcrumb={<div className="breadcrumb"><span>OpenBank</span><span className="breadcrumb-sep">/</span><Link href="/iaops" className="breadcrumb-current" style={{ textDecoration: 'none' }}>{t('IAOps', 'IAOps')}</Link><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Flaky testy', 'Flaky tests')}</span></div>}
+        breadcrumb={<div className="breadcrumb"><span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span><Link href="/iaops" className="breadcrumb-current" style={{ textDecoration: 'none' }}>{t('IAOps', 'IAOps')}</Link><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Flaky testy', 'Flaky tests')}</span></div>}
         actions={
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <button type="button" className="btn btn-secondary" onClick={() => void load()} disabled={loading} aria-busy={loading} aria-label={t('Obnovit flaky testy', 'Refresh flaky tests')}>

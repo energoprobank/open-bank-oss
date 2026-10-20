@@ -2,9 +2,9 @@
 /* Copyright (c) OpenBank contributors. Licensed under the Apache License, Version 2.0. */
 
 .portrait {
-  --agent-accent: #6366f1;
-  --agent-glow: #c7d2fe;
-  --agent-shell: #eef2ff;
+  --agent-accent: #3688dd;
+  --agent-glow: #b9d6f4;
+  --agent-shell: #eaf3fc;
   position: relative;
   display: grid;
   place-items: center;

@@ -23,7 +23,7 @@ describe('mobile workflow accessibility regressions', () => {
       "color: 'var(--accent-text)', fontSize: 11, fontWeight: 650",
     )
     expect(read('app/globals.css')).toContain(
-      '.campaign-phone-topline { display: flex; justify-content: space-between; color: #4f46e5;',
+      '.campaign-phone-topline { display: flex; justify-content: space-between; color: #2470c2;',
     )
   })
 

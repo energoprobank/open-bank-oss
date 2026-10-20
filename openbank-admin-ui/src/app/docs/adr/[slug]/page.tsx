@@ -14,6 +14,7 @@ import { MermaidEnhancer } from '@/components/docs/MermaidEnhancer'
 import { loadAdr, type AdrStatus } from '@/lib/governance/docs'
 import { DocsPageHeader } from '@/components/docs/DocsPageHeader'
 import { PrintDocumentButton } from '@/components/docs/PrintDocumentButton'
+import { BRAND } from '@/lib/brand'
 
 export const dynamic = 'force-dynamic'
 
@@ -50,7 +51,7 @@ export default async function AdrDetailPage({ params }: PageProps) {
     <div className="docs-printable">
       <DocsPageHeader
         crumbs={<>
-            <span>OpenBank</span><span className="breadcrumb-sep">/</span>
+            <span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span>
             <Link href="/docs" style={{ color: 'inherit', textDecoration: 'none' }}>Docs</Link>
             <span className="breadcrumb-sep">/</span>
             <Link href="/docs/adr" style={{ color: 'inherit', textDecoration: 'none' }}>ADR</Link>

@@ -13,7 +13,7 @@ import Link from 'next/link'
 import { useSession } from 'next-auth/react'
 import { FilePlus, Landmark, RefreshCw } from 'lucide-react'
 import { AuthGuard } from '@/components/auth/AuthGuard'
-import { ExplorerGuide } from '@/components/brand/ExplorerGuide'
+import { BrandGuide } from '@/components/brand/BrandGuide'
 import overview from '@/components/brand/DomainOverview.module.css'
 import { DataUnavailable, type UnavailableKind } from '@/components/feedback/DataUnavailable'
 import { PageHeader, StatusBadge } from '@/components/ui'
@@ -88,12 +88,12 @@ function DealBlotter() {
         }
       />
 
-      <ExplorerGuide compact title={t('Nejdřív obchod, potom druhý pár očí', 'First the deal, then a second pair of eyes')}>
+      <BrandGuide compact title={t('Nejdřív obchod, potom druhý pár očí', 'First the deal, then a second pair of eyes')}>
         {t(
           'Připravte obchod, zkontrolujte protistranu a limit a teprve pak jej předejte ke schválení. Vlastní obchod si neschválíte — účetní zápis vzniká až po nezávislém rozhodnutí.',
           'Prepare the deal, check the counterparty and limit, then send it for approval. You cannot approve your own deal — booking follows an independent decision.',
         )}
-      </ExplorerGuide>
+      </BrandGuide>
 
       <div className={overview.overview} aria-label={t('Přehled treasury', 'Treasury overview')}>
         <div className={overview.tile}>

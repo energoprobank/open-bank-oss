@@ -117,15 +117,14 @@ test.describe('ADR-0208 primitives render with real CSS applied', () => {
     expect(Math.round((await page.locator('header:visible').boundingBox())!.height)).toBe(60)
     expect(await main.locator('.page-header').evaluate(el => getComputedStyle(el).backgroundImage)).toContain('linear-gradient')
 
-    // The Explorer portrait is deliberately oversized and clipped by the guide,
-    // but its top (and therefore its head) must remain inside the visible banner.
-    // A negative portrait top previously left only the torso visible in production.
-    const explorerGuide = page.getByLabel('Welcome to your operations cockpit')
-    const guideBox = await explorerGuide.boundingBox()
-    const portraitBox = await explorerGuide.locator('img').boundingBox()
+    // The brand mark is decorative and must sit fully inside the welcome banner.
+    const welcomeGuide = page.getByLabel('Welcome to your operations cockpit')
+    const guideBox = await welcomeGuide.boundingBox()
+    const markBox = await welcomeGuide.locator('img').boundingBox()
     expect(guideBox).not.toBeNull()
-    expect(portraitBox).not.toBeNull()
-    expect(portraitBox!.y).toBeGreaterThanOrEqual(guideBox!.y)
+    expect(markBox).not.toBeNull()
+    expect(markBox!.y).toBeGreaterThanOrEqual(guideBox!.y)
+    expect(markBox!.y + markBox!.height).toBeLessThanOrEqual(guideBox!.y + guideBox!.height)
 
     const scan = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])

@@ -79,7 +79,7 @@ export function OutcomeMetricsCard({ items }: { items: ProposalOutcomeInput[] })
   return (
     <Card>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-        <Sparkles size={14} style={{ color: '#6366f1' }} />
+        <Sparkles size={14} style={{ color: 'var(--accent)' }} />
         <span style={{ fontSize: '13px', fontWeight: 700 }}>{t('Výsledky návrhů', 'Proposal outcomes')}</span>
       </div>
       <p style={{ fontSize: '11px', color: 'var(--text-tertiary)', margin: '0 0 14px' }}>

@@ -19,10 +19,7 @@ test('server render and language toggle keep the document language synchronized'
 
   await expect(page.locator('html')).toHaveAttribute('lang', 'cs')
   await expect(page.getByRole('heading', { name: 'Vítejte zpět' })).toBeVisible()
-  const sceneTargets = await page.getByRole('group', { name: 'Explorer scenes' }).getByRole('button').evaluateAll(elements =>
-    elements.map(element => ({ width: element.getBoundingClientRect().width, height: element.getBoundingClientRect().height })),
-  )
-  expect(sceneTargets.every(target => target.width >= 32 && target.height >= 32)).toBe(true)
+  await expect(page.locator('img[src="/brand/energopro/logo-white.png"]')).toBeVisible()
 
   await page.getByRole('button', { name: 'Switch to English' }).click()
 

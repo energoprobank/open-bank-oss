@@ -14,6 +14,7 @@ import { AuthGuard } from '@/components/auth/AuthGuard'
 import { DataUnavailable } from '@/components/feedback/DataUnavailable'
 import type { UnavailableKind } from '@/components/feedback/DataUnavailable'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { BRAND } from '@/lib/brand'
 
 // Cost-allocation (showback) view — ADR-0062. Reads /api/finops/allocation, which joins the AWS
 // cost snapshot with build-time resource footprints and rolls spend up service -> domain -> flow.
@@ -137,7 +138,7 @@ function AllocationContent() {
   return (
     <div style={{ padding: '28px 32px', maxWidth: '1400px', animation: 'fadeIn 0.2s ease-out' }}>
       <PageHeader
-        breadcrumb={<div className="breadcrumb"><span>OpenBank</span><span className="breadcrumb-sep">/</span><Link href="/finops" style={{ color: 'inherit', textDecoration: 'none' }}>FinOps</Link><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Rozpad nákladů', 'Cost Allocation')}</span></div>}
+        breadcrumb={<div className="breadcrumb"><span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span><Link href="/finops" style={{ color: 'inherit', textDecoration: 'none' }}>FinOps</Link><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Rozpad nákladů', 'Cost Allocation')}</span></div>}
         icon={<DollarSign size={20} aria-hidden="true" />}
         title={t('Rozpad nákladů', 'Cost Allocation')}
         subtitle={t('Cloud útraty rozpočítané po službě, doméně a business procesu — showback dle požadovaných zdrojů (ADR-0062)', 'Cloud spend split by service, domain and business flow — requests-weighted showback (ADR-0062)')}

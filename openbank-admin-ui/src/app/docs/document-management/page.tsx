@@ -11,6 +11,7 @@ import {
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { DocsPageHeader } from '@/components/docs/DocsPageHeader'
 import { PrintDocumentButton } from '@/components/docs/PrintDocumentButton'
+import { BRAND } from '@/lib/brand'
 
 const ACCENT = 'var(--accent)'
 const ACCENT_TEXT = 'var(--accent-text)'
@@ -28,7 +29,7 @@ export default function DocumentManagementDocsPage() {
     <div className="docs-printable">
       <DocsPageHeader
         crumbs={<>
-          <span>OpenBank</span><span className="breadcrumb-sep">/</span>
+          <span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span>
           <span>{t('Dokumentace', 'Docs')}</span><span className="breadcrumb-sep">/</span>
           <span className="breadcrumb-current">{t('Správa dokumentů', 'Document Management')}</span>
         </>}

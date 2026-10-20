@@ -9,13 +9,14 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Suspense } from "react"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { sameOriginPath } from "@/lib/auth/safeCallbackPath"
+import { BRAND } from "@/lib/brand"
 import styles from "../recovery.module.css"
 
 const COPY = {
   en: {
     eyebrow: "Access boundary",
     title: "This area is not in your role",
-    intro: "OpenBank stopped the request before protected data was shown or changed.",
+    intro: `${BRAND.name} stopped the request before protected data was shown or changed.`,
     explanation: "Access is assigned by responsibility. If this task is part of your job, ask your bank administrator to review your role instead of sharing another operator’s account.",
     requested: "Protected destination",
     dashboard: "Return to your dashboard",
@@ -26,7 +27,7 @@ const COPY = {
   cs: {
     eyebrow: "Hranice přístupu",
     title: "Tato oblast není součástí vaší role",
-    intro: "OpenBank požadavek zastavil dříve, než byla zobrazena nebo změněna chráněná data.",
+    intro: `${BRAND.name} požadavek zastavil dříve, než byla zobrazena nebo změněna chráněná data.`,
     explanation: "Přístup se přiděluje podle odpovědnosti. Pokud úkol patří do vaší práce, požádejte administrátora banky o kontrolu role — nesdílejte účet jiného operátora.",
     requested: "Chráněný cíl",
     dashboard: "Vrátit se na svůj dashboard",
@@ -47,7 +48,7 @@ function ForbiddenContent() {
     <main className={styles.page}>
       <section className={styles.card} aria-labelledby="forbidden-title">
         <header className={styles.header}>
-          <a className={styles.brand} href="/dashboard">OpenBank <span>Admin</span></a>
+          <a className={styles.brand} href="/dashboard">{BRAND.name} <span>Admin</span></a>
           <button type="button" className={styles.languageButton} onClick={() => setLanguage(language === "en" ? "cs" : "en")} aria-label={copy.switchLanguage}>
             <Languages size={16} aria-hidden="true" />{copy.locale}
           </button>

@@ -10,6 +10,7 @@ import { Shield, RefreshCw, Clock, Zap, ChevronDown, ChevronRight, Info, Circle,
 import { fetchAllServiceConfigSnapshots } from '@/lib/api'
 import type { ServiceConfigSnapshot } from '@/types'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { BRAND } from '@/lib/brand'
 
 const POLL_INTERVAL = 15_000
 
@@ -54,7 +55,7 @@ export default function ServiceConfigPage() {
     <div>
       <PageHeader
         breadcrumb={<div className="breadcrumb">
-            <span>OpenBank</span>
+            <span>{BRAND.shortName}</span>
             <span className="breadcrumb-sep">/</span>
             <span>{t('Systém', 'System')}</span>
             <span className="breadcrumb-sep">/</span>

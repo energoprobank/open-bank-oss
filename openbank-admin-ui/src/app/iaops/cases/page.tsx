@@ -13,6 +13,7 @@ import type { UnavailableKind } from '@/components/feedback/DataUnavailable'
 import { CASE_STATUSES, caseStatusPresentation } from '@/lib/governance/caseStatusPresentation'
 import type { CaseStatus } from '@/lib/governance/caseStatusPresentation'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { BRAND } from '@/lib/brand'
 
 const PAGE_SIZE = 25
 const MAX_LIMIT = 200
@@ -129,7 +130,7 @@ export default function IaopsCasesPage() {
   return (
     <div style={{ padding: '28px 32px', maxWidth: '1100px', animation: 'fadeIn 0.2s ease-out' }}>
       <PageHeader
-        breadcrumb={<div className="breadcrumb"><span>OpenBank</span><span className="breadcrumb-sep">/</span><Link href="/iaops" className="breadcrumb-current" style={{ textDecoration: 'none' }}>{t('IAOps', 'IAOps')}</Link><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Swarm case', 'Swarm cases')}</span></div>}
+        breadcrumb={<div className="breadcrumb"><span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span><Link href="/iaops" className="breadcrumb-current" style={{ textDecoration: 'none' }}>{t('IAOps', 'IAOps')}</Link><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Swarm case', 'Swarm cases')}</span></div>}
         icon={<GitMerge size={20} aria-hidden="true" />}
         title={t('Swarm case', 'Swarm cases')}
         subtitle={t('Sdílené případy, ve kterých agenti koordinovaně přispívají do jednoho vlákna (Temporal CaseWorkflow, ADR-0244). Jen pro čtení.', 'Shared cases agents coordinate on in a single thread (Temporal CaseWorkflow, ADR-0244). Read-only.')}

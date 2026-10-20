@@ -65,12 +65,12 @@ export function AuthorityHistoryInvestigation() {
       {evidence && <>
         <div style={{ overflowX: 'auto', marginTop: 16, border: '1px solid var(--border)', borderRadius: 12 }}>
           <svg viewBox="0 0 810 260" role="img" aria-label={t('Graf pozorování delegace', 'Delegation observation graph')} style={{ width: '100%', minWidth: 620, display: 'block', color: 'var(--text-primary)' }}>
-            <defs><marker id={markerId} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10Z" fill="var(--accent, #6366f1)" /></marker></defs>
-            <g fill="none" stroke="var(--accent, #6366f1)" strokeWidth="2" markerEnd={`url(#${markerId})`}>
+            <defs><marker id={markerId} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10Z" fill="var(--accent, #1f66b3)" /></marker></defs>
+            <g fill="none" stroke="var(--accent, #1f66b3)" strokeWidth="2" markerEnd={`url(#${markerId})`}>
               <path d="M260 130H278" /><path d="M530 130C540 130 540 68 548 68" />
               {evidence.resourceId && <path d="M530 130C540 130 540 202 548 202" />}
             </g>
-            {nodes.map(node => <g key={node.label + node.id}><rect x={node.x} y={node.y} width={250} height={72} rx={12} fill="var(--bg-secondary, #f1f5f9)" stroke="var(--accent, #6366f1)" /><text x={node.x + 12} y={node.y + 25} fill="currentColor" fontSize={14} fontWeight={600}>{node.label}</text><text x={node.x + 12} y={node.y + 49} fill="currentColor" fontSize={9.5}>{node.id}</text></g>)}
+            {nodes.map(node => <g key={node.label + node.id}><rect x={node.x} y={node.y} width={250} height={72} rx={12} fill="var(--bg-secondary, #f1f5f9)" stroke="var(--accent, #1f66b3)" /><text x={node.x + 12} y={node.y + 25} fill="currentColor" fontSize={14} fontWeight={600}>{node.label}</text><text x={node.x + 12} y={node.y + 49} fill="currentColor" fontSize={9.5}>{node.id}</text></g>)}
           </svg>
         </div>
         <p>{t('Vybrané pozorování', 'Selected observation')}: <strong>{evidence.eventType}</strong> · {t('Revize', 'Revision')} {evidence.revision}</p>

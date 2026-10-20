@@ -15,6 +15,7 @@ import { fetchChangelog, SERVICE_RE } from '@/lib/docs/releases'
 import { prettyLabel } from '@/lib/discovery'
 import { LANG_COOKIE } from '@/lib/i18n/LanguageContext'
 import { DocsPageHeader } from '@/components/docs/DocsPageHeader'
+import { BRAND } from '@/lib/brand'
 
 interface PageProps {
   params: Promise<{ service: string }>
@@ -33,7 +34,7 @@ export default async function ChangelogPage({ params }: PageProps) {
     <div>
       <DocsPageHeader
         crumbs={<>
-            <span>OpenBank</span><span className="breadcrumb-sep">/</span>
+            <span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span>
             <Link href="/docs/api" style={{ color: 'inherit', textDecoration: 'none' }}>Docs</Link>
             <span className="breadcrumb-sep">/</span>
             <span className="breadcrumb-current">{t('Changelog', 'Changelog')}</span>

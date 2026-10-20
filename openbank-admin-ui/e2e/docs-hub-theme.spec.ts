@@ -13,7 +13,7 @@ test.describe('/docs — educational hub theme', () => {
   for (const theme of ['light', 'dark'] as const) {
     test(`${theme} theme keeps the learning paths understandable and accessible`, async ({ page }) => {
       await page.goto('/docs')
-      await expect(page.getByRole('heading', { level: 1, name: /OpenBank Documentation Portal|Dokumentační portál OpenBank/i })).toBeVisible()
+      await expect(page.getByRole('heading', { level: 1, name: /Energo-Pro Bank Documentation Portal|Dokumentační portál Energo-Pro Bank/i })).toBeVisible()
 
       await page.evaluate(selectedTheme => {
         document.documentElement.classList.toggle('dark', selectedTheme === 'dark')

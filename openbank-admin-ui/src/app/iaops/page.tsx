@@ -24,6 +24,7 @@ import { StatusBadge, type Tone } from '@/components/ui'
 import styles from './IAOps.module.css'
 import { ContextualInsights } from '@/components/insights/ContextualInsights'
 import { AI_INSIGHTS } from '@/components/insights/catalog'
+import { BRAND } from '@/lib/brand'
 
 // Both panels depend on validated governance data. Keep their implementation out of the initial
 // auth/loading bundle and reserve their final footprint while the post-data chunks arrive.
@@ -271,7 +272,7 @@ function IAOpsContent() {
           'Co AI děláme, proč, jak je to řízené a jak jsme compliant — ADR-0031',
           'What AI we run, why, how it is governed, and how we stay compliant — ADR-0031',
         )}
-        breadcrumb={<div className="breadcrumb"><span>OpenBank</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">IAOps</span></div>}
+        breadcrumb={<div className="breadcrumb"><span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">IAOps</span></div>}
         actions={<div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           {lastRefresh && <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{lastRefresh.toLocaleTimeString(dateLocale)}</span>}
           <button onClick={load} disabled={loading} type="button" aria-busy={loading}
@@ -297,7 +298,7 @@ function IAOpsContent() {
         </div>
       ) : data ? (
         <>
-          {/* A human-first introduction. The generated illustration is an original OpenBank asset;
+          {/* A human-first introduction. The generated illustration is an unbranded upstream asset;
               the governed capabilities below still come from agents.yaml. */}
           <div className={styles.crewHero} style={{ borderRadius: '22px', marginBottom: '20px',
             background: 'linear-gradient(135deg, #111827 0%, #172554 55%, #0f766e 150%)', color: 'white',
@@ -306,7 +307,7 @@ function IAOpsContent() {
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', alignSelf: 'flex-start',
                 padding: '4px 9px', borderRadius: '20px', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.14)',
                 fontSize: '10px', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#a5f3fc' }}>
-                <Sparkles size={12} /> {t('AI posádka OpenBank', 'The OpenBank AI crew')}
+                <Sparkles size={12} /> {t(`AI posádka ${BRAND.shortName}`, `The ${BRAND.shortName} AI crew`)}
               </span>
               <h2 style={{ fontSize: '27px', lineHeight: 1.12, letterSpacing: '-0.035em', margin: '14px 0 10px', maxWidth: '470px' }}>
                 {t('Seznamte se s kolegy, kteří nikdy nerozhodují za vás.', 'Meet the colleagues who never decide for you.')}
@@ -334,7 +335,7 @@ function IAOpsContent() {
               {/* The hero cannot render before governance data exists. Native lazy loading avoids
                   preloading 207 kB during auth/loading while preserving the local immutable asset. */}
               {/* eslint-disable-next-line @next/next/no-img-element -- deliberate data-gated local asset */}
-              <img src="/aiops-agent-crew.webp" alt={t('Originální tým pěti robotických AI agentů OpenBank', 'Original team of five OpenBank AI agent robots')}
+              <img src="/aiops-agent-crew.webp" alt={t('Ilustrace týmu pěti robotických AI agentů', 'Illustration of a team of five AI agent robots')}
                 width={1200} height={800} loading="lazy" decoding="async"
                 style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: '52% 48%', opacity: 0.96 }} />
               <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, #172554 0%, transparent 32%)' }} />

@@ -13,6 +13,7 @@ import { cookies } from 'next/headers'
 import { ChevronLeft, Flag, ShieldAlert } from 'lucide-react'
 import { loadFlagCatalog, type FlagMeta } from '@/lib/governance/flags'
 import { DocsPageHeader } from '@/components/docs/DocsPageHeader'
+import { BRAND } from '@/lib/brand'
 
 export const dynamic = 'force-dynamic'
 
@@ -42,7 +43,7 @@ export default async function FlagsRegistryPage() {
     <div>
       <DocsPageHeader
         crumbs={<>
-            <span>OpenBank</span><span className="breadcrumb-sep">/</span>
+            <span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span>
             <Link href="/docs" style={{ color: 'inherit', textDecoration: 'none' }}>Docs</Link>
             <span className="breadcrumb-sep">/</span>
             <span className="breadcrumb-current">{t('Feature flagy', 'Feature Flags')}</span>

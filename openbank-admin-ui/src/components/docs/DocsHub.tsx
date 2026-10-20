@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { GitBranch, BookOpen, Network, FileCode, Shield, ShieldAlert, Cloud, ScrollText, ShieldCheck, LayoutGrid, Smartphone, Bluetooth, Fingerprint, FileSignature, Radar, Scale } from 'lucide-react'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { DocsPageHeader } from '@/components/docs/DocsPageHeader'
+import { BRAND } from '@/lib/brand'
 
 interface HubSection {
   href: string
@@ -225,11 +226,11 @@ export function DocsHub({ bpmnCount }: { bpmnCount: number }) {
     <div>
       <DocsPageHeader
         crumbs={<>
-            <span>OpenBank</span>
+            <span>{BRAND.shortName}</span>
             <span className="breadcrumb-sep">/</span>
             <span className="breadcrumb-current">{t('Dokumentace', 'Documentation')}</span>
           </>}
-        title={t('Dokumentační portál OpenBank', 'OpenBank Documentation Portal')}
+        title={t(`Dokumentační portál ${BRAND.name}`, `${BRAND.name} Documentation Portal`)}
         subtitle={t('Architektura, business procesy, API dokumentace a compliance přehled', 'Architecture, business processes, API documentation and compliance overview')}
         icon={<BookOpen aria-hidden="true" size={18} style={{ color: 'var(--accent)' }} />}
       />

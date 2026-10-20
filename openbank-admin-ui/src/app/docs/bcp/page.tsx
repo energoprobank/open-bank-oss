@@ -20,6 +20,7 @@ import {
   type BcpServiceGraph,
   type BcpTier,
 } from '@/lib/bcp/continuityModel'
+import { BRAND } from '@/lib/brand'
 
 type Bilingual = [cs: string, en: string]
 
@@ -264,7 +265,7 @@ export default function BcpPage() {
     <div className="docs-printable">
       <DocsPageHeader
         crumbs={<>
-            <span>OpenBank</span>
+            <span>{BRAND.shortName}</span>
             <span className="breadcrumb-sep">/</span>
             <span>{t('Dokumentace', 'Documentation')}</span>
             <span className="breadcrumb-sep">/</span>

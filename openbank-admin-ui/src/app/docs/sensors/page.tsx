@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { FAMILY_ORDER, FAMILY_META, SENSORS, sensorsByFamily, statusCounts } from '@/lib/docs/sensors'
 import { STATUS_META, type Status } from '@/lib/docs/status'
+import { BRAND } from '@/lib/brand'
 
 export const dynamic = 'force-dynamic'
 
@@ -39,7 +40,7 @@ export default async function SensorsIndexPage() {
       <div className="page-header">
         <div>
           <div className="breadcrumb">
-            <span>OpenBank</span><span className="breadcrumb-sep">/</span>
+            <span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span>
             <Link href="/docs" style={{ color: 'inherit', textDecoration: 'none' }}>{t('Dokumentace', 'Docs')}</Link>
             <span className="breadcrumb-sep">/</span>
             <span className="breadcrumb-current">{t('Senzory', 'Sensors')}</span>

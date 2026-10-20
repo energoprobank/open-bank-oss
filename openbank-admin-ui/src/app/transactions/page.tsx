@@ -23,6 +23,7 @@ import {
   type TransactionStatus,
   type TransactionType,
 } from '@/lib/transactions/transactionSearchContract'
+import { BRAND } from '@/lib/brand'
 
 // A transaction type describes the movement; it is not a success/failure verdict.
 // Keep its taxonomy visually neutral and reserve semantic colour for lifecycle status.
@@ -239,7 +240,7 @@ export default function TransactionsPage() {
         title={t('Transakční deník', 'Transaction Ledger')}
         subtitle={t('BIAN vyhledávání — klient, účet, IBAN, BBAN, reference, protistrana, částka, datum', 'BIAN-aligned search — client, account, IBAN, BBAN, reference, counterparty, amount, date range')}
         icon={<ArrowLeftRight size={18} aria-hidden="true" />}
-        breadcrumb={<div className="breadcrumb"><span>OpenBank</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Transakce', 'Transactions')}</span></div>}
+        breadcrumb={<div className="breadcrumb"><span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Transakce', 'Transactions')}</span></div>}
       />
 
       <Can permission="system:view">

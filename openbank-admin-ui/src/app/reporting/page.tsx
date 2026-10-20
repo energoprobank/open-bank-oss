@@ -21,6 +21,7 @@ import { WarehouseDashboard } from '@/components/reporting/WarehouseDashboard'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { BarChart3, Play, RefreshCw, ShieldCheck, Table as TableIcon } from 'lucide-react'
 import { parseReportCatalogue, parseReportResult, type CatalogueColumn, type CatalogueReport, type ReportResult } from '@/lib/reporting/clientContract'
+import { BRAND } from '@/lib/brand'
 
 // Recharts is larger than the rest of this route and a trend exists only after an operator runs
 // one of the additive daily-count reports. Keep the catalogue, parameters and tabular result fast;
@@ -148,7 +149,7 @@ export default function ReportingPage() {
           'Objemy, rizikové signály a kvalita dat. Vyberte report a období pro podrobný přehled.',
           'Volumes, risk signals and data quality. Choose a report and period for a detailed view.',
         )}
-        breadcrumb={<div className="breadcrumb"><span>OpenBank</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Reporting', 'Reporting')}</span></div>}
+        breadcrumb={<div className="breadcrumb"><span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Reporting', 'Reporting')}</span></div>}
       />
 
       {/* Registry reports */}

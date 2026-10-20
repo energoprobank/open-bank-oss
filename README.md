@@ -1,4 +1,18 @@
-# OpenBank
+# Energo-Pro Bank
+
+> **This is Energo-Pro's fork of [OpenBank](https://github.com/JiRaska/open-bank-oss)**, rebranded
+> as Energo-Pro Bank for evaluation. Brand, colours, logos and the bank-identity placeholders
+> (BIC, bank code, legal entity) are defined in [`branding/`](branding/README.md). It is a demo:
+> not a licensed bank, and every bank identifier in it is a placeholder. The upstream project's
+> README follows unchanged; its links and badges refer to the upstream repository and sandbox.
+> "OpenBank" below names the upstream open-source project, not this fork (see
+> [TRADEMARKS.md](TRADEMARKS.md)).
+>
+> **Run it locally:** `openbank-infra` (Docker Compose), see [DEPLOYMENT.md](DEPLOYMENT.md).
+
+---
+
+# OpenBank (upstream README)
 
 > Cloud-native, open-source retail banking platform built on Kotlin + Quarkus, Next.js, and event-driven microservices — with governance, supply-chain security, and AI-agent operations baked in as code.
 

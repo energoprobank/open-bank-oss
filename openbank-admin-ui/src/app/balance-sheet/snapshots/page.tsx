@@ -16,7 +16,7 @@ import Link from 'next/link'
 import { useSession } from 'next-auth/react'
 import { RefreshCw, Scale } from 'lucide-react'
 import { AuthGuard } from '@/components/auth/AuthGuard'
-import { ExplorerGuide } from '@/components/brand/ExplorerGuide'
+import { BrandGuide } from '@/components/brand/BrandGuide'
 import overview from '@/components/brand/DomainOverview.module.css'
 import { DataUnavailable, type UnavailableKind } from '@/components/feedback/DataUnavailable'
 import { PageHeader, StatusBadge } from '@/components/ui'
@@ -105,12 +105,12 @@ function Snapshots() {
         }
       />
 
-      <ExplorerGuide compact mascot="lioness" title={t('Riziko začíná důvěryhodnými daty', 'Risk starts with trustworthy data')}>
+      <BrandGuide compact title={t('Riziko začíná důvěryhodnými daty', 'Risk starts with trustworthy data')}>
         {t(
           'Nejdřív odsouhlaste snímek s hlavní knihou. Dokud nesedí, navazující pozice a výpočty se nezobrazí. Pro scénáře úrokového rizika pak vyberte sadu výnosových křivek.',
           'First tie the snapshot to the ledger. Until it ties, downstream positions and calculations stay hidden. Then choose a curve set for interest-rate scenarios.',
         )}
-      </ExplorerGuide>
+      </BrandGuide>
 
       <div className={overview.overview} aria-label={t('Přehled rizika', 'Risk overview')}>
         <div className={overview.tile}>

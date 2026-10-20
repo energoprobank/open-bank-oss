@@ -1,14 +1,17 @@
+/* Energo-Pro brand banner: Firefly (#0A1324) surface, Curious Blue (#3688DD) glow, white mark.
+   Body copy is white at 80% on Firefly (well above 4.5:1); the eyebrow uses the dark-mode
+   accent #8BBCEF (8.9:1 on Firefly). */
 .guide {
   position: relative;
-  min-height: 176px;
+  min-height: 150px;
   margin-bottom: 20px;
   overflow: hidden;
-  border: 1px solid rgba(0, 209, 255, 0.24);
+  border: 1px solid rgba(54, 136, 221, 0.28);
   border-radius: var(--r-xl);
   background:
-    radial-gradient(circle at 82% 12%, rgba(0, 209, 255, 0.2), transparent 30%),
-    linear-gradient(118deg, #071b43 0%, #0a3d91 60%, #1262b7 100%);
-  box-shadow: 0 16px 36px rgba(10, 61, 145, 0.14);
+    radial-gradient(circle at 86% 30%, rgba(54, 136, 221, 0.32), transparent 42%),
+    linear-gradient(118deg, #0a1324 0%, #0f2340 70%, #133059 100%);
+  box-shadow: 0 16px 36px rgba(10, 19, 36, 0.16);
   color: #fff;
 }
 
@@ -18,21 +21,21 @@
   background-image: radial-gradient(rgba(255, 255, 255, 0.18) 1px, transparent 1px);
   background-size: 18px 18px;
   content: '';
-  opacity: 0.14;
+  opacity: 0.12;
   mask-image: linear-gradient(90deg, #000, transparent 72%);
 }
 
 .copy {
   position: relative;
   z-index: 1;
-  max-width: min(68%, 760px);
+  max-width: min(70%, 760px);
   padding: 25px 30px;
 }
 
 .eyebrow {
   display: inline-flex;
   margin-bottom: 8px;
-  color: #63e7ff;
+  color: #8bbcef;
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.12em;
@@ -62,35 +65,28 @@
   color: #fff;
 }
 
-.portrait {
+.mark {
   position: absolute;
-  top: auto;
-  right: -12px;
-  bottom: 0;
-  width: 260px;
-  height: 174px;
-  overflow: hidden;
-  border-radius: 48% 0 0 0;
-  background: #06152f;
-  box-shadow: -18px 0 45px rgba(0, 0, 0, 0.16);
+  top: 50%;
+  right: 36px;
+  width: 200px;
+  transform: translateY(-50%);
+  opacity: 0.92;
 }
 
-.image {
-  object-fit: contain;
-  object-position: center bottom;
-}
-
-.lioness {
-  object-position: center bottom;
+.mark img {
+  display: block;
+  width: 100%;
+  height: auto;
 }
 
 .compact {
-  min-height: 126px;
+  min-height: 116px;
   margin-bottom: 16px;
 }
 
 .compact .copy {
-  max-width: calc(100% - 160px);
+  max-width: calc(100% - 170px);
   padding: 20px 24px;
 }
 
@@ -98,32 +94,24 @@
   font-size: 16px;
 }
 
-.compact .portrait {
-  top: auto;
-  right: -8px;
-  bottom: 0;
-  width: 160px;
-  height: 124px;
+.compact .mark {
+  right: 28px;
+  width: 120px;
 }
 
 @media (max-width: 720px) {
-  .guide,
-  .compact {
-    min-height: 220px;
-  }
-
   .copy,
   .compact .copy {
     max-width: 100%;
-    padding: 22px 22px 118px;
+    padding: 22px 22px 64px;
   }
 
-  .portrait,
-  .compact .portrait {
+  .mark,
+  .compact .mark {
     top: auto;
-    right: -18px;
-    bottom: 0;
-    width: 172px;
-    height: 118px;
+    right: 22px;
+    bottom: 20px;
+    width: 104px;
+    transform: none;
   }
 }

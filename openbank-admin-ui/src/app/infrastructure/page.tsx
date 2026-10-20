@@ -19,6 +19,7 @@ import { ContextualInsights } from '@/components/insights/ContextualInsights'
 import { EVENT_INSIGHTS } from '@/components/insights/catalog'
 import { parseInfrastructureStatuses, type InfrastructureStatus, type InfrastructureStatusResult } from '@/lib/infra/statusContract'
 import { classifyBffFailure } from '@/lib/services/bff'
+import { BRAND } from '@/lib/brand'
 
 type InfraStatus = InfrastructureStatus
 
@@ -172,7 +173,7 @@ export default function InfrastructurePage() {
   return (
     <div style={{ padding: '28px 32px', maxWidth: '1400px', animation: 'fadeIn 0.2s ease-out' }}>
       <PageHeader
-        breadcrumb={<div className="breadcrumb"><span>OpenBank</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Platforma', 'Platform')}</span></div>}
+        breadcrumb={<div className="breadcrumb"><span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{t('Platforma', 'Platform')}</span></div>}
         icon={<Server size={20} aria-hidden="true" />}
         title={t('Infrastruktura', 'Infrastructure')}
         subtitle={t('Zdraví, životní cyklus a zranitelnosti komponent platformy — patch & EoL evidence (ADR-0079, DORA)', 'Component health, lifecycle & vulnerabilities — patch & EoL evidence (ADR-0079, DORA)')}

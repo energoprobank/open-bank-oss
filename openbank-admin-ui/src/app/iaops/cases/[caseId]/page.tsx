@@ -17,6 +17,7 @@ import type { CaseStatus } from '@/lib/governance/caseStatusPresentation'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { CaseRuntimeTimeline, CaseRuntimeTopology } from '@/components/agent/CaseRuntimeViews'
 import type { RuntimeEvidenceView } from '@/components/agent/CaseRuntimeViews'
+import { BRAND } from '@/lib/brand'
 
 type EntryType = 'CASE_OPENED' | 'CONTRIBUTION' | 'PROPOSAL_EMITTED' | 'SHADOW_RECORDED' | 'POLICY_DECISION' | 'SIGNAL_INVOKED' | 'SIGNAL_CONSUMED' | 'CONTRIBUTION_PERSISTED'
 
@@ -132,7 +133,7 @@ export default function IaopsCaseThreadPage() {
   return (
     <div style={{ padding: '28px 32px', maxWidth: '900px', animation: 'fadeIn 0.2s ease-out' }}>
       <PageHeader
-        breadcrumb={<div className="breadcrumb"><span>OpenBank</span><span className="breadcrumb-sep">/</span><Link href="/iaops" className="breadcrumb-current" style={{ textDecoration: 'none' }}>{t('IAOps', 'IAOps')}</Link><span className="breadcrumb-sep">/</span><Link href="/iaops/cases" className="breadcrumb-current" style={{ textDecoration: 'none' }}>{t('Swarm case', 'Swarm cases')}</Link><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{caseId}</span></div>}
+        breadcrumb={<div className="breadcrumb"><span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span><Link href="/iaops" className="breadcrumb-current" style={{ textDecoration: 'none' }}>{t('IAOps', 'IAOps')}</Link><span className="breadcrumb-sep">/</span><Link href="/iaops/cases" className="breadcrumb-current" style={{ textDecoration: 'none' }}>{t('Swarm case', 'Swarm cases')}</Link><span className="breadcrumb-sep">/</span><span className="breadcrumb-current">{caseId}</span></div>}
         icon={<GitMerge size={20} aria-hidden="true" />}
         title={caseId}
         subtitle={t('Detail sdíleného case vlákna; data jsou pouze pro čtení.', 'Shared case thread detail; data is read-only.')}

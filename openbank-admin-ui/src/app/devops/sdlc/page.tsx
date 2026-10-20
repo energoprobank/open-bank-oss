@@ -38,6 +38,7 @@ import { DocsPageHeader } from '@/components/docs/DocsPageHeader'
 import { GateCatalogExplorer } from '@/components/devops/GateCatalogExplorer'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import styles from './page.module.css'
+import { BRAND } from '@/lib/brand'
 
 type Audience = 'developer' | 'devops' | 'business'
 
@@ -392,14 +393,14 @@ export default function SdlcPage() {
     <div className={styles.page}>
       <DocsPageHeader
         crumbs={<>
-          <span>OpenBank</span><span className="breadcrumb-sep">/</span>
+          <span>{BRAND.shortName}</span><span className="breadcrumb-sep">/</span>
           <span>{t('Platforma', 'Platform')}</span><span className="breadcrumb-sep">/</span>
           <span className="breadcrumb-current">SDLC / CI·CD</span>
         </>}
         title={t('Od nápadu k bezpečnému provozu', 'From idea to safe operation')}
         subtitle={t(
-          'Jedna proklikávací mapa toho, jak OpenBank mění záměr v provozní hodnotu — s důkazem, odpovědností a bezpečností v každém kroku.',
-          'One interactive map of how OpenBank turns intent into operational value — with evidence, accountability, and security at every step.',
+          `Jedna proklikávací mapa toho, jak ${BRAND.name} mění záměr v provozní hodnotu — s důkazem, odpovědností a bezpečností v každém kroku.`,
+          `One interactive map of how ${BRAND.name} turns intent into operational value — with evidence, accountability, and security at every step.`,
         )}
         icon={<Sparkles aria-hidden="true" size={20} />}
       />
