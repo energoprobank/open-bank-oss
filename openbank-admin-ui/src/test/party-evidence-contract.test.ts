@@ -14,6 +14,12 @@ describe('party detail evidence contract', () => {
     expect(parsePartyEvidence(party, 'party-1')).toMatchObject({ id: 'party-1', legalName: 'Test Customer' })
   })
 
+  it('accepts optional fields party-service sends as explicit null', () => {
+    const parsed = parsePartyEvidence({ ...party, tradingName: null, phone: null, registrationNumber: null }, 'party-1')
+    expect(parsed).not.toBeNull()
+    expect(parsed?.phone).toBeUndefined()
+  })
+
   it('rejects a successful response for another route identity', () => {
     expect(parsePartyEvidence(party, 'party-2')).toBeNull()
   })
