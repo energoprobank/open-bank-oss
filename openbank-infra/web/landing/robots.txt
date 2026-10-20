@@ -11,4 +11,4 @@ Allow: /
 User-agent: GoogleOther
 Allow: /
 
-Sitemap: https://open-bank.tech/sitemap.xml
+Sitemap: https://energoprobank.example/sitemap.xml

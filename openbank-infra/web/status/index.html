@@ -3,24 +3,24 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#071933">
-  <meta name="description" content="Live OpenBank service status, incident updates, and a clear guide to availability, SLOs, SLAs, and error budgets.">
-  <link rel="canonical" href="https://status.open-bank.tech/">
+  <meta name="theme-color" content="#0A1324">
+  <meta name="description" content="Live Energo-Pro Bank demo service status, incident updates, and a clear guide to availability, SLOs, SLAs, and error budgets.">
+  <link rel="canonical" href="https://status.energoprobank.example/">
   <meta property="og:type" content="website">
-  <meta property="og:title" content="OpenBank Status">
+  <meta property="og:title" content="Energo-Pro Bank Status">
   <meta property="og:description" content="Live service checks and incident history, with the scope of each check clearly stated.">
-  <meta property="og:url" content="https://status.open-bank.tech/">
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","name":"OpenBank Status","url":"https://status.open-bank.tech/","description":"Live OpenBank service checks and incident history.","isPartOf":{"@type":"WebSite","name":"OpenBank","url":"https://open-bank.tech/"}}</script>
-  <link rel="icon" href="assets/ob-mark-complete.svg" type="image/svg+xml">
+  <meta property="og:url" content="https://status.energoprobank.example/">
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","name":"Energo-Pro Bank Status","url":"https://status.energoprobank.example/","description":"Live Energo-Pro Bank demo service checks and incident history.","isPartOf":{"@type":"WebSite","name":"Energo-Pro Bank","url":"https://energoprobank.example/"}}</script>
+  <link rel="icon" href="favicon.ico" sizes="any">
   <link rel="stylesheet" href="styles.css">
   <script src="app.js" defer></script>
-  <title>OpenBank Status · Service health, clearly explained</title>
+  <title>Energo-Pro Bank Status · Service health, clearly explained</title>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
   <header class="site-header">
     <div class="shell header-inner">
-      <a class="brand" href="/" aria-label="OpenBank Status home"><img src="assets/ob-mark-complete.svg" width="43" height="31" alt=""><span>OpenBank<span class="brand-soft"> / Status</span></span></a>
+      <a class="brand" href="/" aria-label="Energo-Pro Bank Status home"><img src="assets/energopro-mark-white.png" width="48" height="15" alt=""><span>Energo-Pro Bank<span class="brand-soft"> / Status</span></span></a>
       <nav aria-label="Primary navigation"><a href="#services">Services</a><a href="#incidents">Incidents</a><a href="#learn">Learn</a><a class="nav-api" href="#api">API <span aria-hidden="true">↗</span></a></nav>
     </div>
   </header>
@@ -29,7 +29,7 @@
     <section class="hero" aria-labelledby="hero-title">
       <div class="hero-grid shell">
         <div class="hero-copy">
-          <div class="eyebrow"><span class="pulse-dot" aria-hidden="true"></span> LIVE SERVICE STATUS <span class="eyebrow-line"></span> OPENBANK</div>
+          <div class="eyebrow"><span class="pulse-dot" aria-hidden="true"></span> LIVE SERVICE STATUS <span class="eyebrow-line"></span> ENERGO-PRO BANK</div>
           <h1 id="hero-title">A clearer view of <em>what's working.</em></h1>
           <p class="hero-intro">External and internal checks. Incident history.</p>
           <div id="overall-banner" class="overall-banner is-unknown" role="status" aria-live="polite">
@@ -38,13 +38,11 @@
           </div>
           <div class="hero-meta"><span id="last-check">Last checked: —</span><span class="meta-separator" aria-hidden="true">·</span><span>Updated every 2 minutes</span></div>
         </div>
-        <div class="mascot-stage" aria-label="OpenBank lions and robot working together">
+        <div class="mascot-stage" aria-label="Energo-Pro Bank">
           <div class="stage-orbit stage-orbit-one"></div><div class="stage-orbit stage-orbit-two"></div>
           <div class="stage-spark stage-spark-one"></div><div class="stage-spark stage-spark-two"></div>
-          <img class="mascot mascot-operational frame-a" src="assets/lions-operational.webp" width="1620" height="950" alt="Two OpenBank lions and a robot monitoring services" fetchpriority="high">
-          <img class="mascot mascot-operational frame-b" src="assets/lions-operational-motion.webp" width="1620" height="950" alt="" aria-hidden="true">
-          <img class="mascot mascot-repair frame-a" src="assets/lions-repair.webp" width="1620" height="950" alt="OpenBank lions wearing safety helmets and repairing a service" aria-hidden="true">
-          <img class="mascot mascot-repair frame-b" src="assets/lions-repair-motion.webp" width="1620" height="950" alt="" aria-hidden="true">
+          <img class="mascot mascot-brand mascot-operational" src="assets/energopro-logo-white.png" width="600" height="204" alt="Energo-Pro" fetchpriority="high">
+          <img class="mascot mascot-brand mascot-repair" src="assets/energopro-logo-white.png" width="600" height="204" alt="Energo-Pro" aria-hidden="true">
           <div class="motion-packet packet-one" aria-hidden="true"></div><div class="motion-packet packet-two" aria-hidden="true"></div><div class="motion-packet packet-three" aria-hidden="true"></div>
           <div class="stage-caption"><span class="caption-signal" aria-hidden="true">✦</span> Monitoring live</div>
         </div>
@@ -82,6 +80,6 @@
 
     <section id="api" class="api-section"><div class="shell api-inner"><div><span class="kicker">05 / PUBLIC API</span><h2>Status in <em>JSON.</em></h2><p>No key. Health returns 503 for impact or stale data.</p></div><div class="api-list"><a href="/api/v1/health"><code>GET /api/v1/health</code><span>Current status ↗</span></a><a href="/api/v1/history"><code>GET /api/v1/history</code><span>24h and 30d checks ↗</span></a><a href="/api/v1/incidents"><code>GET /api/v1/incidents</code><span>Incident timeline ↗</span></a><a href="/api/v1/healthz"><code>GET /api/v1/healthz</code><span>Status API health ↗</span></a><a href="/openapi.yaml"><code>OpenAPI 3.1</code><span>Contract ↗</span></a></div></div></section>
   </main>
-  <footer class="site-footer"><div class="shell footer-inner"><div><a class="brand" href="https://open-bank.tech/"><img src="assets/ob-mark-complete.svg" width="36" height="26" alt="">OpenBank</a></div><div class="footer-links"><a href="https://open-bank.tech/">Website</a><a href="/privacy.html">Privacy</a><a href="https://github.com/JiRaska/open-bank-oss">Open source</a><a href="#main">Back to top ↑</a></div><small>© <span id="year">2026</span> OpenBank · UTC</small></div></footer>
+  <footer class="site-footer"><div class="shell footer-inner"><div><a class="brand" href="https://energoprobank.example/"><img src="assets/energopro-mark-white.png" width="40" height="13" alt="">Energo-Pro Bank</a></div><div class="footer-links"><a href="https://energoprobank.example/">Website</a><a href="/privacy.html">Privacy</a><a href="https://github.com/JiRaska/open-bank-oss">Built on OpenBank (open source)</a><a href="#main">Back to top ↑</a></div><small>© <span id="year">2026</span> Energo-Pro Bank · UTC</small></div></footer>
 </body>
 </html>

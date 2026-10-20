@@ -36,7 +36,7 @@ spec:
         # ancestor — the Keycloak default (frame-ancestors 'self') blocks it.
         openbank-realm.json: >-
           {{ index . "openbank-realm.json" | mustFromJson
-             | merge (dict "loginTheme" "openbank" "displayNameHtml" "OpenBank Framework"
+             | merge (dict "loginTheme" "openbank" "displayNameHtml" "Energo-Pro Bank"
                       "browserSecurityHeaders" (dict "contentSecurityPolicy" "frame-src 'self' https://admin.open-bank.tech; frame-ancestors 'self' https://admin.open-bank.tech; object-src 'none';"))
              | mustToJson }}
   data:

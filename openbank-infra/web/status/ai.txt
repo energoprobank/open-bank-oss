@@ -1,7 +1,7 @@
-# AI usage for status.open-bank.tech
+# AI usage for the Energo-Pro Bank status page (placeholder domain status.energoprobank.example)
 User-agent: *
 Allow: crawling
 Allow: indexing
 Allow: training
 
-Contact: mailto:security@open-bank.tech
+Contact: mailto:security@energoprobank.example

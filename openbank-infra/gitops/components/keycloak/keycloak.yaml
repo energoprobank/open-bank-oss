@@ -39,7 +39,7 @@ spec:
       annotations:
         # Bumped by gen-theme-configmap.sh so a theme/PNG change rolls the pod
         # (subPath ConfigMap mounts don't hot-update).
-        openbank.dev/theme-checksum: "a3f57e76dc8d7abb"
+        openbank.dev/theme-checksum: "0a70564b1a7eef5e"
         # Single-replica IdP: forbid Karpenter from voluntarily evicting this pod
         # for consolidation ("Evicted pod: Underutilized"). Even with the optimized
         # image (~10s start) a consolidation still lands a cold pod on a possibly
@@ -117,8 +117,8 @@ spec:
             - name: realm-import
               mountPath: /opt/keycloak/data/import
               readOnly: true
-            # Custom "openbank" login theme (vault image + "OpenBank Framework",
-            # no Keycloak branding). Packed in the keycloak-theme-openbank
+            # Custom "openbank" login theme (Energo-Pro Bank logo, colours and
+            # favicon; no Keycloak branding). Packed in the keycloak-theme-openbank
             # ConfigMap; mounted file-by-file via subPath so the rest of
             # /opt/keycloak/themes (stock themes) stays intact. loginTheme is set
             # on the realm (see realm-template.json).
@@ -137,6 +137,10 @@ spec:
             - name: theme-openbank
               mountPath: /opt/keycloak/themes/openbank/login/resources/img/openbank-vault.png
               subPath: openbank-vault.png
+              readOnly: true
+            - name: theme-openbank
+              mountPath: /opt/keycloak/themes/openbank/login/resources/img/favicon.ico
+              subPath: favicon.ico
               readOnly: true
           securityContext:
             allowPrivilegeEscalation: false

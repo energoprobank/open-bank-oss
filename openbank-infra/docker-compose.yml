@@ -219,6 +219,9 @@ services:
       - "8080:8080"
     volumes:
       - ./docker/keycloak/realm:/opt/keycloak/data/import:ro
+      # Branded login theme (same source the gitops ConfigMap is generated from); the realm sets
+      # loginTheme=openbank. start-dev disables theme caching, so CSS edits show on reload.
+      - ./gitops/components/keycloak/theme/openbank:/opt/keycloak/themes/openbank:ro
     depends_on:
       postgres:
         condition: service_healthy

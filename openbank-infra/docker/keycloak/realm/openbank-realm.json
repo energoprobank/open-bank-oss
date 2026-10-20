@@ -1,7 +1,9 @@
 {
   "id": "openbank",
   "realm": "openbank",
-  "displayName": "OpenBank",
+  "displayName": "Energo-Pro Bank",
+  "displayNameHtml": "Energo-Pro Bank",
+  "loginTheme": "openbank",
   "browserSecurityHeaders": {
     "contentSecurityPolicy": "frame-src 'self' https://admin.open-bank.tech; frame-ancestors 'self' https://admin.open-bank.tech; object-src 'none';"
   },
@@ -1357,7 +1359,7 @@
       "username": "admin@openbank.local",
       "email": "admin@openbank.local",
       "firstName": "Admin",
-      "lastName": "OpenBank",
+      "lastName": "Energo-Pro",
       "enabled": true,
       "emailVerified": true,
       "credentials": [
@@ -1377,7 +1379,7 @@
       "username": "operator@openbank.local",
       "email": "operator@openbank.local",
       "firstName": "Operator",
-      "lastName": "OpenBank",
+      "lastName": "Energo-Pro",
       "enabled": true,
       "emailVerified": true,
       "credentials": [
@@ -1396,7 +1398,7 @@
       "username": "demo@openbank.local",
       "email": "demo@openbank.local",
       "firstName": "Demo",
-      "lastName": "OpenBank",
+      "lastName": "Energo-Pro",
       "enabled": true,
       "emailVerified": true,
       "credentials": [

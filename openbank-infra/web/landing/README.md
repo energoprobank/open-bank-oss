@@ -1,4 +1,9 @@
-# OpenBank public website
+# Energo-Pro Bank public website
+
+Rebranded from the upstream OpenBank site; name, colours and logos come from
+[`branding/brand.yaml`](../../../branding/brand.yaml). The domain `energoprobank.example`
+in canonical URLs, sitemap, robots, llms.txt and security.txt is a **placeholder** (reserved,
+never routes): replace it before publishing.
 
 Static HTML/CSS/JS; no frontend framework or client-side build. The customer app and
 admin portal remain separate products. This page presents them, it does not simulate them.
@@ -11,33 +16,26 @@ From the repository root:
 python3 -m http.server 8766 --bind 127.0.0.1 --directory openbank-infra/web/landing
 ```
 
-Open `http://127.0.0.1:8766`. Check the homepage, TestFlight form, demo dialogs,
-`platform.html` search, `labs.html` and `classic.html` at desktop and mobile widths.
+Open `http://127.0.0.1:8766`. Check the homepage, `platform.html` search and `labs.html`
+at desktop and mobile widths.
 
 ## Files and sources
 
-- `index.html`, `styles.css`: current design. App neutrals, Space Grotesk / Space Mono,
-  blue accent from the app's existing palette. The lions are guides; bots represent assistance.
+- `index.html`, `styles.css`: current design. Polar/Firefly neutrals and the Energo-Pro blues
+  (`--blue` #2470C2 buttons, `--blue-deep` #1F66B3 links), Space Grotesk / Space Mono.
 - `platform.html`: capability navigation and the **complete** repository module inventory.
   The marked catalog section is generated; never edit it by hand.
 - `labs.html`: shared banking kernel overview, with links to the corresponding library modules.
 - `catalog.js`: local search only. All modules are readable without JavaScript.
-- `main.js`: existing demo modal and TestFlight integration, plus a hash entry point for
-  opening the sandbox instructions from Labs.
-- `classic.html`, `classic.css`: previous homepage, visibly historical and excluded from indexing.
-  Old links to `platform.html` now reach the current platform page.
-- `assets/app-screen-current.png`: current app screenshot supplied for the redesigned page, used without changing pixels. The previous `app-screen.png` remains on `classic.html`.
-- `assets/agent-control-room.webp`: lossless encoding of the supplied presentation's
-  actual admin capture (slide 13, image14.png). It is a **recorded demo view**, not telemetry.
-- `assets/ob-mark-complete.svg`: complete web mark based on the previously cropped OB mark.
-- `assets/openbank-labs-kernel.jpg`: original OpenBank Labs artwork from the linked post.
-- `assets/agent-crew.webp`: original artwork copied from the admin portal.
-- `assets/explorers-hero.webp`: new AI-generated illustration using the supplied lion,
-  lioness and bot references. It contains no product UI.
+- `main.js`: footer year, scroll reveal. No forms, no network requests.
+- `assets/energopro-*.png`, `favicon.ico`, `apple-touch-icon.png`: copies of
+  `branding/generated/` (mark, Firefly lockup, app icon).
 
-The presentation is `OpenBank_Bank_Accidentally_final2.pptx`. It is a visual source,
-not a source of current metrics. No third-party banking logos or presentation credentials
-are imported. Product screenshots are labelled as recorded views.
+Removed in the rebrand: the iOS TestFlight signup (it posted e-mail addresses to the upstream
+maintainer's Web3Forms inbox, with an hCaptcha widget), the demo-access dialog for the upstream
+live sandbox, the historical `classic.html`, and the upstream mascot artwork and product
+screenshots. The site collects no personal data. `landing.test.cjs` asserts that no form,
+CAPTCHA or upstream sandbox link comes back.
 
 ## Refresh the public inventory
 
@@ -56,23 +54,12 @@ not the governance `dataDomain` taxonomy. Every module appears once. New/unmappe
 remain visible in Shared libraries & delivery. The source revision and date are explicit.
 Regenerate after catalog input changes; deployment does this before contacting AWS.
 
-## TestFlight: preserve the integration
-
-The same form ID, action, method, hidden fields, required email and opt-in consent,
-honeypot, hCaptcha sitekey, AJAX handler, status text and privacy dialog are retained.
-Only the widget theme changes from dark to light. Web3Forms receives the same payload.
-Public form routing identifiers are the existing browser-visible ones, not secrets.
-
-Tests intercept the submit endpoint locally: **never send test signups to Web3Forms**.
-A real end-to-end delivery test requires a user-authorized address and CAPTCHA completion.
-The redesign does not change invitation handling or retention policy.
-
 ## Publishing and rollback
 
-`../deploy.sh` uses the existing S3/CloudFront deployment. Do not deploy a branch before
-required PR review. The previous website remains linked from the footer; the old page
-has a historical notice. Roll back the website commit through the normal reviewed flow.
-The app association and security discovery files are unchanged.
+`../deploy.sh` uses the existing S3/CloudFront deployment. `deploy.sh` and the `web-prod` stack still
+target the upstream AWS account/profile; point them at Energo-Pro infrastructure before use.
+Do not deploy a branch before required PR review. `.well-known/apple-app-site-association` and
+`assetlinks.json` still name the upstream app IDs and must be replaced with Energo-Pro's own.
 
 No health, compliance percentage or cost is presented as live on the public platform
-page. Links lead to the actual admin evidence surfaces, which require sign-in.
+page. Admin evidence surfaces are named by path; they require operator sign-in.

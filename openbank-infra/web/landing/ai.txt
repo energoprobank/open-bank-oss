@@ -1,10 +1,10 @@
-# AI Usage Policy for open-bank.tech
-# This declaration covers https://open-bank.tech and all subpages.
+# AI usage policy for the Energo-Pro Bank demo website
+# PLACEHOLDER domain: energoprobank.example is reserved and never routes (branding/brand.yaml).
 
 User-agent: *
 Allow: training
 Allow: crawling
 Allow: indexing
 
-# Contact for AI-related queries
-Contact: mailto:security@open-bank.tech
+# Contact for AI-related queries (PLACEHOLDER mailbox)
+Contact: mailto:security@energoprobank.example

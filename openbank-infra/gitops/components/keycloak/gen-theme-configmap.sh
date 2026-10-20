@@ -2,10 +2,10 @@
 # Generates keycloak-theme-openbank.yaml (the ConfigMap ArgoCD applies) from the
 # human-editable theme source under ./theme/openbank/login.
 #
-# ArgoCD's directory source only applies *.yaml, and the vault PNG is binary, so
-# the theme cannot ship as loose files — it is packed into one ConfigMap:
+# ArgoCD's directory source only applies *.yaml, and the logo PNG / favicon are
+# binary, so the theme cannot ship as loose files — it is packed into one ConfigMap:
 #   - text files (theme.properties, css, messages) -> data:
-#   - the PNG                                       -> binaryData:
+#   - the logo PNG and favicon.ico                 -> binaryData:
 # The Deployment mounts each key back to its real theme path via subPath.
 #
 # ConfigMap keys cannot contain '/', so keys are flat names; keycloak.yaml maps
@@ -34,7 +34,9 @@ OUT=keycloak-theme-openbank.yaml
     sed 's/^/    /' "$SRC/$f" | sed 's/[[:space:]]*$//'
   done
   echo "binaryData:"
-  echo "  openbank-vault.png: $(base64 < "$SRC/resources/img/openbank-vault.png" | tr -d '\n')"
+  for f in resources/img/openbank-vault.png resources/img/favicon.ico; do
+    echo "  $(basename "$f"): $(base64 < "$SRC/$f" | tr -d '\n')"
+  done
 } > "$OUT"
 
 echo "wrote $OUT ($(wc -c < "$OUT") bytes)"

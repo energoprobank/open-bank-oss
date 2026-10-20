@@ -1,12 +1,12 @@
-# OpenBank
-> An early-stage, open-source banking ecosystem and reference implementation, not a licensed bank or production service.
+# Energo-Pro Bank
+> A demo bank built on OpenBank, an early-stage, open-source banking ecosystem and reference implementation. Not a licensed bank or production service.
 
-OpenBank connects banking domains, shared libraries, Product Studio, test evidence, observability, customer and business relationships, a customer app and governed AI tooling. Bank as Code means a service reports its API contract, version and health at runtime. Documentation as Code keeps service-owned docs with releases and generates decision indexes and runbooks from source. Compliance as Code ties per-service governance declarations to checks against the code where verification is possible. The public sandbox uses demo data. The code and its documented limits are the source of truth; a repository module list is not a live deployment report.
+The underlying OpenBank platform connects banking domains, shared libraries, Product Studio, test evidence, observability, customer and business relationships, a customer app and governed AI tooling. Bank as Code means a service reports its API contract, version and health at runtime. Documentation as Code keeps service-owned docs with releases and generates decision indexes and runbooks from source. Compliance as Code ties per-service governance declarations to checks against the code where verification is possible. The demo environment uses demo data. The code and its documented limits are the source of truth; a repository module list is not a live deployment report.
 
 ## Start here
-- [Overview](https://open-bank.tech/): Customer experience, connected ecosystem, Product Studio, AI/MCP overview and iOS TestFlight signup.
-- [Platform](https://open-bank.tech/platform.html): Code-derived module inventory grouped by banking capability, with source and API links.
-- [Labs](https://open-bank.tech/labs.html): Shared Kotlin banking kernel and QRlessPay phone-to-phone payment descriptor SDK.
+- [Overview](https://energoprobank.example/): Customer experience, connected ecosystem, Product Studio and AI/MCP overview.
+- [Platform](https://energoprobank.example/platform.html): Code-derived module inventory grouped by banking capability, with source and API links.
+- [Labs](https://energoprobank.example/labs.html): Shared Kotlin banking kernel and QRlessPay phone-to-phone payment descriptor SDK.
 - [QRlessPay SDK source](https://github.com/JiRaska/qrlesspay-sdk): Public Swift/Kotlin reference implementations and conformance vectors; BLE carries SPAYD payloads, UWB is optional proximity proof, NFC is future research.
 - [Source and project status](https://github.com/JiRaska/open-bank-oss): Implementation, licenses, roadmap and current limitations.
 - [Product catalog source](https://github.com/JiRaska/open-bank-oss/tree/main/openbank-product-catalog): Versioned specifications and offerings, draft review and controlled publication.
@@ -21,8 +21,8 @@ OpenBank connects banking domains, shared libraries, Product Studio, test eviden
 - Customer experience: The app and sandbox demonstrate banking products and services. Screenshots are recorded views, not live account data.
 - Product Studio: Operators can author and review versioned offers. Catalog policy and human maker-checker control publication; AI can propose or explain, not set terms.
 - AI-native and MCP-native: A customer-facing copilot and governed MCP tools exist in the sandbox. MCP reads are scoped by consent and policy; payment tools create human-reviewed proposals. External MCP access beyond the sandbox remains gated.
-- Status: Early-stage reference software. OpenBank is not a licensed bank and is not production-ready. Never send real financial or personal data to the public sandbox.
-- Licensing: The platform is Apache-2.0; AI agent components use AGPL-3.0-only plus commercial licensing. Check each component's license. Open Bank Foundation remains a proposal, not an incorporated organization.
+- Status: Early-stage reference software. Energo-Pro Bank (this demo) is not a licensed bank and is not production-ready. Never send real financial or personal data to the demo environment.
+- Licensing: The platform is Apache-2.0; AI agent components use AGPL-3.0-only plus commercial licensing. Check each component's license.
 
 ## Contact
-- Email: hello@open-bank.tech
+- Email: support@energoprobank.example (placeholder mailbox)

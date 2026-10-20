@@ -1,5 +1,6 @@
-Contact: mailto:security@open-bank.tech
+# PLACEHOLDER contact: energoprobank.example is a reserved, non-routing domain (branding/brand.yaml).
+# Replace with a monitored mailbox and add a Canonical line for the real domain before publishing.
+Contact: mailto:security@energoprobank.example
 Expires: 2027-06-11T00:00:00.000Z
 Policy: https://github.com/JiRaska/open-bank-oss/blob/main/SECURITY.md
 Preferred-Languages: cs, en
-Canonical: https://status.open-bank.tech/.well-known/security.txt

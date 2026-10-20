@@ -1,16 +1,20 @@
 /* SPDX-License-Identifier: Apache-2.0 */
-/* OpenBank web: Space Grotesk + Space Mono, warm app neutrals, app blue accent. */
+/* Energo-Pro Bank web: Space Grotesk + Space Mono, Polar/Firefly neutrals, Curious Blue accent.
+   Colours from branding/brand.yaml. Contrast (WCAG AA): --ink on --paper 17.5:1, --muted on
+   --paper 6.6:1, --blue-deep #1F66B3 on --paper 5.5:1, white on --blue #2470C2 5.0:1,
+   --blue on --paper 4.8:1 (headline accent, large text). */
 :root{
-  --paper:#f8f6f1;
-  --paper-deep:#f1eee7;
-  --ink:#0c100f;
-  --muted:#545c58;
-  --blue:#1f6feb;
-  --blue-deep:#174fae;
-  --blue-wash:#e5eeff;
-  --line:#d7dcd6;
+  --paper:#F5F9FD;
+  --paper-deep:#EAF2FB;
+  --ink:#0A1324;
+  --muted:#4B5A70;
+  --blue:#2470C2;
+  --blue-deep:#1F66B3;
+  --blue-wash:#E3EEFA;
+  --line:#D3DEEC;
   --white:#fff;
-  --vault:#0a0e0d;
+  --vault:#0A1324;
+  --curious-blue:#3688DD;
   --font:'Space Grotesk',system-ui,sans-serif;
   --mono:'Space Mono',monospace;
 color-scheme:light}
@@ -205,7 +209,7 @@ background:var(--white)}
   font-size:12px;
   color:var(--muted);
 margin:19px 0 0}
-.btn-iphone{gap:9px;padding-inline:14px;border-color:#a6bde9;background:#edf3ff;color:#174fae}
+.btn-iphone{gap:9px;padding-inline:14px;border-color:#a6bde9;background:#edf3ff;color:#1F66B3}
 .btn-iphone:hover{background:#dce9ff;border-color:#6c9af2}
 .btn-iphone svg{width:17px;height:21px;flex:none}
 .text-link{
@@ -353,7 +357,7 @@ text-align:center}
 .ecosystem-relationships{grid-template-columns:1.1fr .9fr;min-height:300px;background:linear-gradient(120deg,#fff 30%,#f2f4fa 100%)}
 .ecosystem-bank .ecosystem-card-copy,.ecosystem-relationships .ecosystem-card-copy{display:flex;flex-direction:column;align-items:flex-start;align-self:stretch}
 .bank-system{display:flex;flex-direction:column;gap:16px;padding:20px;border:1px solid #c7d7e9;border-radius:22px;background:#f6faff;box-shadow:0 18px 45px #1734550b}
-.bank-system-core{padding:15px 18px;border-radius:14px;background:#1f6feb;color:#fff}
+.bank-system-core{padding:15px 18px;border-radius:14px;background:#2470C2;color:#fff}
 .bank-system-core span{display:block;font-size:22px;font-weight:700;line-height:1.1}
 .bank-system-core small,.relationship-node small{display:block;margin-top:3px;font:500 10px/1.4 var(--mono)}
 .bank-domains{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
@@ -367,7 +371,7 @@ text-align:center}
 .relationship-node{min-width:112px;padding:18px 13px;border:1px solid #cfdbeb;border-radius:16px;background:#fff;box-shadow:0 7px 20px #1c3e6510;font-size:15px;font-weight:700;text-align:center}
 .relationship-node:last-child{border-style:dashed}
 .relationship-node small{color:#5b6875}
-.relationship-arrow{color:#1f6feb;font-size:24px;font-weight:700}
+.relationship-arrow{color:#2470C2;font-size:24px;font-weight:700}
 .ecosystem-studio{background:#fffaf2}.ecosystem-studio .ecosystem-index{color:#9d5a0e}
 .studio-flow{display:flex;flex-wrap:wrap;gap:7px;margin-top:28px}
 .studio-flow span{display:inline-flex;align-items:center;gap:7px;padding:8px 10px;border:1px solid #e5d8bc;border-radius:8px;background:#fff;font:700 11px/1.4 var(--mono)}
@@ -375,7 +379,7 @@ text-align:center}
 .ecosystem-ai{background:#e8f0ff;border-color:#cbdaf5}
 .ai-routes{display:flex;flex-wrap:wrap;gap:9px;margin-top:27px}
 .ai-routes span{padding:8px 11px;border-radius:999px;background:#fff;color:#163d7e;font:700 11px/1.4 var(--mono)}
-.ai-routes b{color:#1f6feb}
+.ai-routes b{color:#2470C2}
 .ecosystem-card .ecosystem-note{margin-top:12px;font-size:12px}
 @media(max-width:800px){.ecosystem-section{padding:65px 0}.bank-as-code{grid-template-columns:1fr}.ecosystem-grid{grid-template-columns:1fr}.ecosystem-bank,.ecosystem-relationships{grid-template-columns:1fr;gap:25px}.ecosystem-card{padding:26px}}
 @media(max-width:480px){.ecosystem-heading>p:last-child{font-size:16px}.bank-as-code{padding:26px}.bank-as-code-intro>p:not(.eyebrow){font-size:15px}.bank-system{padding:13px}.bank-domains span{font-size:10px;padding:8px}.bank-foundations{grid-template-columns:1fr}.bank-foundations div{text-align:left;padding:9px 12px}.bank-foundations b{font-size:11px}.bank-foundations small{font-size:10px}.relationship-node{min-width:95px;padding:12px 9px;font-size:12px}.relationship-arrow{font-size:16px}}
@@ -593,11 +597,11 @@ margin-left:8px}
   background:var(--vault);
 color:#f1eee7}
 .evidence-band .eyebrow{
-color:#8ab7ff}
+color:#8BBCEF}
 .evidence-band .section-heading>p,.evidence-band p,.evidence-band .fine{
 color:#bdc9c2}
 .evidence-band a,.evidence-band button,.evidence-band .index{
-color:#8ab7ff}
+color:#8BBCEF}
 .evidence-grid{
   display:grid;
   grid-template-columns:repeat(2,1fr);
@@ -906,3 +910,14 @@ display:none!important}
   .tf-field{
   min-width:0}
 }
+
+/* Energo-Pro brand panels replacing the upstream mascot illustrations. */
+.hero-brand{display:grid;place-items:center;min-height:360px;margin:0;border-radius:28px;
+  background:radial-gradient(ellipse at 50% 40%,#fff 0%,var(--paper-deep) 70%);border:1px solid var(--line)}
+.hero-brand img{width:min(440px,80%);-webkit-mask-image:none;mask-image:none}
+.labs-brand-art{display:grid;place-items:center;background:#fff;border:1px solid var(--line);box-shadow:none}
+.labs-brand-art img{width:220px;height:auto;object-fit:contain}
+.labs-art-brand img{max-width:360px;margin:auto;box-shadow:none;background:#fff;border:1px solid var(--line)}
+.phone-stage img[src*="energopro-icon"]{width:220px;box-shadow:none;border-radius:44px;background:#fff;border:1px solid var(--line)}
+.agents-solo{grid-template-columns:1fr;max-width:820px}
+@media(max-width:720px){.hero-brand{min-height:220px;margin:8px 0 0}}

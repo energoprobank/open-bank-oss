@@ -1,6 +1,13 @@
-# OpenBank public status
+# Energo-Pro Bank public status
 
-The public page is in English at `https://status.open-bank.tech/`. It is served
+Rebranded from the upstream OpenBank status page (name, colours, logo from
+[`branding/brand.yaml`](../../../branding/brand.yaml)). `status.energoprobank.example` is a
+**placeholder** domain. **Not yet re-pointed:** `backend/handler.py` still probes the upstream
+maintainer's hosts (`open-bank.tech`, `kc.open-bank.tech`, `api.open-bank.tech`) and expects the
+"OpenBank" identity on the website; `deploy.sh` and the `web-prod` stack target the upstream AWS
+setup. Re-point the checks and infrastructure at Energo-Pro hosts before deploying.
+
+The public page is in English (upstream served it at `https://status.open-bank.tech/`). It is served
 from a separate private S3 bucket through CloudFront. A regional Lambda runs
 external checks every two minutes and stores public aggregate results in a
 separate private S3 bucket. The public API is a Lambda function URL accessible
@@ -45,8 +52,8 @@ internal endpoint is included in the public JSON.
 Mobile customer journeys, payment completion, real-user latency, and contractual
 SLA attainment are outside the public badge until they have appropriate
 measurements and disclosure review. The educational SLO calculator uses
-hypothetical targets and must never be presented as an OpenBank commitment.
+hypothetical targets and must never be presented as an Energo-Pro Bank commitment.
 
-The generated mascot images have transparent backgrounds. The two scene poses
-cycle to animate the characters; the incident poses show blue safety helmets.
-`prefers-reduced-motion` displays a still frame.
+The hero shows the Energo-Pro white lockup (`assets/energopro-logo-white.png`) in place of the
+upstream mascot artwork; `app.js` still toggles the `.mascot-operational` / `.mascot-repair`
+elements, which now carry the same logo. `prefers-reduced-motion` stops the float animation.

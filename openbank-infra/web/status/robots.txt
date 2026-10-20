@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://status.open-bank.tech/sitemap.xml
+Sitemap: https://status.energoprobank.example/sitemap.xml

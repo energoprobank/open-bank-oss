@@ -1,29 +1,39 @@
-/* OpenBank Framework login theme — dark blue/cyan edition */
+/* Energo-Pro Bank login theme (theme id "openbank"; colours from branding/brand.yaml).
+ *
+ * Contrast (WCAG 2.x, measured):
+ *   #FFFFFF on Firefly #0A1324 ............ 18.6:1  header text
+ *   Firefly #0A1324 on #FFFFFF ............ 18.6:1  card text
+ *   #4B5A70 on #FFFFFF .................... 7.0:1   muted card text (6.6:1 on Polar)
+ *   #1F66B3 on #FFFFFF .................... 5.8:1   links (5.5:1 on Polar)
+ *   #FFFFFF on #2470C2 .................... 5.0:1   primary button label
+ *   #FFFFFF on #1D5FA8 .................... 6.5:1   primary button hover
+ *   #6B7B93 on #FFFFFF .................... 4.3:1   input border (non-text, >= 3:1)
+ *   #3688DD on #FFFFFF .................... 3.7:1   focus ring (non-text, >= 3:1)
+ */
 
 :root {
-  --ob-bg:         #0a0e1a;
-  --ob-accent:     #00d4ff;
-  --ob-accent2:    #0088cc;
-  --ob-glow:       rgba(0, 212, 255, 0.35);
-  --ob-text:       #e0f0ff;
-  --ob-muted:      #6a8aaa;
-  --ob-card:       rgba(10, 20, 40, 0.90);
-  --ob-border:     rgba(0, 212, 255, 0.22);
+  --ep-firefly:       #0A1324;
+  --ep-polar:         #F5F9FD;
+  --ep-curious-blue:  #3688DD;
+  --ep-blue-text:     #1F66B3;
+  --ep-blue-button:   #2470C2;
+  --ep-blue-hover:    #1D5FA8;
+  --ep-muted:         #4B5A70;
+  --ep-input-border:  #6B7B93;
 }
 
 .login-pf {
-  background: var(--ob-bg);
+  background: var(--ep-firefly);
 }
 
 .login-pf body {
   background:
-    radial-gradient(ellipse 900px 500px at 50% -5%, rgba(0, 100, 200, 0.28), transparent 60%),
-    radial-gradient(ellipse 600px 400px at 50% 100%, rgba(0, 50, 120, 0.15), transparent 70%),
-    var(--ob-bg);
+    radial-gradient(ellipse 900px 480px at 50% -10%, rgba(54, 136, 221, 0.22), transparent 65%),
+    var(--ep-firefly);
   min-height: 100vh;
 }
 
-/* Kill the stock Keycloak logo/branding entirely */
+/* Hide the stock Keycloak logo/branding */
 #kc-logo,
 #kc-logo-wrapper,
 .kc-logo-text,
@@ -32,139 +42,141 @@ div.kc-logo-text {
   background-image: none !important;
 }
 
-/* Header — vault image + framework name */
+/* Header: Energo-Pro logo (white lockup) above the realm/bank name */
 #kc-header,
 #kc-header-wrapper {
   width: 100%;
-  padding: 0;
   margin: 0 auto;
   text-align: center;
-  color: var(--ob-text);
+  color: #FFFFFF;
   display: flex;
   flex-direction: column;
   align-items: center;
-  font-size: 1.5rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  line-height: 1.2;
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  line-height: 1.3;
   white-space: normal;
-  text-shadow: 0 0 20px var(--ob-accent), 0 0 40px rgba(0, 212, 255, 0.4);
+}
+
+#kc-header-wrapper {
+  padding: 48px 16px 24px;
 }
 
 #kc-header-wrapper::before {
   content: "";
   display: block;
-  width: 180px;
-  height: 180px;
-  margin: 0 auto 20px;
+  width: 240px;
+  height: 82px;
+  margin: 0 auto 16px;
+  /* File name kept from upstream (k8s subPath mount); content is the Energo-Pro white logo. */
   background: url("../img/openbank-vault.png") no-repeat center center;
   background-size: contain;
-  filter:
-    drop-shadow(0 0 18px rgba(0, 212, 255, 0.80))
-    drop-shadow(0 0 40px rgba(0, 150, 255, 0.50))
-    drop-shadow(0 8px 24px rgba(0, 0, 0, 0.60));
-  animation: ob-pulse 3s ease-in-out infinite;
 }
 
-@keyframes ob-pulse {
-  0%, 100% {
-    filter:
-      drop-shadow(0 0 18px rgba(0, 212, 255, 0.80))
-      drop-shadow(0 0 40px rgba(0, 150, 255, 0.50))
-      drop-shadow(0 8px 24px rgba(0, 0, 0, 0.60));
+@media (max-width: 767px) {
+  #kc-header-wrapper {
+    padding: 24px 16px 16px;
+    font-size: 1.05rem;
+    color: #FFFFFF;
   }
-  50% {
-    filter:
-      drop-shadow(0 0 28px rgba(0, 212, 255, 1.00))
-      drop-shadow(0 0 60px rgba(0, 180, 255, 0.70))
-      drop-shadow(0 8px 24px rgba(0, 0, 0, 0.60));
+
+  #kc-header-wrapper::before {
+    width: 180px;
+    height: 62px;
   }
 }
 
-/* Login card */
+/* Login card: white on Firefly, Firefly text */
 .card-pf {
-  background: var(--ob-card);
-  border: 1px solid var(--ob-border);
-  border-radius: 16px;
-  box-shadow:
-    0 0 0 1px rgba(0, 212, 255, 0.08),
-    0 20px 60px rgba(0, 0, 0, 0.70),
-    0 0 80px rgba(0, 100, 200, 0.12);
-  color: var(--ob-text);
-  backdrop-filter: blur(12px);
+  background: #FFFFFF;
+  border: 0;
+  border-top: 4px solid var(--ep-curious-blue);
+  border-radius: 12px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+  color: var(--ep-firefly);
 }
 
 #kc-page-title,
 .card-pf label,
+.card-pf .pf-c-form__label-text {
+  color: var(--ep-firefly);
+}
+
 #kc-form-options,
 #kc-registration,
 .login-pf-page .login-pf-signup,
+.card-pf .subtitle,
+.card-pf .pf-c-form__helper-text {
+  color: var(--ep-muted);
+}
+
 #kc-info,
 #kc-info-wrapper {
-  color: var(--ob-text);
+  background: var(--ep-polar);
+  color: var(--ep-firefly);
 }
 
 input[type="text"],
 input[type="email"],
 input[type="password"],
 .pf-c-form-control {
-  background: rgba(0, 20, 50, 0.70);
-  border: 1px solid rgba(0, 212, 255, 0.20);
-  color: var(--ob-text);
-  border-radius: 8px;
+  background: #FFFFFF;
+  border: 1px solid var(--ep-input-border);
+  color: var(--ep-firefly);
+  border-radius: 6px;
 }
 
 input[type="text"]:focus,
 input[type="email"]:focus,
 input[type="password"]:focus,
 .pf-c-form-control:focus {
-  border-color: var(--ob-accent);
-  box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.20);
-  background: rgba(0, 30, 60, 0.80);
+  border-color: var(--ep-blue-text);
+  box-shadow: 0 0 0 2px var(--ep-curious-blue);
   outline: none;
 }
 
 input[type="text"]::placeholder,
 input[type="email"]::placeholder,
 input[type="password"]::placeholder {
-  color: var(--ob-muted);
+  color: var(--ep-muted);
 }
 
 .btn-primary,
 .pf-c-button.pf-m-primary {
-  background: linear-gradient(135deg, #0099dd, #00ccff);
-  border: 1px solid var(--ob-accent);
-  color: #ffffff;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  border-radius: 8px;
-  box-shadow: 0 0 16px rgba(0, 212, 255, 0.40);
-  transition: all 0.2s ease;
+  background: var(--ep-blue-button);
+  border: 1px solid var(--ep-blue-button);
+  color: #FFFFFF;
+  font-weight: 600;
+  border-radius: 6px;
+  transition: background-color 0.15s ease;
 }
 
 .btn-primary:hover,
-.pf-c-button.pf-m-primary:hover {
-  background: linear-gradient(135deg, #00aaee, #33ddff);
-  box-shadow: 0 0 24px rgba(0, 212, 255, 0.65);
+.btn-primary:focus,
+.pf-c-button.pf-m-primary:hover,
+.pf-c-button.pf-m-primary:focus {
+  background: var(--ep-blue-hover);
+  border-color: var(--ep-blue-hover);
+  color: #FFFFFF;
 }
 
-a {
-  color: var(--ob-accent);
+.btn-primary:focus-visible,
+.pf-c-button.pf-m-primary:focus-visible {
+  outline: 2px solid var(--ep-curious-blue);
+  outline-offset: 2px;
 }
 
-a:hover {
-  color: #66e8ff;
+.card-pf a {
+  color: var(--ep-blue-text);
+}
+
+.card-pf a:hover {
+  color: var(--ep-blue-hover);
 }
 
 .pf-c-button.pf-m-plain,
 button[aria-label*="password"] {
-  color: var(--ob-muted);
-}
-
-.alert-error,
-.pf-c-alert.pf-m-danger {
-  background: rgba(220, 50, 50, 0.15);
-  border-color: rgba(220, 50, 50, 0.40);
-  color: #ff9999;
+  color: var(--ep-muted);
 }

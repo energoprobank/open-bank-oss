@@ -6,8 +6,8 @@
   "eventsExpiration": 2592000,
   "adminEventsEnabled": true,
   "adminEventsDetailsEnabled": false,
-  "displayName": "OpenBank",
-  "displayNameHtml": "OpenBank Framework",
+  "displayName": "Energo-Pro Bank",
+  "displayNameHtml": "Energo-Pro Bank",
   "loginTheme": "openbank",
   "browserSecurityHeaders": {
     "contentSecurityPolicy": "frame-src 'self' https://admin.open-bank.tech; frame-ancestors 'self' https://admin.open-bank.tech; object-src 'none';"
@@ -1900,7 +1900,7 @@
       "username": "admin@openbank.local",
       "email": "admin@openbank.local",
       "firstName": "Admin",
-      "lastName": "OpenBank",
+      "lastName": "Energo-Pro",
       "enabled": true,
       "emailVerified": true,
       "credentials": [
@@ -1920,7 +1920,7 @@
       "username": "demo@openbank.local",
       "email": "demo@openbank.local",
       "firstName": "Demo",
-      "lastName": "OpenBank",
+      "lastName": "Energo-Pro",
       "enabled": true,
       "emailVerified": true,
       "credentials": [
@@ -1939,7 +1939,7 @@
       "username": "compliance@openbank.local",
       "email": "compliance@openbank.local",
       "firstName": "Compliance",
-      "lastName": "OpenBank",
+      "lastName": "Energo-Pro",
       "enabled": true,
       "emailVerified": true,
       "credentials": [
@@ -1960,7 +1960,7 @@
       "username": "compliance2@openbank.local",
       "email": "compliance2@openbank.local",
       "firstName": "Compliance Two",
-      "lastName": "OpenBank",
+      "lastName": "Energo-Pro",
       "enabled": true,
       "emailVerified": true,
       "credentials": [
@@ -1980,7 +1980,7 @@
       "username": "marketing@openbank.local",
       "email": "marketing@openbank.local",
       "firstName": "Marketing",
-      "lastName": "OpenBank",
+      "lastName": "Energo-Pro",
       "enabled": true,
       "emailVerified": true,
       "credentials": [
