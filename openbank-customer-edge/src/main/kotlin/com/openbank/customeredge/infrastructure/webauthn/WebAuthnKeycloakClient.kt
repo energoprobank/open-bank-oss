@@ -147,6 +147,46 @@ class WebAuthnKeycloakClient {
     }
 
     /**
+     * Create a password-login customer bound to [partyId] (demo registration only — see
+     * DemoPasswordRegistrationResource). Fails with [UserAlreadyExistsException] when the e-mail
+     * is taken: unlike [ensureUser], silently reusing an existing user here would hand a new
+     * party someone else's login.
+     */
+    fun createPasswordUser(email: String, partyId: String, displayName: String, password: String): String {
+        val token = serviceToken()
+        val nameParts = displayName.trim().split(Regex("\\s+"), limit = 2)
+        val createBody = json.writeValueAsString(
+            mapOf(
+                "username" to email,
+                "email" to email,
+                "emailVerified" to true,
+                "enabled" to true,
+                "firstName" to nameParts.getOrElse(0) { "" },
+                "lastName" to nameParts.getOrElse(1) { "" },
+                "attributes" to mapOf("party_id" to listOf(partyId)),
+                "credentials" to listOf(mapOf("type" to "password", "value" to password, "temporary" to false)),
+            ),
+        )
+        val createResp = http.send(
+            HttpRequest.newBuilder()
+                .uri(URI.create("$adminUrl/admin/realms/$realm/users"))
+                .header("Authorization", "Bearer $token")
+                .header("Content-Type", "application/json")
+                .timeout(Duration.ofSeconds(HTTP_TIMEOUT_SECONDS))
+                .POST(HttpRequest.BodyPublishers.ofString(createBody))
+                .build(),
+            HttpResponse.BodyHandlers.ofString(),
+        )
+        if (createResp.statusCode() == HTTP_CONFLICT) throw UserAlreadyExistsException(email)
+        check(createResp.statusCode() == HTTP_CREATED) {
+            "Keycloak POST /users returned ${createResp.statusCode()}"
+        }
+        val location = createResp.headers().firstValue("Location").orElse(null)
+            ?: error("Keycloak user create response had no Location header")
+        return location.substringAfterLast("/")
+    }
+
+    /**
      * Mint a real session token for [keycloakUserId] via RFC 8693 token-exchange, scoped to the
      * `openbank-app` audience so the result carries the same claims (`sub`, `realm_access.roles`,
      * `party_id` if already set) a normal hosted login would produce. Not routed through
@@ -233,6 +273,7 @@ class WebAuthnKeycloakClient {
         private const val HTTP_TIMEOUT_SECONDS = 5L
         private const val HTTP_OK = 200
         private const val HTTP_CREATED = 201
+        private const val HTTP_CONFLICT = 409
         private const val MILLIS_PER_SECOND = 1000L
 
         // Refresh the cached service token this many seconds before its nominal expiry so a

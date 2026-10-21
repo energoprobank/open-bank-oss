@@ -52,7 +52,7 @@ info:
   # 1.81.0 -> 1.82.0 (#12259): additive company-scoped business payment batch draft routes.
   # 1.82.0 -> 1.83.0: additive configured pension provider and explicit unconfigured-provider 503 responses.
   # 1.83.0 -> 1.84.0: additive low-balance-alert endpoint and schemas (ADR-0333).
-  version: 1.84.0
+  version: 1.85.0
   description: >-
     Customer-facing edge proxy (ADR-0065). Single internet-facing entry point for the
     retail customer app. Validates JWTs from the openbank-customers Keycloak realm,
@@ -4777,6 +4777,62 @@ paths:
           description: Missing required fields
         '502':
           description: party-service unavailable
+
+  /onboarding/demo-credentials:
+    post:
+      tags: [Onboarding]
+      summary: DEMO ONLY — finish onboarding with a password login instead of a passkey
+      description: >-
+        Disabled (404) unless openbank.demo.password-registration.enabled=true; never enable it
+        outside a local demo. Exchanges the enrollment ticket from /onboarding/start (sent as the
+        Bearer credential) for a username/password login in the customers realm bound to the
+        ticket's party. Exists because passkeys need the open-bank.tech associated domain, which a
+        locally run backend and a Simulator or side-loaded app cannot have. The client then signs in
+        through the realm's normal authorization-code + PKCE flow.
+        Not a Keycloak-authenticated route. Requires `Authorization: Bearer <enrollmentTicket>`.
+      operationId: createDemoCredentials
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  description: Becomes the login username (lower-cased).
+                password:
+                  type: string
+                  minLength: 8
+                  format: password
+                displayName:
+                  type: string
+                  description: First and last name for the login profile.
+      responses:
+        '201':
+          description: Login created for the ticket's party
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [partyId, username]
+                properties:
+                  partyId:
+                    type: string
+                    format: uuid
+                  username:
+                    type: string
+        '400':
+          description: Invalid e-mail or password shorter than 8 characters
+        '401':
+          description: Missing, invalid or expired enrollment ticket
+        '404':
+          description: Demo registration is disabled on this deployment
+        '409':
+          description: The e-mail is already registered
 
   /onboarding/account:
     post:
