@@ -9,6 +9,7 @@ import { ArrowLeftRight, Search, SearchX, RefreshCw, Filter, X } from 'lucide-re
 import { PartySearch, partyDisplayName, type PartyHit } from '@/components/party/PartySearch'
 import { isValidIban, normalizeIban } from '@/lib/validation/iban'
 import { svcUrl, classifyBffFailure, type BffFailure } from '@/lib/services/bff'
+import { resolveOwnAccountId } from '@/lib/transactions/ownAccountIban'
 import { DataUnavailable } from '@/components/feedback/DataUnavailable'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { EmptyState, PageHeader, StatusBadge } from '@/components/ui'
@@ -133,9 +134,21 @@ export default function TransactionsPage() {
       setResultQueryKey(null)
     }
     try {
+      // One of the bank's own IBANs: search by its account id, which also finds internal
+      // bookings (they carry account ids, not IBANs). Anything else keeps the IBAN filter.
+      let searchAccountId = accountId
+      let searchIban = iban
+      if (!accountId && iban.trim()) {
+        const ownAccountId = await resolveOwnAccountId(iban, controller.signal)
+        if (generation !== searchGeneration.current) return
+        if (ownAccountId) {
+          searchAccountId = ownAccountId
+          searchIban = ''
+        }
+      }
       const params = new URLSearchParams()
-      if (accountId)     params.set('accountId', accountId)
-      if (iban)          params.set('iban', normalizeIban(iban))
+      if (searchAccountId) params.set('accountId', searchAccountId)
+      if (searchIban)      params.set('iban', normalizeIban(searchIban))
       if (bban)          params.set('bban', bban)
       if (referenceNumber) params.set('referenceNumber', referenceNumber)
       if (endToEndId)    params.set('endToEndId', endToEndId)
