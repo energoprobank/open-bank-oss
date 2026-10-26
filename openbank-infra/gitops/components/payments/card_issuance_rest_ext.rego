@@ -91,6 +91,17 @@ allowed_reasons contains "service-party-card-list" if {
 	input.action == "card.list"
 }
 
+# customer-edge lists the signed-in customer's OWN cards (CustomerEdgeResource.listCards →
+# GET /cards/party/{partyId}); the edge forces partyId from the customer's JWT before calling.
+# It calls with its own `openbank-edge` principal (UpstreamClient), not the shared
+# openbank-services client the header note describes, so operator-read-any never applied to it.
+# CardReadCallerGuard.CARD_PARTY_LIST_CALLERS names the same principal (pinned by its test).
+allowed_reasons contains "service-edge-card-list" if {
+	input.principal.type == "HUMAN"
+	machine_named("service-account-openbank-edge")
+	input.action == "card.list"
+}
+
 # The synthetic PAN/CVV read (CardResource.secureDetails). Excluded from operator-read-any (rules.yaml
 # authz.operator_read_any_excluded_actions) because ROLE_OPERATOR is held by staff and by machine
 # identities alike, and no back-office screen renders a PAN. The one caller is customer-edge's own

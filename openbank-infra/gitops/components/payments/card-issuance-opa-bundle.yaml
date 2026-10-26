@@ -9,7 +9,7 @@ metadata:
     app.kubernetes.io/name: card-issuance-service
     app.kubernetes.io/part-of: payments
   annotations:
-    openbank.tech/policy-checksum: "5e01b45173e258f5"
+    openbank.tech/policy-checksum: "045929ff2d04d46e"
 data:
   rest.rego: |
     # SPDX-License-Identifier: Apache-2.0
@@ -851,6 +851,17 @@ data:
     allowed_reasons contains "service-party-card-list" if {
     	input.principal.type == "HUMAN"
     	machine_named("service-account-openbank-party")
+    	input.action == "card.list"
+    }
+
+    # customer-edge lists the signed-in customer's OWN cards (CustomerEdgeResource.listCards →
+    # GET /cards/party/{partyId}); the edge forces partyId from the customer's JWT before calling.
+    # It calls with its own `openbank-edge` principal (UpstreamClient), not the shared
+    # openbank-services client the header note describes, so operator-read-any never applied to it.
+    # CardReadCallerGuard.CARD_PARTY_LIST_CALLERS names the same principal (pinned by its test).
+    allowed_reasons contains "service-edge-card-list" if {
+    	input.principal.type == "HUMAN"
+    	machine_named("service-account-openbank-edge")
     	input.action == "card.list"
     }
 

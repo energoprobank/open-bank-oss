@@ -276,3 +276,20 @@ test_pan_read_denied_when_verified_client_does_not_match_edge if {
 			with data.rules as pan_rules
 	}
 }
+
+# customer-edge may list a party's cards (its customer's own) with its own principal, and that
+# grant reaches no other card action beyond the PAN read it already had.
+test_edge_may_list_cards if {
+	d := rest.allow with input as {"principal": b6_sa("edge"), "action": "card.list"}
+		with data.rules as b6_rules
+	d.allow == true
+	"service-edge-card-list" in rest.allowed_reasons with input as {"principal": b6_sa("edge"), "action": "card.list"}
+		with data.rules as b6_rules
+}
+
+test_edge_card_list_grant_reaches_no_other_card_action if {
+	every action in b6_all_card_actions - {"card.list", "card.details.read"} {
+		rest.allow == false with input as {"principal": b6_sa("edge"), "action": action}
+			with data.rules as b6_rules
+	}
+}
