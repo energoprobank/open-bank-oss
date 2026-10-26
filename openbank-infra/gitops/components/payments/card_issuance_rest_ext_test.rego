@@ -159,12 +159,19 @@ b6_rules := {
 b6_grants := {
 	"delegation": {"reason": "service-delegation-card-read", "actions": {"card.read"}},
 	"party": {"reason": "service-party-card-list", "actions": {"card.list"}},
+	"card-processing": {
+		"reason": "service-card-processing-card-read", "actions": {"card.read", "card.authorization.decide"},
+		"reasons": {"card.authorization.decide": "service-card-processing-authorization"},
+	},
 }
+
+# The reason a grant answers for one action: `reasons[action]` where a grant spans several rules.
+b6_reason(g, action) := object.get(object.get(g, "reasons", {}), action, g.reason)
 
 b6_all_card_actions := {
 	"card.create", "card.read", "card.list", "card.details.read", "card.activate", "card.block",
 	"card.cancel", "card.suspend", "card.resume", "card.limits.update", "card.controls.update",
-	"card.outbox.requeue",
+	"card.outbox.requeue", "card.authorization.decide",
 }
 
 test_b6_each_identity_may_perform_its_granted_read if {
@@ -173,7 +180,7 @@ test_b6_each_identity_may_perform_its_granted_read if {
 			d := rest.allow with input as {"principal": b6_sa(name), "action": action}
 				with data.rules as b6_rules
 			d.allow == true
-			g.reason in rest.allowed_reasons with input as {"principal": b6_sa(name), "action": action}
+			b6_reason(g, action) in rest.allowed_reasons with input as {"principal": b6_sa(name), "action": action}
 				with data.rules as b6_rules
 		}
 	}
@@ -275,4 +282,45 @@ test_pan_read_denied_when_verified_client_does_not_match_edge if {
 		rest.allow == false with input as {"principal": principal, "action": "card.details.read"}
 			with data.rules as pan_rules
 	}
+}
+
+# card-processing's own client reads a card for the acquirer path, and that grant is card.read alone:
+# the PAN read and every card write stay out of reach (the generic b6 tests above cover the rest).
+test_card_processing_may_read_a_card_but_not_its_pan if {
+	d := rest.allow with input as {"principal": b6_sa("card-processing"), "action": "card.read"}
+		with data.rules as b6_rules
+	d.allow == true
+	rest.allow == false with input as {"principal": b6_sa("card-processing"), "action": "card.details.read"}
+		with data.rules as pan_rules
+}
+
+# The grant is bound to the verified client: the card-processing NAME on another client's token, or
+# on a token that is not a service account, reads nothing.
+test_card_processing_name_on_another_client_is_denied if {
+	every principal in [
+		object.union(b6_sa("card-processing"), {"client_id": "openbank-services"}),
+		object.union(b6_sa("card-processing"), {"service_account": false}),
+	] {
+		rest.allow == false with input as {"principal": principal, "action": "card.read"}
+			with data.rules as b6_rules
+	}
+}
+
+# The decision grant: card-processing's own client is allowed under its own reason; the shared
+# services principal, staff operators and every other service account are not.
+test_card_processing_may_have_an_authorization_decided if {
+	d := rest.allow with input as {"principal": b6_sa("card-processing"), "action": "card.authorization.decide"}
+		with data.rules as b6_rules
+	d.allow == true
+	"service-card-processing-authorization" in rest.allowed_reasons with input as {"principal": b6_sa("card-processing"), "action": "card.authorization.decide"}
+		with data.rules as b6_rules
+}
+
+test_authorization_decide_denied_to_everyone_else if {
+	every p in ["services", "delegation", "party", "edge", "mcp"] {
+		rest.allow == false with input as {"principal": b6_sa(p), "action": "card.authorization.decide"}
+			with data.rules as b6_rules
+	}
+	rest.allow == false with input as {"principal": {"type": "HUMAN", "id": "u-staff", "roles": ["ROLE_OPERATOR", "ROLE_ADMIN"]}, "action": "card.authorization.decide"}
+		with data.rules as b6_rules
 }

@@ -76,6 +76,18 @@ class CardReadCallerGuardTest {
     }
 
     @Test
+    fun `card-processing's own client may read a card and not list a party's cards or read a PAN`() {
+        val cardProcessing = identity("service-account-openbank-card-processing", "ROLE_API")
+        assertThatCode { requireNamedCardReader(cardProcessing, CARD_READ_CALLERS) }.doesNotThrowAnyException()
+        assertThatThrownBy { requireNamedCardReader(cardProcessing, CARD_PARTY_LIST_CALLERS) }
+            .isInstanceOf(ForbiddenException::class.java)
+        assertThatThrownBy { requireCardDetailsReader(cardProcessing) }.isInstanceOf(ForbiddenException::class.java)
+        val impostor = jwtIdentity("openbank-services", "service-account-openbank-card-processing", "ROLE_API")
+        assertThatThrownBy { requireNamedCardReader(impostor, CARD_READ_CALLERS) }
+            .isInstanceOf(ForbiddenException::class.java)
+    }
+
+    @Test
     fun `another service account and the shared client holding ROLE_API are refused`() {
         listOf("service-account-openbank-mcp", "service-account-openbank-services").forEach { name ->
             listOf(CARD_READ_CALLERS, CARD_PARTY_LIST_CALLERS).forEach { allowed ->
@@ -112,7 +124,8 @@ class CardReadCallerGuardTest {
             val rule = rego.substringAfter("allowed_reasons contains \"$reason\"").substringBefore("\n}")
             return Regex("\"(service-account-[a-z0-9-]+)\"").findAll(rule).map { it.groupValues[1] }.toSet()
         }
-        assertThat(principals("service-delegation-card-read")).isEqualTo(CARD_READ_CALLERS)
+        assertThat(principals("service-delegation-card-read") + principals("service-card-processing-card-read"))
+            .isEqualTo(CARD_READ_CALLERS)
         assertThat(principals("service-party-card-list")).isEqualTo(CARD_PARTY_LIST_CALLERS)
         assertThat(principals("service-edge-card-details-read")).isEqualTo(CARD_DETAILS_READ_CALLERS)
     }

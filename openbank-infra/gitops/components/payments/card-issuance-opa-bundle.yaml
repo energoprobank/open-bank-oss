@@ -9,7 +9,7 @@ metadata:
     app.kubernetes.io/name: card-issuance-service
     app.kubernetes.io/part-of: payments
   annotations:
-    openbank.tech/policy-checksum: "5e01b45173e258f5"
+    openbank.tech/policy-checksum: "930cf920f99cd8e7"
 data:
   rest.rego: |
     # SPDX-License-Identifier: Apache-2.0
@@ -782,6 +782,10 @@ data:
     # Actions gated (CardOutboxAdminResource, #4005):
     #   card.outbox.requeue — requeueDead — ROLE_ADMIN ONLY (not ROLE_OPERATOR)
     #
+    # Actions gated (CardAuthorizationResource):
+    #   card.authorization.decide — authorize (#id) — card-processing's own principal only, see the
+    #                    service-card-processing-authorization rule below.
+    #
     # Base rest.rego already grants operator-read-any (ROLE_OPERATOR/ROLE_ADMIN) for card.list/.read
     # — no extension needed for those. card.details.read is the exception: it is listed in rules.yaml
     # authz.operator_read_any_excluded_actions, so no generic read grant reaches the PAN. The remaining actions have no generic base-rego grant.
@@ -846,6 +850,26 @@ data:
     	input.principal.type == "HUMAN"
     	machine_named("service-account-openbank-delegation")
     	input.action == "card.read"
+    }
+
+    # card-processing's issuer-side card lookup on the acquirer path (CardIssuanceClient.getCard → GET
+    # /cards/{id}): the account and currency an authorisation holds against. It calls as its OWN client
+    # `openbank-card-processing` (ROLE_API only), never the shared one, which this rule set deliberately
+    # refuses. Without this grant every sandbox/scheme purchase failed before a decision was asked for.
+    # CardReadCallerGuard.CARD_READ_CALLERS names the same principal (pinned by its test).
+    allowed_reasons contains "service-card-processing-card-read" if {
+    	input.principal.type == "HUMAN"
+    	machine_named("service-account-openbank-card-processing")
+    	input.action == "card.read"
+    }
+
+    # The authorisation decision itself (CardIssuanceClient.authorize → POST /cards/{id}/authorizations,
+    # CardAuthorizationResource): no rule granted card.authorization.decide to anyone, so the decision
+    # would be denied the moment AUTHZ_ENFORCE flips. Same principal, that one action.
+    allowed_reasons contains "service-card-processing-authorization" if {
+    	input.principal.type == "HUMAN"
+    	machine_named("service-account-openbank-card-processing")
+    	input.action == "card.authorization.decide"
     }
 
     allowed_reasons contains "service-party-card-list" if {
