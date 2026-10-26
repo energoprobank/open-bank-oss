@@ -230,6 +230,17 @@ silently re-suspend a credential the customer was just given back.
   classifications. This changes response interpretation, not the caller identity, permissions,
   endpoint, feature flag or image. Real broker settlement and a production rollout are not
   established by the client regression tests.
+- **2026-10-26** — **The card-issuance client authenticates as card-processing's own principal.**
+  `CardIssuanceClient` (card lookup `GET /api/v1/cards/{id}` and the authorisation decision) now mints
+  its bearer from a NAMED oidc-client `card-issuance`, Keycloak client `openbank-card-processing`
+  (`ROLE_API` only). card-issuance names the machine principals that may read a card and refuses the
+  shared `openbank-services` one, so on the shared client every authorisation failed with HTTP 500
+  before reaching a decision. **STRIDE-S:** a new credential at Vault KV
+  `keycloak/card-processing-service`, projected by `card-processing-service-m2m-oidc`, env ref
+  `optional: false`; compromise reaches card reads by id and the authorisation decision, both already
+  open to `ROLE_API`. The transaction-service and fraud-service clients stay on the shared client, so
+  their grants are unchanged. `M2mOidcClientIdentityWiringTest` pins the annotation and the named
+  client's id and secret variable. Rollback: revert the commit.
 
 
 ### Posting diagnostics data minimisation (#13228)

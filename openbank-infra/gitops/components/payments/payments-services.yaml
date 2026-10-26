@@ -2580,6 +2580,16 @@ spec:
                 secretKeyRef:
                   name: card-processing-service-oidc
                   key: OIDC_CLIENT_SECRET
+            # card-processing's OWN Keycloak client (openbank-card-processing, ROLE_API only) for the
+            # card-issuance calls — the named oidc-client `card-issuance`. card-issuance refuses the
+            # shared client for the card lookup. optional: false so an unseeded Vault entry is a loud
+            # CreateContainerConfigError, never a silently empty credential.
+            - name: OIDC_CARD_ISSUANCE_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: card-processing-service-m2m-oidc
+                  key: OIDC_CARD_ISSUANCE_CLIENT_SECRET
+                  optional: false
             - name: QUARKUS_OTEL_EXPORTER_OTLP_ENDPOINT
               value: "http://tempo.observability.svc:4317"
             - name: OTEL_TRACES_SAMPLER_ARG

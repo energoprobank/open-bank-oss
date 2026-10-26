@@ -128,7 +128,7 @@ survives in it.
    COPILOT_CLIENT_SECRET=... CAMPAIGN_CLIENT_SECRET=... DELEGATION_CLIENT_SECRET=... \
    AGENT_CLIENT_SECRET=... MCP_CLIENT_SECRET=... STATEMENT_CLIENT_SECRET=... \
    SYNTHETIC_CATALOG_READ_CLIENT_SECRET=... SYNTHETIC_FX_READ_CLIENT_SECRET=... TREASURY_CLIENT_SECRET=... FINREP_CLIENT_SECRET=... \
-   TAX_REPORTING_CLIENT_SECRET=... LEDGER_PENSION_CO_CLIENT_SECRET=... \
+   TAX_REPORTING_CLIENT_SECRET=... LEDGER_PENSION_CO_CLIENT_SECRET=... CARD_PROCESSING_CLIENT_SECRET=... \
    DEMO_USER_PASSWORD=... COMPLIANCE_USER_PASSWORD=... COMPLIANCE2_USER_PASSWORD=... \
    MARKETING_USER_PASSWORD=... \
    ADMIN_HOST=admin.openbank.local \
@@ -484,6 +484,15 @@ full KC 26.6.3 default set plus `catalog:read`, and `defaultDefaultClientScopes`
 `defaultOptionalClientScopes` as Keycloak creates them. Measured on a throwaway 26.6.3 import: every
 existing service-account client mints a token with the same claims as before. Re-check that after a
 Keycloak major upgrade changes its default scopes.
+
+### card-processing card lookup
+
+Same recipe, same script, one client. Only card-processing's `CardIssuanceClient` selects it (named
+oidc-client `card-issuance`); its transaction and fraud clients stay on the shared client.
+
+| Keycloak client | Vault KV (`openbank/`) | ExternalSecret (namespace) | Render-script variable |
+|---|---|---|---|
+| `openbank-card-processing` | `keycloak/card-processing-service` | `card-processing-service-m2m-oidc` (payments) | `CARD_PROCESSING_CLIENT_SECRET` |
 
 ## What this does NOT fix
 
