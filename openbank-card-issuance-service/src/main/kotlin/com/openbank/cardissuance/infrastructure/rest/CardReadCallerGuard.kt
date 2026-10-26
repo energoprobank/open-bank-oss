@@ -13,8 +13,8 @@ private val CARD_READ_STAFF_ROLES = setOf("ROLE_VIEWER", "ROLE_OPERATOR", "ROLE_
 
 /**
  * #10486 batch 6: machine principals that read ONE card by id (`GET /api/v1/cards/{id}`, `card.read`).
- * Mirrors `service-delegation-card-read` in card_issuance_rest_ext.rego; `CardReadCallerGuardTest`
- * pins that the two agree.
+ * Mirrors `service-delegation-card-read` and `service-card-processing-card-read` in
+ * card_issuance_rest_ext.rego; `CardReadCallerGuardTest` pins that the two agree.
  */
 internal val CARD_READ_CALLERS = setOf(
     // delegation-service: resource-ownership check before a card-scoped mandate (CardIssuanceRestClient).
@@ -23,6 +23,9 @@ internal val CARD_READ_CALLERS = setOf(
     // that guards EVERY per-card customer action — freeze, block, cancel, limits, controls, details.
     // Without it each of those answered 403 "Card does not belong to caller" for the card's own holder.
     "service-account-openbank-edge",
+    // card-processing: the issuer-side card lookup on the acquirer path (CardIssuanceClient.getCard),
+    // under its own `openbank-card-processing` client. Without it every authorisation failed.
+    "service-account-openbank-card-processing",
 )
 
 /**

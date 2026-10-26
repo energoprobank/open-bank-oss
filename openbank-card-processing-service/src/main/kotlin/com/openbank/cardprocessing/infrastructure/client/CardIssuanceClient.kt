@@ -32,10 +32,15 @@ import java.util.UUID
  * expectation from this annotation is DRY and vacuous — both sides then move together and the test
  * stays green against a route that does not exist, which is how a call to a ledger path that has
  * never existed shipped (#2269).
+ *
+ * The bearer comes from the NAMED oidc-client `card-issuance` (Keycloak client `openbank-card-processing`,
+ * ROLE_API only), not the shared `openbank-services` one: card-issuance answers [getCard] only for the
+ * machine principals it names, and refuses the shared principal outright, so on the default client every
+ * acquirer authorisation failed before a decision was asked for.
  */
 @Path("/api/v1/cards")
 @RegisterRestClient(configKey = "card-issuance-api")
-@OidcClientFilter
+@OidcClientFilter("card-issuance")
 @RegisterProvider(SyntheticTaintClientFilter::class)
 @Produces(MediaType.APPLICATION_JSON)
 interface CardIssuanceClient {

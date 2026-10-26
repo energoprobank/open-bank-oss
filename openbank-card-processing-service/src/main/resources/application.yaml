@@ -62,6 +62,18 @@ quarkus:
       secret: ${OIDC_CLIENT_SECRET:CHANGE_ME_LOCAL_DEV_ONLY}
     grant:
       type: client
+    # card-issuance names the machine principals that may read a card (`GET /api/v1/cards/{id}`,
+    # card.read) and refuses the shared openbank-services principal, so the card lookup on the
+    # acquirer path needs card-processing's OWN client. Only CardIssuanceClient selects it
+    # (@OidcClientFilter("card-issuance")); the transaction and fraud clients stay on the default
+    # (shared) client above, so their existing grants are unchanged.
+    card-issuance:
+      auth-server-url: ${QUARKUS_OIDC_AUTH_SERVER_URL:http://localhost:8080/realms/openbank}
+      client-id: openbank-card-processing
+      credentials:
+        secret: ${OIDC_CARD_ISSUANCE_CLIENT_SECRET:CHANGE_ME_LOCAL_DEV_ONLY}
+      grant:
+        type: client
   # ADR-0319: the generated transaction-service client binds its responses with this mapper. A field
   # the provider adds must never fail a bind AFTER the clearing has committed (Quarkus' default, pinned).
   jackson:
