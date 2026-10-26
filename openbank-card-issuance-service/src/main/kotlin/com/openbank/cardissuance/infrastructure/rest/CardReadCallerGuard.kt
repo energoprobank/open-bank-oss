@@ -19,6 +19,10 @@ private val CARD_READ_STAFF_ROLES = setOf("ROLE_VIEWER", "ROLE_OPERATOR", "ROLE_
 internal val CARD_READ_CALLERS = setOf(
     // delegation-service: resource-ownership check before a card-scoped mandate (CardIssuanceRestClient).
     "service-account-openbank-delegation",
+    // customer-edge: the holder/account-owner check (CustomerEdgeResource.ownsCard / isCardHolder)
+    // that guards EVERY per-card customer action — freeze, block, cancel, limits, controls, details.
+    // Without it each of those answered 403 "Card does not belong to caller" for the card's own holder.
+    "service-account-openbank-edge",
 )
 
 /**

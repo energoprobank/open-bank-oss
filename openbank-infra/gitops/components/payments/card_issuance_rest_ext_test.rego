@@ -287,8 +287,16 @@ test_edge_may_list_cards if {
 		with data.rules as b6_rules
 }
 
-test_edge_card_list_grant_reaches_no_other_card_action if {
-	every action in b6_all_card_actions - {"card.list", "card.details.read"} {
+test_edge_may_read_a_card if {
+	d := rest.allow with input as {"principal": b6_sa("edge"), "action": "card.read"}
+		with data.rules as b6_rules
+	d.allow == true
+	"service-edge-card-read" in rest.allowed_reasons with input as {"principal": b6_sa("edge"), "action": "card.read"}
+		with data.rules as b6_rules
+}
+
+test_edge_card_grants_reach_no_other_card_action if {
+	every action in b6_all_card_actions - {"card.list", "card.read", "card.details.read"} {
 		rest.allow == false with input as {"principal": b6_sa("edge"), "action": action}
 			with data.rules as b6_rules
 	}
