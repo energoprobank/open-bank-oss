@@ -112,7 +112,8 @@ class CardReadCallerGuardTest {
             val rule = rego.substringAfter("allowed_reasons contains \"$reason\"").substringBefore("\n}")
             return Regex("\"(service-account-[a-z0-9-]+)\"").findAll(rule).map { it.groupValues[1] }.toSet()
         }
-        assertThat(principals("service-delegation-card-read")).isEqualTo(CARD_READ_CALLERS)
+        assertThat(principals("service-delegation-card-read") + principals("service-edge-card-read"))
+            .isEqualTo(CARD_READ_CALLERS)
         assertThat(principals("service-party-card-list") + principals("service-edge-card-list"))
             .isEqualTo(CARD_PARTY_LIST_CALLERS)
         assertThat(principals("service-edge-card-details-read")).isEqualTo(CARD_DETAILS_READ_CALLERS)

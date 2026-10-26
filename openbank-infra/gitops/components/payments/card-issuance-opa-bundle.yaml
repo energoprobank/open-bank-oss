@@ -9,7 +9,7 @@ metadata:
     app.kubernetes.io/name: card-issuance-service
     app.kubernetes.io/part-of: payments
   annotations:
-    openbank.tech/policy-checksum: "045929ff2d04d46e"
+    openbank.tech/policy-checksum: "e308bed6f8a937ef"
 data:
   rest.rego: |
     # SPDX-License-Identifier: Apache-2.0
@@ -859,6 +859,14 @@ data:
     # It calls with its own `openbank-edge` principal (UpstreamClient), not the shared
     # openbank-services client the header note describes, so operator-read-any never applied to it.
     # CardReadCallerGuard.CARD_PARTY_LIST_CALLERS names the same principal (pinned by its test).
+    # customer-edge's ownership check before every per-card customer action (CustomerEdgeResource
+    # ownsCard / isCardHolder → GET /cards/{id}). Same principal and pinning as service-edge-card-list.
+    allowed_reasons contains "service-edge-card-read" if {
+    	input.principal.type == "HUMAN"
+    	machine_named("service-account-openbank-edge")
+    	input.action == "card.read"
+    }
+
     allowed_reasons contains "service-edge-card-list" if {
     	input.principal.type == "HUMAN"
     	machine_named("service-account-openbank-edge")
