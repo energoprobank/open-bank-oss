@@ -108,6 +108,10 @@ quarkus:
   log:
     level: INFO
 
+opa:
+  url: "${OPA_URL:http://localhost:8181}"
+  path: "${OPA_PATH:/v1/data/openbank/rest/allow}"
+  timeout-ms: "${OPA_TIMEOUT_MS:500}"
 "%test":
   quarkus:
     # Tests bind a random application port (http.test-port: 0); the management
@@ -151,6 +155,13 @@ quarkus:
 
 
 openbank:
+  # Opt in to the libs-runtime OPA sidecar PolicyDecisionPoint producer. It is a BUILD-TIME switch
+  # (@IfBuildProperty, off when missing): without it no PolicyDecisionPoint bean exists in the
+  # shipped image either, so every @Authorize endpoint failed closed with 503 "policy decision
+  # point not configured" — not only in the test JVM the %test notes below describe.
+  authz:
+    opa-pdp-producer:
+      enabled: true
   temporal:
     enabled: ${OPENBANK_TEMPORAL_ENABLED:false}
     server-url: ${OPENBANK_TEMPORAL_SERVER_URL:localhost:7233}
