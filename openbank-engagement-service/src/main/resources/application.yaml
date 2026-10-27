@@ -49,6 +49,13 @@ quarkus:
     level: INFO
 
 openbank:
+  # Opt in to the libs-runtime OPA sidecar PolicyDecisionPoint producer. It is a BUILD-TIME switch
+  # (@IfBuildProperty, off when missing): without it no PolicyDecisionPoint bean exists in the
+  # shipped image either, so every @Authorize endpoint failed closed with 503 "policy decision
+  # point not configured" — not only in the test JVM the %test notes below describe.
+  authz:
+    opa-pdp-producer:
+      enabled: true
   engagement:
     marketing-grantee: party-service:marketing-comms
     impression-budget-per-window: 1
@@ -154,6 +161,10 @@ mp:
         value.deserializer: org.apache.kafka.common.serialization.StringDeserializer
         key.deserializer: org.apache.kafka.common.serialization.StringDeserializer
 
+opa:
+  url: "${OPA_URL:http://localhost:8181}"
+  path: "${OPA_PATH:/v1/data/openbank/rest/allow}"
+  timeout-ms: "${OPA_TIMEOUT_MS:500}"
 "%test":
   # `authz.enforce` carries defaultValue = "true" in AuthorizeInterceptor, and a test JVM has no
   # PolicyDecisionPoint bean — so every @Authorize call on SurfaceResource's two endpoints fails
