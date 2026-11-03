@@ -2,7 +2,8 @@
 // Copyright (c) OpenBank contributors. Licensed under the Apache License, Version 2.0.
 // See LICENSE in the repository root or https://www.apache.org/licenses/LICENSE-2.0 for details.
 
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { auth } from '@/auth'
 import { forwardToSanctionsService } from '@/lib/sanctions/upstream'
 
 export const dynamic = 'force-dynamic'
@@ -27,10 +28,19 @@ export const dynamic = 'force-dynamic'
 export async function POST(req: NextRequest) {
   const body = await req.json()
 
+  // ReviewCommand.reviewedBy is required upstream; without it every decision answered 400. It is
+  // the audit trail's "who", so it comes from the signed-in operator's session, never the browser:
+  // a client-supplied value is overwritten.
+  const user = (await auth())?.user
+  const reviewedBy = user?.email ?? user?.name
+  if (!reviewedBy) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  }
+
   // Allow-list, not a pass-through of req.headers: forwarding the browser's header set to an
   // OIDC-gated backend is how a BFF leaks cookies or lets a caller override Authorization.
   const approvalId = req.headers.get('x-approval-id')
   const extraHeaders = approvalId ? { 'X-Approval-Id': approvalId } : undefined
 
-  return forwardToSanctionsService('/api/v1/sanctions/review', 'POST', body, 10_000, extraHeaders)
+  return forwardToSanctionsService('/api/v1/sanctions/review', 'POST', { ...body, reviewedBy }, 10_000, extraHeaders)
 }

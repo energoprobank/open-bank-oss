@@ -17,7 +17,7 @@ vi.mock('@/auth', () => ({ auth: vi.fn() }))
 
 import { auth } from '@/auth'
 
-const SESSION = { user: { accessToken: 'operator-token', roles: ['ROLE_OPERATOR'] } }
+const SESSION = { user: { accessToken: 'operator-token', roles: ['ROLE_OPERATOR'], email: 'operator@openbank.local' } }
 
 function lastFetchCall() {
   const mock = vi.mocked(global.fetch)
@@ -54,6 +54,21 @@ describe('sanctions review BFF', () => {
     const [url, init] = lastFetchCall()
     expect(url).toBe('http://openbank-sanctions-service:8123/api/v1/sanctions/review')
     expect(headersOf(init).Authorization).toBe('Bearer operator-token')
+  })
+
+  it('sends reviewedBy from the signed-in operator, not from the browser', async () => {
+    global.fetch = respond({ id: 'check-1', status: 'CLEAR' })
+    const { POST } = await import('../app/api/sanctions/review/route')
+
+    await POST(new NextRequest('http://localhost/api/sanctions/review', {
+      method: 'POST',
+      body: JSON.stringify({ checkId: 'check-1', note: 'false positive', newStatus: 'CLEAR', reviewedBy: 'someone-else' }),
+    }))
+
+    // ReviewCommand.reviewedBy is required upstream (a missing one answered 400 for every decision).
+    expect(JSON.parse(String(lastFetchCall()[1].body))).toEqual({
+      checkId: 'check-1', note: 'false positive', newStatus: 'CLEAR', reviewedBy: 'operator@openbank.local',
+    })
   })
 
   it('forwards X-Approval-Id to the upstream when the client supplies it', async () => {
