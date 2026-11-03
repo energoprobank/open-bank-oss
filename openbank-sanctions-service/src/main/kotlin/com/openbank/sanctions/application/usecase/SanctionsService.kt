@@ -121,17 +121,35 @@ class SanctionsService(
         repo.findByIdempotencyKey(cmd.idempotencyKey)?.let { return it }
         val targetLists = resolveTargetLists(cmd)
         val (status, matches) = performScreening(cmd, targetLists)
+        val clearance = if (status == SanctionsCheckStatus.CLEAR) null else priorClearance(cmd)
         val check = SanctionsCheck(
             id = UUID.randomUUID(), idempotencyKey = cmd.idempotencyKey,
             entityType = cmd.entityType, name = cmd.name, aliases = cmd.aliases.filterNotNull(),
             dateOfBirth = cmd.dateOfBirth, nationality = cmd.nationality,
-            identifiers = cmd.identifiers, status = status, matches = matches,
+            identifiers = cmd.identifiers, status = if (clearance != null) SanctionsCheckStatus.WHITELISTED else status,
+            matches = matches,
             overallScore = matches.maxOfOrNull { it.matchScore } ?: 0.0,
             checkedLists = targetLists,
-            reviewedBy = null, reviewNote = null,
-            checkedAt = Instant.now(clock), reviewedAt = null,
+            reviewedBy = clearance?.reviewedBy,
+            reviewNote = clearance?.let { "Carried over from check ${it.id}: the same party and name were cleared as ${it.status}." },
+            checkedAt = Instant.now(clock), reviewedAt = clearance?.let { Instant.now(clock) },
         )
         return repo.saveWithEvent(check, EVENT_SCREENED)
+    }
+
+    /**
+     * A person's earlier clearance of this customer, when the subject is a party
+     * (`identifiers.partyId`): the latest reviewed check for the party, if it was dispositioned
+     * CLEAR or WHITELISTED under the same name. Without it, a cleared false positive matched again
+     * on the very next screening (account-service screens each account it opens), so a customer
+     * compliance had cleared could never get an account. A later HIT or ESCALATED review, or a
+     * changed name, does not carry over.
+     */
+    private suspend fun priorClearance(cmd: ScreenEntityCommand): SanctionsCheck? {
+        val partyId = cmd.identifiers["partyId"]?.takeIf { it.isNotBlank() } ?: return null
+        val prior = repo.findLatestReviewedForParty(partyId) ?: return null
+        val cleared = prior.status == SanctionsCheckStatus.CLEAR || prior.status == SanctionsCheckStatus.WHITELISTED
+        return prior.takeIf { cleared && it.name.trim().equals(cmd.name.trim(), ignoreCase = true) }
     }
 
     companion object {

@@ -11,6 +11,13 @@ import java.util.UUID
 /** Outbound persistence port for the sanctions-check aggregate. */
 interface SanctionsRepository {
 
+    /**
+     * The most recent check a person reviewed for this party (identifiers.partyId), or null. Lets a
+     * compliance decision on one screening carry over to the next screening of the same customer.
+     * A default so test doubles that never screen parties needn't implement it.
+     */
+    suspend fun findLatestReviewedForParty(partyId: String): SanctionsCheck? = null
+
     /** Persist check only (no outbox event). */
     suspend fun save(check: SanctionsCheck): SanctionsCheck
 

@@ -13,6 +13,7 @@ import jakarta.enterprise.context.ApplicationScoped
 import jakarta.inject.Inject
 import jakarta.ws.rs.WebApplicationException
 import org.eclipse.microprofile.rest.client.inject.RestClient
+import java.util.UUID
 
 @ApplicationScoped
 class SanctionsScreeningAdapter : AccountSanctionsScreeningPort {
@@ -21,12 +22,13 @@ class SanctionsScreeningAdapter : AccountSanctionsScreeningPort {
     @RestClient
     lateinit var client: SanctionsServiceClient
 
-    override suspend fun screen(name: String, idempotencyKey: String): SanctionsScreenResult = try {
+    override suspend fun screen(name: String, idempotencyKey: String, partyId: UUID?): SanctionsScreenResult = try {
         val response = client.screen(
             SanctionsScreenRequest(
                 idempotencyKey = idempotencyKey,
                 entityType = "INDIVIDUAL",
                 name = name,
+                identifiers = partyId?.let { mapOf("partyId" to it.toString()) } ?: emptyMap(),
             ),
         ).awaitSuspending()
         SanctionsScreenResult(

@@ -200,6 +200,20 @@ mp:
         key:
           serializer: org.apache.kafka.common.serialization.StringSerializer
     incoming:
+      # A compliance clearance of a sanctions/PEP hit that blocked an onboarding account opening
+      # resumes it (SanctionsReviewConsumer). Only `SanctionReviewed` (ce-type header) of an
+      # `account-open:<party>:onboarding-…` check acts; everything else on the topic is acked.
+      sanctions-reviews-in:
+        connector: smallrye-kafka
+        topic: openbank.sanctions.screening.event
+        group.id: openbank-account-service
+        failure-strategy: dead-letter-queue
+        dead-letter-queue:
+          topic: openbank.dlq.account.sanctions-reviews-in
+        value:
+          deserializer: org.apache.kafka.common.serialization.StringDeserializer
+        key:
+          deserializer: org.apache.kafka.common.serialization.StringDeserializer
       # Onboarding account lifecycle (ADR-0267): open a PENDING_ACTIVATION account on
       # PARTY_CREATED and activate it when the party clears KYC + AML.
       party-events-in:

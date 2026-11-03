@@ -274,6 +274,17 @@ class PartyEventConsumer(
         }
     }
 
+    /**
+     * Picks up an onboarding that a sanctions/PEP screening hit stopped: compliance has cleared the
+     * hit (SanctionsReviewConsumer), so open the retail accounts PARTY_CREATED could not, and — when
+     * the party already passed KYC + AML while it waited — activate them and grant the welcome bonus
+     * the missed ACTIVE transition would have. Idempotent like the event path it completes.
+     */
+    suspend fun resumeAfterClearance(partyId: UUID, legalName: String, partyActive: Boolean) {
+        openRetailAccounts(partyId, legalName)
+        if (partyActive) reconcileToPartyStatus(partyId, "ACTIVE")
+    }
+
     private suspend fun openRetailAccounts(partyId: UUID, legalName: String) {
         // Idempotent per account TYPE: a re-delivered event (or a party predating the savings
         // rollout) only opens whatever is still missing.

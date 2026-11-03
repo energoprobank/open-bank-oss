@@ -15,8 +15,10 @@ import io.smallrye.mutiny.coroutines.awaitSuspending
 import jakarta.enterprise.context.ApplicationScoped
 import jakarta.ws.rs.GET
 import jakarta.ws.rs.Path
+import jakarta.ws.rs.PathParam
 import jakarta.ws.rs.Produces
 import jakarta.ws.rs.QueryParam
+import jakarta.ws.rs.WebApplicationException
 import jakarta.ws.rs.core.MediaType
 import org.eclipse.microprofile.rest.client.annotation.RegisterProvider
 import org.eclipse.microprofile.rest.client.inject.RegisterRestClient
@@ -39,6 +41,10 @@ interface PartyDirectoryRestClient {
         @QueryParam("page") page: Int,
         @QueryParam("size") size: Int,
     ): Uni<PartyDirectoryListDto>
+
+    @GET
+    @Path("/{id}")
+    fun get(@PathParam("id") id: String): Uni<PartyDirectoryItemDto>
 }
 
 /** Only what the catch-up needs; `ignoreUnknown` keeps e-mail and other fields out of the heap. */
@@ -64,5 +70,12 @@ class PartyDirectoryClient(@RestClient private val client: PartyDirectoryRestCli
             }
         }
         return DirectoryPage(items, hasMore = (page.toLong() + 1) * size < dto.total)
+    }
+
+    override suspend fun find(partyId: UUID): DirectoryParty? = try {
+        val item = client.get(partyId.toString()).awaitSuspending()
+        DirectoryParty(partyId, item.partyType, item.status, item.legalName.orEmpty().trim())
+    } catch (e: WebApplicationException) {
+        if (e.response?.status == 404) null else throw e
     }
 }

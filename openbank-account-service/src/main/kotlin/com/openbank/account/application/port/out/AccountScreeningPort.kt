@@ -4,6 +4,8 @@
 
 package com.openbank.account.application.port.out
 
+import java.util.UUID
+
 /** Raised when the sanctions service cannot be reached — the gate fails closed (ADR-0032 §C). */
 class AccountScreeningUnavailableException(cause: Throwable) :
     RuntimeException("Sanctions screening unavailable; account opening blocked", cause)
@@ -37,6 +39,10 @@ data class SanctionsScreenResult(val status: String, val matchScore: Double, val
  * and the account MUST NOT be opened (ADR-0032 §C).
  */
 interface AccountSanctionsScreeningPort {
-    /** Screen [name] against global sanctions lists. [idempotencyKey] deduplicates concurrent opens. */
-    suspend fun screen(name: String, idempotencyKey: String): SanctionsScreenResult
+    /**
+     * Screen [name] against global sanctions lists. [idempotencyKey] deduplicates concurrent opens.
+     * [partyId] names the subject, so a compliance clearance of this party carries over to its later
+     * screenings (sanctions-service answers WHITELISTED) instead of matching again on every account.
+     */
+    suspend fun screen(name: String, idempotencyKey: String, partyId: UUID? = null): SanctionsScreenResult
 }

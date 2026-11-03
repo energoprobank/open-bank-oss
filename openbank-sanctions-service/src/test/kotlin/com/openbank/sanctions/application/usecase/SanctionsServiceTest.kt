@@ -311,6 +311,48 @@ class SanctionsServiceTest {
 
     // ──── helpers ────────────────────────────────────────────────────────────
 
+    // --- A compliance clearance carries over to the next screening of the same party ---
+
+    private fun stubPepHit() {
+        coEvery { repo.findByIdempotencyKey(any()) } returns null
+        coEvery { repo.saveWithEvent(any(), any()) } answers { firstArg() }
+        val entry = sampleEntry(listType = SanctionsListType.PEP_GLOBAL, primaryName = "John Doe", programs = listOf("PEP"))
+        coEvery { entryRepo.search("john doe", any(), any(), any()) } returns listOf(
+            SanctionsEntryMatch(entry = entry, matchedName = "John Doe", score = 1.0),
+        )
+    }
+
+    @Test
+    fun `a party compliance cleared screens WHITELISTED, naming the decision it relies on`(): Unit = runBlocking {
+        stubPepHit()
+        val cleared = sampleCheck(status = SanctionsCheckStatus.CLEAR, reviewedBy = "officer@bank")
+        coEvery { repo.findLatestReviewedForParty("party-1") } returns cleared
+
+        val result = service.screen(sampleScreenCommand(name = "John Doe").copy(identifiers = mapOf("partyId" to "party-1")))
+
+        assertThat(result.status).isEqualTo(SanctionsCheckStatus.WHITELISTED)
+        assertThat(result.matches).hasSize(1)   // the match stays on record
+        assertThat(result.reviewedBy).isEqualTo("officer@bank")
+        assertThat(result.reviewNote).contains(cleared.id.toString())
+    }
+
+    @Test
+    fun `a confirmed hit, another name or no party does not carry over`(): Unit = runBlocking {
+        stubPepHit()
+        coEvery { repo.findLatestReviewedForParty("confirmed") } returns
+            sampleCheck(status = SanctionsCheckStatus.HIT, reviewedBy = "officer@bank")
+        coEvery { repo.findLatestReviewedForParty("renamed") } returns
+            sampleCheck(status = SanctionsCheckStatus.CLEAR, reviewedBy = "officer@bank").copy(name = "Jane Roe")
+
+        for (party in listOf("confirmed", "renamed")) {
+            val result = service.screen(sampleScreenCommand(name = "John Doe").copy(identifiers = mapOf("partyId" to party)))
+            assertThat(result.status).isEqualTo(SanctionsCheckStatus.HIT)
+            assertThat(result.reviewedBy).isNull()
+        }
+        assertThat(service.screen(sampleScreenCommand(name = "John Doe")).status).isEqualTo(SanctionsCheckStatus.HIT)
+        coVerify(exactly = 0) { repo.findLatestReviewedForParty("") }
+    }
+
     private fun sampleScreenCommand(
         idempotencyKey: String = "idem-1",
         name: String = "John Doe",

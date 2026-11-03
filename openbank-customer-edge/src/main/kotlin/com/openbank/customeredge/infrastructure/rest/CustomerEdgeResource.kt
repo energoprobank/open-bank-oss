@@ -4204,6 +4204,33 @@ class CustomerEdgeResource(
         return resp
     }
 
+    /**
+     * Where the customer's account opening stands: `{"state": "OPEN" | "IN_REVIEW" | "PENDING"}`.
+     *
+     * IN_REVIEW means a sanctions/PEP screening hit holds the opening until a bank employee reviews
+     * it; the app says so instead of showing passed checks, and continues once compliance clears it
+     * (account-service then opens the accounts). Deliberately no reason, list or matched name — a
+     * customer able to vary their name and read back a match would have a sanctions-list oracle.
+     * partyId from the JWT; the name screened is party-service's, as for [openAccount].
+     */
+    @GET
+    // Not under /onboarding: OnboardingResource owns /customer/v1/onboarding/* and would shadow it.
+    @Path("/onboarding-status")
+    @Authorize(action = "customer.onboarding.status")
+    @Blocking
+    fun onboardingStatus(): Response {
+        val customer = customer()
+        val partyResponse = upstream.get("$partyServiceUrl/api/v1/parties/${customer.partyId}", customer.partyId.toString())
+        if (partyResponse.status != 200) {
+            return Response.status(404).entity("""{"error":"Party not found"}""").type(MediaType.APPLICATION_JSON).build()
+        }
+        val legalName = extractTextField(objectMapper, (partyResponse.entity as? String).orEmpty(), "legalName")
+            ?: return Response.status(422).entity("""{"error":"Party has no legal name"}""")
+                .type(MediaType.APPLICATION_JSON).build()
+        val query = "partyId=${customer.partyId}&legalName=${java.net.URLEncoder.encode(legalName, Charsets.UTF_8)}"
+        return upstream.get("$accountServiceUrl/api/v1/accounts/onboarding-status?$query", customer.partyId.toString())
+    }
+
     // --- FX rates (read-only; authenticated but not party-scoped) ---
 
     /**

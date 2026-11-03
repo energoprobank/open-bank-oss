@@ -95,6 +95,7 @@ class AccountService(
         val screening = sanctionsScreening.screen(
             name = command.legalName,
             idempotencyKey = screeningKey,
+            partyId = command.partyId,
         )
         if (!screening.permitsOpening) {
             throw AccountOpeningBlockedByScreeningException(command.partyId, screening.matchedName)

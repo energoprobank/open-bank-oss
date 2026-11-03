@@ -33,6 +33,8 @@ data class SanctionsScreenRequest(
     val entityType: String,
     val name: String,
     val aliases: List<String> = emptyList(),
+    /** `partyId` when the subject is a party: lets a compliance clearance carry over. */
+    val identifiers: Map<String, String> = emptyMap(),
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)

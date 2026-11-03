@@ -169,6 +169,19 @@ class SanctionsRepositoryImpl(private val outboxRepo: SanctionsOutboxRepository)
         Panache.withSession { find("id", id).firstResult() }.awaitSuspending()?.toDomain()
     override suspend fun findByIdempotencyKey(key: String) =
         Panache.withSession { find("idempotencyKey", key).firstResult() }.awaitSuspending()?.toDomain()
+    // `identifiers` holds the map as a JSON string inside jsonb (the entity binds a String), so it is
+    // unwrapped (`#>> '{}'`) before reading partyId; an object-valued row reads the same way.
+    override suspend fun findLatestReviewedForParty(partyId: String): SanctionsCheck? =
+        Panache.withSession {
+            Panache.getSession().chain { session ->
+                session.createNativeQuery(
+                    "select * from sanctions_checks where reviewed_by is not null " +
+                        "and (identifiers #>> '{}')::jsonb ->> 'partyId' = :partyId " +
+                        "order by reviewed_at desc limit 1",
+                    SanctionsCheckEntity::class.java,
+                ).setParameter("partyId", partyId).singleResultOrNull
+            }
+        }.awaitSuspending()?.toDomain()
     override suspend fun findByStatus(status: SanctionsCheckStatus) =
         Panache.withSession { find("status", status).list() }.awaitSuspending().map { it.toDomain() }
     override suspend fun listChecks(): List<SanctionsCheck> =
