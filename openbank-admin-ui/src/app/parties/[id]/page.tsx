@@ -7,7 +7,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Users, ArrowLeft, ShieldCheck, FileText, RefreshCw, Bell, ChevronDown, Send, Clock } from 'lucide-react'
+import { Users, ArrowLeft, ShieldCheck, ShieldAlert, FileText, RefreshCw, Bell, ChevronDown, Send, Clock } from 'lucide-react'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { useAuth } from '@/lib/auth/useAuth'
 import { hasPermission } from '@/lib/auth/roles'
@@ -20,6 +20,7 @@ import { opsMessageApi, OPERATOR_MESSAGE_TEMPLATE_VARS, type OperatorMessageTemp
 import { parseKycCaseEvidence, type KycCaseEvidence } from '@/lib/parties/kycEvidenceContract'
 import { parsePartyEvidence, type PartyEvidence } from '@/lib/parties/partyEvidenceContract'
 import { BRAND } from '@/lib/brand'
+import { affectedKycCheck, describeTopMatch, partyScreening, type PartyScreening, type ScreeningCheck } from '@/lib/parties/screeningHold'
 
 const PAGE_SIZE = 25
 
@@ -39,6 +40,9 @@ function PartyDetailPage() {
   const [party, setParty]     = useState<PartyEvidence | null>(null)
   const [kyc, setKyc]         = useState<KycCaseEvidence | null>(null)
   const [kycUnavailable, setKycUnavailable] = useState<UnavailableKind>('no_data')
+  // The party's own sanctions/PEP screenings (account opening screens again, after KYC). Supplementary
+  // like KYC: unavailable means no hold banner, never a broken page.
+  const [screening, setScreening] = useState<PartyScreening | null>(null)
   const [loading, setLoading] = useState(true)
   const [unavailable, setUnavailable] = useState<{ kind: UnavailableKind } | null>(null)
   const [tab, setTab] = useState<'overview' | 'messages'>('overview')
@@ -54,10 +58,17 @@ function PartyDetailPage() {
     setLoading(true); setUnavailable(null)
     setKyc(null); setKycUnavailable('no_data')
     try {
-      const [partyRes, kycRes] = await Promise.allSettled([
+      const [partyRes, kycRes, checksRes] = await Promise.allSettled([
         fetch(svcUrl('party-service', `/api/v1/parties/${id}`), { signal }),
         fetch(svcUrl('kyc-service', `/api/v1/kyc/cases/party/${id}`), { signal }),
+        fetch('/api/sanctions/checks', { signal, cache: 'no-store' }),
       ])
+      if (checksRes.status === 'fulfilled' && checksRes.value.ok) {
+        const checks = await checksRes.value.json().catch(() => null)
+        setScreening(Array.isArray(checks) ? partyScreening(checks as ScreeningCheck[], id) : null)
+      } else {
+        setScreening(null)
+      }
       if (controller.signal.aborted) return
       if (partyRes.status !== 'fulfilled') { setUnavailable({ kind: 'unreachable' }); return }
       if (!partyRes.value.ok) { setUnavailable({ kind: await classifyBffFailure(partyRes.value) }); return }
@@ -152,6 +163,29 @@ function PartyDetailPage() {
         </div>}
       />
 
+      {screening?.open && (
+        <div role="alert" className="card" style={{ padding: '16px 20px', marginBottom: '16px', borderColor: 'var(--warning-border)', background: 'var(--warning-bg)', display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
+          <ShieldAlert size={20} aria-hidden="true" style={{ color: 'var(--warning-text)', flexShrink: 0, marginTop: '2px' }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--warning-text)' }}>
+              {t('Nutná ruční kontrola — otevření účtu blokuje shoda při prověření', 'Manual review required — a screening hit blocks the account opening')}
+            </div>
+            <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+              {t('Prověření sankčních seznamů a PEP při otevírání účtu našlo možnou shodu. Účty se neotevřou, dokud ji pracovník compliance neposoudí. Případ KYC z onboardingu tuto shodu neobsahuje.',
+                 'The sanctions and PEP screening run when the account is opened found a possible match. No account opens until a compliance officer decides it. The onboarding KYC case does not include this hit.')}
+            </div>
+            {describeTopMatch(screening.open) && (
+              <div style={{ fontSize: '12px', fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>
+                {describeTopMatch(screening.open)} · {t('prověřeno', 'screened')} {new Date(screening.open.checkedAt).toLocaleString(dateLocale)}
+              </div>
+            )}
+          </div>
+          <Link href={`/sanctions?q=${encodeURIComponent(screening.open.name)}&check=${screening.open.id}`} className="btn btn-primary" style={{ textDecoration: 'none', whiteSpace: 'nowrap', alignSelf: 'center' }}>
+            {t('Posoudit shodu', 'Review the hit')}
+          </Link>
+        </div>
+      )}
+
       {/* Loop var is `item`, never `t` — a callback param named `t` shadows the translation
           function (see openbank-admin-ui/CLAUDE.md rule #4; sanctions/page.tsx does this). */}
       <div role="group" aria-label={t('Sekce detailu subjektu', 'Party detail sections')} style={{ display: 'flex', gap: '2px', marginBottom: '16px', flexWrap: 'wrap' }}>
@@ -210,7 +244,9 @@ function PartyDetailPage() {
               <ShieldCheck size={15} style={{ color: 'var(--accent)' }} />
               <span style={{ fontWeight: 600, fontSize: '13px' }}>{t('Stav KYC', 'KYC Status')}</span>
               <span style={{ marginLeft: 'auto' }}>
-                <StatusBadge status={party.kycStatus} label={party.kycStatus?.replace('_', ' ')} />
+                {screening?.open
+                  ? <StatusBadge status="MANUAL_REVIEW" tone="warning" label={t('RUČNÍ KONTROLA', 'MANUAL REVIEW')} />
+                  : <StatusBadge status={party.kycStatus} label={party.kycStatus?.replace('_', ' ')} />}
               </span>
             </div>
             {kyc ? (
@@ -218,12 +254,25 @@ function PartyDetailPage() {
                 <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
                   {t('KYC případ:', 'KYC case:')} <ShortId value={kyc.id} copyLabel={t('Kopírovat ID případu', 'Copy case ID')} />
                 </div>
-                {kyc.checks.map(check => (
-                  <div key={check.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'var(--surface-2)', borderRadius: '6px' }}>
-                    <span style={{ fontSize: '13px' }}>{check.checkType?.replace(/_/g, ' ') ?? check.checkType}</span>
-                    <StatusBadge status={check.status} />
+                {kyc.checks.map(check => {
+                  const held = !!screening?.open && check.checkType === affectedKycCheck(screening.open)
+                  return (
+                    <div key={check.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: held ? 'var(--warning-bg)' : 'var(--surface-2)', borderRadius: '6px' }}>
+                      <span style={{ fontSize: '13px' }}>{check.checkType?.replace(/_/g, ' ') ?? check.checkType}</span>
+                      {held
+                        ? <StatusBadge status="HIT" tone="warning" label={t('SHODA — KE KONTROLE', 'HIT — REVIEW REQUIRED')} />
+                        : <StatusBadge status={check.status} />}
+                    </div>
+                  )
+                })}
+                {screening?.cleared && (
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '6px', padding: '8px 12px', border: '1px solid var(--border)', borderRadius: '6px' }}>
+                    {t('Shoda při otevírání účtu posouzena:', 'Screening hit at account opening decided:')}{' '}
+                    <strong>{screening.cleared.status}</strong> · {screening.cleared.reviewedBy}
+                    {screening.cleared.reviewedAt && <> · {new Date(screening.cleared.reviewedAt).toLocaleString(dateLocale)}</>}
+                    {screening.cleared.reviewNote && <div style={{ marginTop: '4px', fontStyle: 'italic' }}>„{screening.cleared.reviewNote}“</div>}
                   </div>
-                ))}
+                )}
                 {kyc.reviewedBy && (
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>
                     {t('Kontroloval:', 'Reviewed by:')} {kyc.reviewedBy}

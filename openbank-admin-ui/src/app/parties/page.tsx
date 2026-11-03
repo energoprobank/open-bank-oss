@@ -14,6 +14,7 @@ import { PageHeader, StatusBadge } from '@/components/ui'
 import { Can } from '@/components/auth/AuthGuard'
 import { parsePartyListPage, type PartyListItem, type PartyListPage } from '@/lib/party/partyListContract'
 import { BRAND } from '@/lib/brand'
+import { partiesInReview, type ScreeningCheck } from '@/lib/parties/screeningHold'
 
 const PAGE_SIZE = 25
 
@@ -32,6 +33,16 @@ export default function PartiesPage() {
 
   // ── list mode (no search term) ──────────────────────────────────────────────
   const [parties, setParties]         = useState<Party[]>([])
+  // Parties whose account opening waits on an undecided screening hit (lib/parties/screeningHold).
+  const [inReview, setInReview] = useState<Set<string>>(new Set())
+  useEffect(() => {
+    const controller = new AbortController()
+    fetch('/api/sanctions/checks', { signal: controller.signal, cache: 'no-store' })
+      .then(r => (r.ok ? r.json() : null))
+      .then(checks => { if (Array.isArray(checks)) setInReview(partiesInReview(checks as ScreeningCheck[])) })
+      .catch(() => {})
+    return () => controller.abort()
+  }, [])
   const [loading, setLoading]         = useState(true)
   const [listLoadingMore, setListLoadingMore] = useState(false)
   const [listPage, setListPage] = useState<PartyListMeta | null>(null)
@@ -298,7 +309,9 @@ export default function PartiesPage() {
                   <td><span className="tag">{p.partyType}</span></td>
                   <td style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', fontSize: '12px' }}>{p.email}</td>
                   <td><StatusBadge status={p.status} /></td>
-                  <td><StatusBadge status={p.kycStatus} label={p.kycStatus?.replace('_', ' ')} /></td>
+                  <td>{inReview.has(p.id)
+                    ? <StatusBadge status="MANUAL_REVIEW" tone="warning" label={t('RUČNÍ KONTROLA', 'MANUAL REVIEW')} />
+                    : <StatusBadge status={p.kycStatus} label={p.kycStatus?.replace('_', ' ')} />}</td>
                   <td style={{ color: 'var(--text-muted)', fontSize: '12px' }}>{new Date(p.createdAt).toLocaleDateString(dateLocale)}</td>
                   <td>
                     <Link href={`/parties/${p.id}`} style={{ color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '2px', fontSize: '12px', textDecoration: 'none' }}>

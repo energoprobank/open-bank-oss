@@ -4,6 +4,7 @@
 
 'use client'
 import { useState, useEffect, useCallback, Fragment, useRef } from 'react'
+import Link from 'next/link'
 import { useSingleFlight, wasSkipped } from '@/lib/mutations/singleFlight'
 import {
   ShieldAlert, Search, CheckCircle2, Clock, RefreshCw,
@@ -35,6 +36,12 @@ interface SanctionCheck {
   id: string; name: string; entityType: string; status: string
   overallScore: number; checkedLists: string[]; matches: SanctionMatch[]
   checkedAt: string; reviewedBy?: string; reviewNote?: string
+  idempotencyKey?: string; identifiers?: Record<string, string>
+}
+
+/** The customer a check screened (account opening), or null for a manual search of a name. */
+function screenedParty(c: SanctionCheck): string | null {
+  return c.identifiers?.partyId ?? /^account-open:([0-9a-f-]{36}):/i.exec(c.idempotencyKey ?? '')?.[1] ?? null
 }
 interface SanctionMatch {
   listType: string; matchType: string; matchScore: number
@@ -213,6 +220,15 @@ export default function SanctionsPage() {
   const [listsLoading, setListsLoading] = useState(true)
   const [checksUnavail, setChecksUnavail] = useState<{ kind: UnavailableKind } | null>(null)
   const [search, setSearch] = useState('')
+  // `/sanctions?q=<name>&check=<id>` (the party page's "Review the hit"): the check records filtered
+  // to the name, that very check highlighted, scrolled to and its review form open.
+  const [focusCheck, setFocusCheck] = useState<string | null>(null)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const q = params.get('q')
+    if (q) setSearch(q)
+    setFocusCheck(params.get('check'))
+  }, [])
   const [refreshingAll, setRefreshingAll] = useState(false)
 
   const [searchName, setSearchName] = useState('')
@@ -457,6 +473,18 @@ export default function SanctionsPage() {
     setReviewError('')
     setPendingApproval(null)
   }
+  const focused = useRef(false)
+  useEffect(() => {
+    if (!focusCheck || focused.current) return
+    const target = checks.find(c => c.id === focusCheck)
+    if (!target) return
+    focused.current = true
+    if (target.status === 'HIT' || target.status === 'POTENTIAL_HIT' || target.status === 'ESCALATED') openReview(target)
+    requestAnimationFrame(() => document.getElementById(`check-${target.id}`)?.scrollIntoView({ block: 'center' }))
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when the linked check has loaded
+  }, [checks, focusCheck])
+
+
 
   // These are separate operations and must not block each other. The list-change lock prevents
   // same-tick duplicate PUTs; the upstream endpoint is idempotent because it sets an explicit
@@ -727,12 +755,19 @@ export default function SanctionsPage() {
                     const isPending = c.status === 'POTENTIAL_HIT'
                     return (
                       <Fragment key={c.id}>
-                      <tr style={{ borderBottom: '1px solid var(--border)', background: isHit ? 'color-mix(in srgb, var(--danger-bg) 45%, transparent)' : '' }}
+                      <tr id={`check-${c.id}`} style={{ borderBottom: '1px solid var(--border)', background: isHit ? 'color-mix(in srgb, var(--danger-bg) 45%, transparent)' : '',
+                        outline: c.id === focusCheck ? '2px solid var(--accent)' : undefined, outlineOffset: '-2px' }}
                         onMouseEnter={e => (e.currentTarget.style.background = isHit ? 'color-mix(in srgb, var(--danger-bg) 70%, transparent)' : 'var(--surface-2)')}
                         onMouseLeave={e => (e.currentTarget.style.background = isHit ? 'color-mix(in srgb, var(--danger-bg) 45%, transparent)' : '')}>
                         <td style={{ padding: '12px 16px', fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <User size={12} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />{c.name}
+                            {screenedParty(c) && (
+                              <Link href={`/parties/${screenedParty(c)}`} className="badge badge-accent" style={{ textDecoration: 'none', marginLeft: '4px' }}
+                                title={t('Prověření zákazníka při otevírání účtu — otevřít subjekt', 'Customer screened at account opening — open the party')}>
+                                {t('zákazník', 'customer')}
+                              </Link>
+                            )}
                           </div>
                         </td>
                         <td style={{ padding: '12px 16px', fontSize: '12px', color: 'var(--text-secondary)' }}>{c.entityType}</td>

@@ -53,7 +53,8 @@ describe('party list pagination truth', () => {
     const requests: string[] = []
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input)
-      requests.push(url)
+      // The list also asks the sanctions checks once (parties in manual review); not a page request.
+      if (!url.includes('/api/sanctions/')) requests.push(url)
       return url.includes('page=1')
         ? json({ items: [item(ids[0], 'Ada'), item(ids[1], 'Grace')], total: 27, page: 1, size: 25 })
         : json({ items: [item(ids[0], 'Ada')], total: 27, page: 0, size: 25 })

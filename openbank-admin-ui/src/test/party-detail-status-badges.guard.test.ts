@@ -10,7 +10,8 @@ describe('party detail status presentation', () => {
 
   it('uses the shared semantic status badge for party, KYC and message states', () => {
     expect(source).toContain("import { PageHeader, ShortId, StatusBadge } from '@/components/ui'")
-    expect(source.match(/<StatusBadge status=/g)).toHaveLength(4)
+    // party, KYC case, KYC check, message status — plus the screening hold's MANUAL REVIEW and HIT badges
+    expect(source.match(/<StatusBadge status=/g)).toHaveLength(6)
     expect(source).not.toMatch(/(?:STATUS_COLOR|KYC_COLOR|MSG_STATUS_COLOR)/)
   })
 })
