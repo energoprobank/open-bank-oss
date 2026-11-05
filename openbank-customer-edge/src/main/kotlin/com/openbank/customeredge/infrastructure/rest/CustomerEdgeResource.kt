@@ -111,6 +111,14 @@ class CustomerEdgeResource(
     @Inject
     lateinit var partyMergeResolver: PartyMergeResolver
 
+    // Experience v2 step 8 (field injection for the same reason as above): the face check for
+    // payments above the customer's limit, and the customer's market for the product list.
+    @Inject
+    lateinit var livenessGate: LivenessGate
+
+    @Inject
+    lateinit var experienceEdge: ExperienceEdge
+
     // ADR-0284 D4: profile switching. Field-injected for the same LongParameterList reason as the
     // merge resolver above; every test that constructs this resource by hand sets it explicitly.
     @Inject
@@ -555,7 +563,15 @@ class CustomerEdgeResource(
                 .entity(mapOf("error" to "Unsupported product type"))
                 .build()
         }
-        val query = if (requested == null) "?status=ACTIVE" else "?type=$requested&status=ACTIVE"
+        val baseQuery = if (requested == null) "?status=ACTIVE" else "?type=$requested&status=ACTIVE"
+        // Experience v2 step 8: a retail customer sees their own market's products (CZ or BG); the
+        // value is the edge's own constant from party-service, never anything the caller sent.
+        val market = if (customer.actingFor == null && this::experienceEdge.isInitialized) {
+            experienceEdge.marketOf(customer.partyId)
+        } else {
+            null
+        }
+        val query = if (market == null) baseQuery else "$baseQuery&market=$market"
         val catalog = upstream.get("$productCatalogUrl/api/v1/products$query", customer.partyId.toString())
         if (catalog.status != 200) return productCatalogueUnavailable()
         val products = parseJson(catalog)?.takeIf { it.isArray } ?: return productCatalogueUnavailable()
@@ -2995,6 +3011,24 @@ class CustomerEdgeResource(
                 scaChallengeId,
                 "payments.domestic",
             )?.let { return it }
+        }
+        // Face check (experience v2 step 8): above the initiator's own limit the payment must carry a
+        // passed face check. Before the spend reservation, so a refusal has nothing to release.
+        if (this::livenessGate.isInitialized) {
+            val livenessSessionId = if (this::requestHeaders.isInitialized) {
+                requestHeaders.getHeaderString(
+                    LivenessGate.HEADER,
+                )
+            } else {
+                null
+            }
+            livenessGate.check(
+                customer.human,
+                amount.toBigDecimalOrNull(),
+                currency.trim().uppercase(),
+                livenessSessionId,
+            )
+                ?.let { return it }
         }
         // Cumulative ceiling (ADR-0249 D3) BEFORE the SCA gate, not after: a payment that the
         // delegate's monthly limit will refuse must not first cost them a biometric prompt and a

@@ -201,6 +201,11 @@ openbank:
     # FLUX rewards for the app (CustomerRewardsResource) — openbank-rewards-service's Customer API.
     # Routes are a 404 until capabilities.rewards-flux is switched on; blank URL = 503 REWARDS_UNAVAILABLE.
     rewards-service-url: ${REWARDS_SERVICE_URL:http://rewards-service.rewards.svc:8161}
+    # Experience v2 step 8: the onboarding application (contact codes, Energo-Pro prefill, personal
+    # details, identity checks) and the face check for large payments.
+    onboarding-service-url: ${ONBOARDING_SERVICE_URL:http://onboarding-service.onboarding.svc:8130}
+    # Wallet provisioning (card-processing tokenisation). Blank = unconfigured: 503 WALLET_UNAVAILABLE.
+    card-processing-service-url: ${OPENBANK_EDGE_CARD_PROCESSING_URL:}
     # ADR-0310 D5: operator switches behind GET /customer/v1/capabilities. A capability is live only
     # when its switch is on AND its backend URL above is configured, so both halves are a reviewed
     # gitops change and never an app release. Both default off.

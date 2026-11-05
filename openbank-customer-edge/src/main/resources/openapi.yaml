@@ -54,7 +54,7 @@ info:
   # 1.83.0 -> 1.84.0: additive low-balance-alert endpoint and schemas (ADR-0333).
   # 1.85.0 -> 1.86.0: additive — /rewards/* (FLUX rewards, openbank-rewards-service Customer API),
   # capability id rewards.flux; the /loyalty routes are marked deprecated (the app moves to /rewards).
-  version: 1.86.0
+  version: 1.87.0
   description: >-
     Customer-facing edge proxy (ADR-0065). Single internet-facing entry point for the
     retail customer app. Validates JWTs from the openbank-customers Keycloak realm,
@@ -109,6 +109,146 @@ tags:
   - name: Complaints
 
 paths:
+  # ---- Experience v2 step 8: account opening (before sign-in: no token, rate-limited per address)
+  /onboarding/promo-codes/validate:
+    post:
+      summary: Is a promo code or a friend's invite good, and from whom (no token)
+      security: []
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [code], properties: { code: { type: string } } } } } }
+      responses:
+        '200': { description: Verdict, content: { application/json: { schema: { type: object, properties: { valid: { type: boolean }, kind: { type: string, enum: [PROMO, REFERRAL] }, benefit: { type: string, nullable: true }, referrer_name: { type: string, nullable: true } } } } } }
+        '429': { description: Too many attempts from this address }
+  /onboarding/energo-pro/prefill:
+    post:
+      summary: Name and supply address from Energo-Pro, released only for a confirmed e-mail or phone on the record (no token)
+      security: []
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [customer_number, contact_verification_id], properties: { customer_number: { type: string }, contact_verification_id: { type: string, format: uuid } } } } } }
+      responses:
+        '200': { description: The record, content: { application/json: { schema: { type: object, properties: { first_name: { type: string }, last_name: { type: string }, street: { type: string }, city: { type: string }, postal_code: { type: string } } } } } }
+        '404': { description: No Energo-Pro record matches these contact details (also for an unknown number) }
+        '409': { description: Contact not confirmed, or attempts spent }
+  /onboarding/contact-verifications:
+    post:
+      summary: Send one-time codes to an e-mail and a phone (no token)
+      security: []
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [email, phone], properties: { email: { type: string }, phone: { type: string } } } } } }
+      responses:
+        '201': { description: Sent, content: { application/json: { schema: { type: object, properties: { id: { type: string, format: uuid }, expires_in_seconds: { type: integer }, demo_email_code: { type: string, nullable: true, description: "sandbox only" }, demo_phone_code: { type: string, nullable: true, description: "sandbox only" } } } } } }
+        '409': { description: Too many codes for this contact }
+  /onboarding/contact-verifications/{id}/confirm:
+    post:
+      summary: Check the codes (no token)
+      security: []
+      parameters: [ { name: id, in: path, required: true, schema: { type: string, format: uuid } } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { email_code: { type: string }, phone_code: { type: string } } } } } }
+      responses:
+        '200': { description: Result, content: { application/json: { schema: { type: object, properties: { email_verified: { type: boolean }, phone_verified: { type: boolean } } } } } }
+        '409': { description: Expired, or too many wrong codes }
+  # ---- Experience v2 step 8: account opening (signed in; the path id must be the token's party)
+  /onboarding/applications/{applicationId}/personal-details:
+    put:
+      summary: Date of birth, national number (rodné číslo / ЕГН), phone and address
+      parameters: [ { name: applicationId, in: path, required: true, schema: { type: string, format: uuid } } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { date_of_birth: { type: string, format: date }, birth_number: { type: string }, phone: { type: string }, address: { type: object, properties: { street: { type: string }, city: { type: string }, postal_code: { type: string }, country: { type: string } } } } } } } }
+      responses: { '204': { description: Saved }, '400': { description: Invalid }, '403': { description: Not your application }, '409': { description: Application already decided } }
+  /onboarding/applications/{applicationId}/tax-residency:
+    put:
+      summary: FATCA/CRS self-certification
+      parameters: [ { name: applicationId, in: path, required: true, schema: { type: string, format: uuid } } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { us_person: { type: boolean }, residencies: { type: array, items: { type: object, properties: { country: { type: string }, tin: { type: string, nullable: true } } } } } } } } }
+      responses: { '204': { description: Saved }, '400': { description: Invalid }, '403': { description: Not your application } }
+  /onboarding/applications/{applicationId}/package:
+    put:
+      summary: The account package chosen (STANDARD, PLUS, PREMIUM)
+      parameters: [ { name: applicationId, in: path, required: true, schema: { type: string, format: uuid } } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { package_code: { type: string } } } } } }
+      responses: { '204': { description: Saved }, '400': { description: Unknown package }, '403': { description: Not your application } }
+  /onboarding/bank-id/sessions:
+    post:
+      summary: Start Bank iD identification (Czech Republic only)
+      responses: { '201': { description: Started }, '409': { description: Not available in this market } }
+  /onboarding/bank-id/sessions/{id}:
+    get:
+      summary: A Bank iD session
+      parameters: [ { name: id, in: path, required: true, schema: { type: string, format: uuid } } ]
+      responses: { '200': { description: The session (id, method, status, redirect_url, checks) }, '404': { description: Not found } }
+  /onboarding/identity-verifications:
+    post:
+      summary: Start a document scan with chip, liveness and face match
+      requestBody: { content: { application/json: { schema: { type: object, properties: { document_type: { type: string, enum: [ID_CARD, PASSPORT, RESIDENCE_PERMIT] } } } } } }
+      responses: { '201': { description: Started } }
+  /onboarding/identity-verifications/{id}:
+    get:
+      summary: A document-scan verification
+      parameters: [ { name: id, in: path, required: true, schema: { type: string, format: uuid } } ]
+      responses: { '200': { description: The verification }, '404': { description: Not found } }
+  /onboarding/welcome:
+    get:
+      summary: The welcome coupon (revealed — claimed — once) and who invited the customer
+      responses: { '200': { description: "{coupon?, referrer_name?, promo_code?}" } }
+  /consents/energo-pro-data-sharing:
+    get:
+      summary: Whether the customer shares their banking relationship with the Energo-Pro group
+      responses: { '200': { description: "{granted}" } }
+    put:
+      summary: Grant or withdraw the Energo-Pro data-sharing consent (GDPR opt-in)
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [granted], properties: { granted: { type: boolean } } } } } }
+      responses: { '200': { description: "{granted}" } }
+  /products/packages:
+    get:
+      summary: Account packages in the customer's market, localised by Accept-Language
+      responses: { '200': { description: "[{code, name, monthly_fee, currency, benefits[]}]" } }
+  /products/{code}/disclosures:
+    get:
+      summary: Fee information and deposit guarantee for a product, before signing
+      parameters: [ { name: code, in: path, required: true, schema: { type: string } } ]
+      responses: { '200': { description: "{fees[{label, amount, currency, period}], deposit_guarantee{scheme_name, limit, currency, summary}}" }, '404': { description: No such product } }
+  /sca/parties/{partyId}/devices/{credentialId}/app-pin:
+    put:
+      summary: Set the app PIN of one of the customer's devices (a verifier, never the PIN)
+      parameters:
+        - { name: partyId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: credentialId, in: path, required: true, schema: { type: string } }
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [pin_verifier], properties: { pin_verifier: { type: string } } } } } }
+      responses: { '204': { description: Saved }, '403': { description: Not your party }, '404': { description: No such device } }
+  /cards/{id}/wallet-provisioning:
+    post:
+      summary: Add one of the customer's cards to Apple Wallet (network token)
+      parameters: [ { name: id, in: path, required: true, schema: { type: string, format: uuid } } ]
+      requestBody: { content: { application/json: { schema: { type: object, properties: { wallet: { type: string, enum: [APPLE_PAY, GOOGLE_PAY] } } } } } }
+      responses: { '200': { description: "{status: ADDED | PENDING}" }, '404': { description: No such card }, '503': { description: WALLET_UNAVAILABLE } }
+  # ---- Experience v2 step 8: face check for large payments, international transfer
+  /security/liveness/policy:
+    get:
+      summary: The customer's face-check limit
+      responses: { '200': { description: "{enabled, threshold, currency, last_check_at}" } }
+    put:
+      summary: Change the limit (confirmed by a passed POLICY_CHANGE face check)
+      requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { enabled: { type: boolean }, threshold: { type: number }, session_id: { type: string, format: uuid } } } } } }
+      responses: { '200': { description: The policy }, '409': { description: LIVENESS_REQUIRED } }
+  /security/liveness/sessions:
+    post:
+      summary: Start a face check (POLICY_CHANGE or PAYMENT)
+      requestBody: { content: { application/json: { schema: { type: object, properties: { purpose: { type: string, enum: [POLICY_CHANGE, PAYMENT] }, payment_reference: { type: string } } } } } }
+      responses: { '201': { description: "{id, purpose, status, expires_at}" } }
+  /security/liveness/sessions/{id}:
+    get:
+      summary: A face check's status (IN_PROGRESS, PASSED, FAILED)
+      parameters: [ { name: id, in: path, required: true, schema: { type: string, format: uuid } } ]
+      responses: { '200': { description: The session }, '404': { description: Not found } }
+  /payments/international/quote:
+    get:
+      summary: Quote an international transfer (scheme, rate, fee, arrival)
+      parameters:
+        - { name: account_id, in: query, required: true, schema: { type: string, format: uuid } }
+        - { name: currency, in: query, required: true, schema: { type: string } }
+        - { name: amount, in: query, required: true, schema: { type: string } }
+        - { name: country, in: query, required: true, schema: { type: string } }
+      responses: { '200': { description: "{quote_id, scheme, debit, credit, fee, rate, arrival_date, expires_at}" }, '503': { description: FX_UNAVAILABLE } }
+  /payments/international:
+    post:
+      summary: Send the quoted transfer (SEPA or SWIFT); X-SCA-Challenge-Id required, X-Liveness-Session-Id above the face-check limit
+      responses: { '201': { description: "{payment_id, scheme, status}" }, '403': { description: SCA_REQUIRED or LIVENESS_REQUIRED }, '409': { description: QUOTE_EXPIRED } }
   /app-copy:
     get:
       operationId: getAppCopy
