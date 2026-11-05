@@ -104,7 +104,8 @@ class ServiceHttp(private val oidc: Instance<OidcClient>) {
 
     companion object {
         const val CONNECT_SECONDS = 3L
-        const val REQUEST_SECONDS = 10L
+        // Below the edge's upstream timeout: a slow saga answers PENDING (retried) instead of an edge 503.
+        const val REQUEST_SECONDS = 6L
         const val TOKEN_SECONDS = 10L
         const val DEFAULT_TOKEN_SECONDS = 240L
         const val TOKEN_SKEW_SECONDS = 30L
