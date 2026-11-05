@@ -278,6 +278,7 @@ class CardService(
             cmd.reason,
             cmd.changedBy,
             updated.updatedAt,
+            partyId = updated.partyId,
         )
         return repo.save(updated, outboxMessage(updated.id, EVENT_CARD_STATUS_CHANGED, event))
     }
@@ -307,6 +308,7 @@ class CardService(
                 reason,
                 CHANGED_BY_DELEGATION,
                 updated.updatedAt,
+                partyId = updated.partyId,
             )
             auditLog.infof(
                 "delegated card ended by grant revocation cardId=%s grantId=%s %s->%s at=%s",

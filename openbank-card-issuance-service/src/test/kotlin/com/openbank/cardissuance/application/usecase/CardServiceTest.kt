@@ -150,6 +150,24 @@ class CardServiceTest {
         }
     }
 
+    @Test fun `status changed event names the card holder's party`(): Unit = runBlocking {
+        val pending = card(status = CardStatus.PENDING)
+        coEvery { repo.findById(pending.id) } returns pending
+        coEvery { repo.save(any(), any()) } answers { firstArg() }
+
+        service.activateCard(CardStatusCommand(pending.id, "Manual activation", "ops-user"))
+
+        coVerify {
+            repo.save(
+                any(),
+                match {
+                    it.eventType == CardService.EVENT_CARD_STATUS_CHANGED &&
+                        it.payload.contains("\"partyId\":\"${pending.partyId}\"")
+                },
+            )
+        }
+    }
+
     @Test fun `updateControls applies the flags and emits a controls-changed event`(): Unit = runBlocking {
         val active = card(status = CardStatus.ACTIVE)
         coEvery { repo.findById(active.id) } returns active

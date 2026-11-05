@@ -76,6 +76,18 @@ class CardReadCallerGuardTest {
     }
 
     @Test
+    fun `the rewards engine's own client may list a party's cards and nothing else`() {
+        val rewards = identity("service-account-openbank-rewards", "ROLE_API")
+        assertThatCode { requireNamedCardReader(rewards, CARD_PARTY_LIST_CALLERS) }.doesNotThrowAnyException()
+        assertThatThrownBy { requireNamedCardReader(rewards, CARD_READ_CALLERS) }
+            .isInstanceOf(ForbiddenException::class.java)
+        assertThatThrownBy { requireCardDetailsReader(rewards) }.isInstanceOf(ForbiddenException::class.java)
+        val impostor = jwtIdentity("openbank-services", "service-account-openbank-rewards", "ROLE_API")
+        assertThatThrownBy { requireNamedCardReader(impostor, CARD_PARTY_LIST_CALLERS) }
+            .isInstanceOf(ForbiddenException::class.java)
+    }
+
+    @Test
     fun `card-processing's own client may read a card and not list a party's cards or read a PAN`() {
         val cardProcessing = identity("service-account-openbank-card-processing", "ROLE_API")
         assertThatCode { requireNamedCardReader(cardProcessing, CARD_READ_CALLERS) }.doesNotThrowAnyException()
@@ -128,7 +140,10 @@ class CardReadCallerGuardTest {
             principals("service-delegation-card-read") + principals("service-edge-card-read") +
                 principals("service-card-processing-card-read"),
         ).isEqualTo(CARD_READ_CALLERS)
-        assertThat(principals("service-party-card-list") + principals("service-edge-card-list"))
+        assertThat(
+            principals("service-party-card-list") + principals("service-edge-card-list") +
+                principals("service-rewards-card-list"),
+        )
             .isEqualTo(CARD_PARTY_LIST_CALLERS)
         assertThat(principals("service-edge-card-details-read")).isEqualTo(CARD_DETAILS_READ_CALLERS)
     }

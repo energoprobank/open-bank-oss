@@ -9,7 +9,7 @@ metadata:
     app.kubernetes.io/name: card-issuance-service
     app.kubernetes.io/part-of: payments
   annotations:
-    openbank.tech/policy-checksum: "6d0c703513e2dd86"
+    openbank.tech/policy-checksum: "396835199cdf43e9"
 data:
   rest.rego: |
     # SPDX-License-Identifier: Apache-2.0
@@ -894,6 +894,15 @@ data:
     allowed_reasons contains "service-edge-card-list" if {
     	input.principal.type == "HUMAN"
     	machine_named("service-account-openbank-edge")
+    	input.action == "card.list"
+    }
+
+    # FLUX rewards projection backfill (openbank-rewards-service lists a party's cards to seed card
+    # missions → GET /cards/party/{partyId}). Read-only; its own `openbank-rewards` client.
+    # CardReadCallerGuard.CARD_PARTY_LIST_CALLERS names the same principal (pinned by its test).
+    allowed_reasons contains "service-rewards-card-list" if {
+    	input.principal.type == "HUMAN"
+    	machine_named("service-account-openbank-rewards")
     	input.action == "card.list"
     }
 

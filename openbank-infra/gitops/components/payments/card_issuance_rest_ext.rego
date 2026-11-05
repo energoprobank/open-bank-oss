@@ -134,6 +134,15 @@ allowed_reasons contains "service-edge-card-list" if {
 	input.action == "card.list"
 }
 
+# FLUX rewards projection backfill (openbank-rewards-service lists a party's cards to seed card
+# missions → GET /cards/party/{partyId}). Read-only; its own `openbank-rewards` client.
+# CardReadCallerGuard.CARD_PARTY_LIST_CALLERS names the same principal (pinned by its test).
+allowed_reasons contains "service-rewards-card-list" if {
+	input.principal.type == "HUMAN"
+	machine_named("service-account-openbank-rewards")
+	input.action == "card.list"
+}
+
 # The synthetic PAN/CVV read (CardResource.secureDetails). Excluded from operator-read-any (rules.yaml
 # authz.operator_read_any_excluded_actions) because ROLE_OPERATOR is held by staff and by machine
 # identities alike, and no back-office screen renders a PAN. The one caller is customer-edge's own

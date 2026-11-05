@@ -159,6 +159,7 @@ b6_rules := {
 b6_grants := {
 	"delegation": {"reason": "service-delegation-card-read", "actions": {"card.read"}},
 	"party": {"reason": "service-party-card-list", "actions": {"card.list"}},
+	"rewards": {"reason": "service-rewards-card-list", "actions": {"card.list"}},
 	"card-processing": {
 		"reason": "service-card-processing-card-read", "actions": {"card.read", "card.authorization.decide"},
 		"reasons": {"card.authorization.decide": "service-card-processing-authorization"},

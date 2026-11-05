@@ -30,8 +30,8 @@ internal val CARD_READ_CALLERS = setOf(
 
 /**
  * #10486 batch 6: machine principals that list a party's cards (`GET /api/v1/cards/party/{partyId}`,
- * `card.list`). Mirrors `service-party-card-list` and `service-edge-card-list` in
- * card_issuance_rest_ext.rego.
+ * `card.list`). Mirrors `service-party-card-list`, `service-edge-card-list` and
+ * `service-rewards-card-list` in card_issuance_rest_ext.rego.
  */
 internal val CARD_PARTY_LIST_CALLERS = setOf(
     // party-service: GDPR Art. 15 aggregation (CardServiceRestClient).
@@ -40,6 +40,9 @@ internal val CARD_PARTY_LIST_CALLERS = setOf(
     // customer's own cards with its own `openbank-edge` principal, after forcing partyId from the
     // JWT. Without it every customer's card list answered 403 "caller is not a named card reader".
     "service-account-openbank-edge",
+    // rewards-service: FLUX rewards projection backfill — reads a party's cards to seed card missions
+    // (read-only; its own `openbank-rewards` client).
+    "service-account-openbank-rewards",
 )
 
 /**

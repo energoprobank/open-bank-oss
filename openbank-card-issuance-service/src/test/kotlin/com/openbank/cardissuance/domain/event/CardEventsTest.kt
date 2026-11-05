@@ -77,6 +77,23 @@ class CardEventsTest {
     }
 
     @Test
+    fun `CardStatusChanged carries the optional partyId on the wire`() {
+        val partyId = UUID.randomUUID()
+        val event = CardStatusChanged(
+            cardId = UUID.randomUUID(),
+            previousStatus = CardStatus.ACTIVE,
+            newStatus = CardStatus.SUSPENDED,
+            reason = null,
+            changedBy = "customer",
+            occurredAt = now,
+            partyId = partyId,
+        )
+
+        val node = objectMapper.readTree(objectMapper.writeValueAsString(event))
+        assertThat(node.get("partyId").asText()).isEqualTo(partyId.toString())
+    }
+
+    @Test
     fun `CardLimitsChanged carries sourceService on the wire`() {
         val event = CardLimitsChanged(
             cardId = UUID.randomUUID(),

@@ -1809,6 +1809,12 @@ components:
         occurredAt:
           type: string
           format: date-time
+        partyId:
+          type: [string, 'null']
+          format: uuid
+          description: >-
+            The card holder's party (additive, optional; FLUX rewards). Absent on events published
+            before card-issuance carried it.
 
     CardLimitsChangedPayload:
       type: object

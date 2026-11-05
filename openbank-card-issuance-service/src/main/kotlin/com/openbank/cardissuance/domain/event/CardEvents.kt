@@ -59,6 +59,11 @@ data class CardStatusChanged(
     val reason: String?,
     val changedBy: String,
     override val occurredAt: Instant,
+    /**
+     * The card holder's party. Additive, optional on the wire (FLUX rewards): lets a consumer such as
+     * openbank-rewards-service attribute a status change to a party without a card-issuance lookup.
+     */
+    val partyId: UUID? = null,
 ) : CardEvent()
 data class CardLimitsChanged(
     override val cardId: UUID,
