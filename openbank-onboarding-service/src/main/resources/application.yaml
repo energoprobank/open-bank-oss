@@ -70,6 +70,25 @@ quarkus:
       url: ${PARTY_SERVICE_URL:http://localhost:8111}
       connect-timeout: 3000
       read-timeout: 5000
+    # Third-party providers for self-service account opening (experience v2 step 8). Each has its own
+    # URL so one can be replaced by the real provider on its own; locally all four are faces of
+    # openbank-provider-simulator (port 8163).
+    "energo-pro":
+      url: ${ENERGO_PRO_URL:http://localhost:8163}
+      connect-timeout: 2000
+      read-timeout: 5000
+    "otp-gateway":
+      url: ${OTP_GATEWAY_URL:http://localhost:8163}
+      connect-timeout: 2000
+      read-timeout: 5000
+    "bank-id":
+      url: ${BANK_ID_URL:http://localhost:8163}
+      connect-timeout: 2000
+      read-timeout: 5000
+    "idv":
+      url: ${IDV_URL:http://localhost:8163}
+      connect-timeout: 2000
+      read-timeout: 5000
   smallrye-reactive-messaging:
     kafka:
       bootstrap-servers: localhost:29092
@@ -197,6 +216,12 @@ openbank:
     time: "${BUILD_TIME:unknown}"
   git:
     commit: "${GIT_COMMIT:unknown}"
+  # Self-service account opening (experience v2 step 8): e-mail + SMS one-time codes.
+  onboarding:
+    otp:
+      # SANDBOX ONLY: return the codes to the caller so a demo can fill them in. Never in production.
+      reveal-codes: ${OPENBANK_ONBOARDING_OTP_REVEAL_CODES:false}
+      # hmac-key: from OPENBANK_ONBOARDING_OTP_HMAC_KEY; absent = a random key per process.
 
 "%dev":
   quarkus:

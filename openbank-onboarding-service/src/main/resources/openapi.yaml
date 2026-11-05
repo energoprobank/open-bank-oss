@@ -3,7 +3,7 @@
 openapi: 3.1.0
 info:
   title: Onboarding Service API
-  version: 1.2.0
+  version: 1.3.0
   description: >-
     Read-model projection of the onboarding funnel (ADR-0068). Aggregates events from
     party-service, kyc-service and sca-service into a denormalised view for operator
@@ -22,6 +22,84 @@ security:
   - bearerAuth: []
 
 paths:
+  # ---- Experience v2 step 8: self-service account opening, write side (machine callers: customer-edge)
+  /api/v1/onboarding/contact-verifications:
+    post:
+      summary: Send one-time codes to an e-mail and a phone (rate-limited per contact)
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [email, phone], properties: { email: { type: string }, phone: { type: string } } } } } }
+      responses: { '201': { description: "{id, expires_in_seconds, demo_email_code?, demo_phone_code?} (demo codes only when the sandbox reveals them)" }, '400': { description: Invalid contact }, '409': { description: TOO_MANY_CODES } }
+  /api/v1/onboarding/contact-verifications/{id}/confirm:
+    post:
+      summary: Check the codes (5 attempts, 10 minutes)
+      parameters: [ { name: id, in: path, required: true, schema: { type: string, format: uuid } } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { email_code: { type: string }, phone_code: { type: string } } } } } }
+      responses: { '200': { description: "{email_verified, phone_verified}" }, '404': { description: VERIFICATION_NOT_FOUND }, '409': { description: CODES_EXPIRED / TOO_MANY_ATTEMPTS } }
+  /api/v1/onboarding/energo-pro/prefill:
+    post:
+      summary: Energo-Pro customer record, released only for a confirmed contact that is on it
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [customer_number, contact_verification_id], properties: { customer_number: { type: string }, contact_verification_id: { type: string, format: uuid } } } } } }
+      responses: { '200': { description: "{first_name, last_name, street, city, postal_code}" }, '404': { description: NO_MATCH (unknown number and mismatch answer alike) }, '409': { description: CONTACT_NOT_CONFIRMED } }
+  /api/v1/onboarding/applications/{partyId}:
+    get:
+      summary: The application's own state
+      parameters: [ { name: partyId, in: path, required: true, schema: { type: string, format: uuid } } ]
+      responses: { '200': { description: "{party_id, package_code, personal_details_at, tax_residency_at, identity_verified_at, identity_method}" } }
+  /api/v1/onboarding/applications/{partyId}/personal-details:
+    put:
+      summary: Date of birth, national number, phone, address (written through to party-service)
+      parameters: [ { name: partyId, in: path, required: true, schema: { type: string, format: uuid } } ]
+      responses: { '204': { description: Saved }, '400': { description: Invalid (party-service's reason) }, '409': { description: APPLICATION_DECIDED } }
+  /api/v1/onboarding/applications/{partyId}/tax-residency:
+    put:
+      summary: FATCA/CRS self-certification (written through to party-service)
+      parameters: [ { name: partyId, in: path, required: true, schema: { type: string, format: uuid } } ]
+      responses: { '204': { description: Saved } }
+  /api/v1/onboarding/applications/{partyId}/package:
+    put:
+      summary: The account package (STANDARD, PLUS, PREMIUM)
+      parameters: [ { name: partyId, in: path, required: true, schema: { type: string, format: uuid } } ]
+      responses: { '204': { description: Saved }, '400': { description: Unknown package } }
+  /api/v1/onboarding/applications/{partyId}/identity-verifications:
+    post:
+      summary: Start Bank iD (CZ market only) or a document scan
+      parameters: [ { name: partyId, in: path, required: true, schema: { type: string, format: uuid } } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [method], properties: { method: { type: string, enum: [BANK_ID, DOCUMENT_SCAN] }, document_type: { type: string } } } } } }
+      responses: { '201': { description: "{id, method, status, redirect_url, checks[]}" }, '409': { description: METHOD_NOT_AVAILABLE } }
+  /api/v1/onboarding/applications/{partyId}/identity-verifications/{id}:
+    get:
+      summary: An identity verification (asks the provider while in progress)
+      parameters:
+        - { name: partyId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses: { '200': { description: The verification }, '404': { description: Not this applicant's } }
+  /api/v1/security/liveness/parties/{partyId}/policy:
+    get:
+      summary: The face-check policy (default off, with the market's default limit)
+      parameters: [ { name: partyId, in: path, required: true, schema: { type: string, format: uuid } } ]
+      responses: { '200': { description: "{enabled, threshold, currency, last_check_at}" } }
+    put:
+      summary: Change it, confirmed by a passed POLICY_CHANGE session (spent once)
+      parameters: [ { name: partyId, in: path, required: true, schema: { type: string, format: uuid } } ]
+      responses: { '200': { description: The policy }, '409': { description: LIVENESS_REQUIRED } }
+  /api/v1/security/liveness/parties/{partyId}/sessions:
+    post:
+      summary: Start a liveness check (POLICY_CHANGE or PAYMENT)
+      parameters: [ { name: partyId, in: path, required: true, schema: { type: string, format: uuid } } ]
+      responses: { '201': { description: "{id, purpose, status, expires_at}" } }
+  /api/v1/security/liveness/parties/{partyId}/sessions/{id}:
+    get:
+      summary: A liveness session
+      parameters:
+        - { name: partyId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses: { '200': { description: The session }, '404': { description: Not found } }
+  /api/v1/security/liveness/parties/{partyId}/sessions/{id}/consume:
+    post:
+      summary: Spend a PASSED PAYMENT session on one payment (customer-edge)
+      parameters:
+        - { name: partyId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses: { '200': { description: Spent }, '409': { description: LIVENESS_REQUIRED } }
   /api/v1/onboarding/records:
     get:
       tags: [Onboarding]
