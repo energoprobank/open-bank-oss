@@ -18,7 +18,31 @@ data class Iban(val value: String) {
     override fun toString(): String = value
 
     companion object {
+        // ISO 13616 / ISO 7064 mod-97-10: letters count as 10..35, check digits = 98 − (n mod 97).
+        private const val ASCII_LIMIT = 128
+        private const val LETTER_VALUE_OFFSET = 10
+        private const val CHECK_BASE = 98
+        private const val MOD_97 = 97
+
         fun of(raw: String): Iban = Iban(raw.replace(" ", "").uppercase())
+
+        /** The IBAN for [bban] in [countryCode], with its ISO 13616 mod-97 check digits. */
+        fun compose(countryCode: String, bban: String): Iban {
+            val country = countryCode.uppercase()
+            val body = bban.replace(" ", "").uppercase()
+            require(country.length == 2 && country.all { it in 'A'..'Z' }) { "country code must be two letters" }
+            require(
+                body.isNotEmpty() &&
+                    body.all {
+                        it.isLetterOrDigit() && it.code < ASCII_LIMIT
+                    },
+            ) { "BBAN must be alphanumeric" }
+            val numeric = (body + country + "00").map { c ->
+                if (c.isDigit()) c.toString() else (c.code - 'A'.code + LETTER_VALUE_OFFSET).toString()
+            }.joinToString("")
+            val check = CHECK_BASE - numeric.toBigInteger().mod(MOD_97.toBigInteger()).toInt()
+            return Iban(country + check.toString().padStart(2, '0') + body)
+        }
 
         fun isValid(iban: String): Boolean {
             val cleaned = iban.replace(" ", "").uppercase()
