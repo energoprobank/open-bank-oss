@@ -177,8 +177,12 @@ class BankEventHandler(private val store: RewardsStore, private val engine: Rewa
         amount: BigDecimal,
         currency: String,
         at: Instant,
+        initiatedBy: UUID? = null,
     ) {
-        val owner = partyId ?: debtorAccountId?.let { id -> store.tx { tx -> tx.account(id)?.partyId } } ?: return
+        // The debtor account's owner, not the initiator (a delegate or the edge identity may initiate).
+        val owner =
+            partyId ?: debtorAccountId?.let { id -> store.tx { tx -> tx.account(id)?.partyId } } ?: initiatedBy
+                ?: return
         val biller =
             store.tx { tx ->
                 tx.billers(null).firstOrNull {

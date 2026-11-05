@@ -25,7 +25,7 @@ import java.util.concurrent.CompletionStage
 /**
  * The ingest module: one consumer per banking topic. Producers are inconsistent about where the
  * event type lives (payload `eventType` vs the `ce-type` header only), so every handler reads the
- * header first, then the payload. Unparseable or irrelevant records are logged and acked; a
+ * payload first, then the header. Unparseable or irrelevant records are logged and acked; a
  * processing failure throws, which sends the record to the channel's DLQ after SmallRye's retry.
  * All handlers are @Blocking: the engine uses JDBC on worker threads.
  */
@@ -169,7 +169,8 @@ class BankEventConsumers(private val handler: BankEventHandler, private val stor
         val bank = n.text("creditorBankCode")
         handler.domesticPayment(
             paymentId = paymentId,
-            partyId = n.uuid("debtorPartyId") ?: n.uuid("partyId") ?: n.uuid("initiatedByPartyId"),
+            partyId = n.uuid("debtorPartyId") ?: n.uuid("partyId"),
+            initiatedBy = n.uuid("initiatedByPartyId"),
             debtorAccountId = n.uuid("debtorAccountId"),
             creditorAccount = if (bank != null) "$number/$bank" else number,
             amount = n.decimal("amount") ?: return@handle,
@@ -238,10 +239,11 @@ class BankEventConsumers(private val handler: BankEventHandler, private val stor
             log.warnf("unparseable record on %s skipped: %s", meta?.topic, e.message)
             return msg.ack()
         }
-        val type =
-            meta?.headers?.lastHeader("ce-type")?.value()?.let { String(it) } ?: node.text("eventType")
-                ?: node.text("type")
-                ?: return msg.ack()
+        // Payload first: producers disagree on the header (`openbank.transactions.transaction.completed`,
+        // `domestic.payment.created`), while card topics carry the type in `ce-type` only.
+        val type = node.text("eventType")
+            ?: meta?.headers?.lastHeader("ce-type")?.value()?.let { String(it) }
+            ?: return msg.ack()
         return try {
             block(type, node)
             msg.ack()
