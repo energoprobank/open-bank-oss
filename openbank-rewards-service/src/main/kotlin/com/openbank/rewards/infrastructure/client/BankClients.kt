@@ -86,9 +86,10 @@ class ServiceHttp(private val oidc: Instance<OidcClient>) {
         }?.let { runCatching { RewardsJson.mapper.readTree(it) }.getOrNull() }
         return when (response.statusCode()) {
             in OK_RANGE -> json
+            // The downstream's own message, never our internal URL: it reaches the app.
             HTTP_NOT_FOUND -> throw RewardsNotFoundException(
                 json?.get("code")?.asText() ?: "NOT_FOUND",
-                "$method $url: 404",
+                json?.get("message")?.asText() ?: "not found",
             )
             in CLIENT_ERRORS -> {
                 log.warnf("%s %s -> %d %s", method, url, response.statusCode(), response.body()?.take(LOG_BODY))
