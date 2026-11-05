@@ -179,9 +179,10 @@ class BankEventHandler(private val store: RewardsStore, private val engine: Rewa
         at: Instant,
         initiatedBy: UUID? = null,
     ) {
-        // The debtor account's owner, not the initiator (a delegate or the edge identity may initiate).
+        // The debtor ACCOUNT's owner first: on the owner-funded path domestic-payment reports the
+        // initiating identity as debtorPartyId, which the edge may have resolved (merged) to another party.
         val owner =
-            partyId ?: debtorAccountId?.let { id -> store.tx { tx -> tx.account(id)?.partyId } } ?: initiatedBy
+            debtorAccountId?.let { id -> store.tx { tx -> tx.account(id)?.partyId } } ?: partyId ?: initiatedBy
                 ?: return
         val biller =
             store.tx { tx ->
