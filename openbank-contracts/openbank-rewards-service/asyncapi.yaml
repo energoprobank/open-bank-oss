@@ -1,0 +1,42 @@
+asyncapi: 3.0.0
+info:
+  title: openbank-rewards-service events
+  version: 1.0.0
+  description: >-
+    FLUX engine events on openbank.rewards.events.v1, keyed by partyId, delivered at least once
+    through the transactional outbox. Headers ce-id (= idempotency-key), ce-type (= eventType).
+channels:
+  rewardsEvents:
+    address: openbank.rewards.events.v1
+    messages:
+      rewardsEvent:
+        $ref: '#/components/messages/RewardsEvent'
+operations:
+  publishRewardsEvent:
+    action: send
+    channel: {$ref: '#/channels/rewardsEvents'}
+components:
+  messages:
+    RewardsEvent:
+      name: RewardsEvent
+      payload:
+        type: object
+        required: [eventId, eventType, partyId, occurredAt, sourceService]
+        properties:
+          eventId: {type: string, format: uuid}
+          eventType:
+            type: string
+            enum: [mission_completed, mission_claimed, flux_earned, flux_burned, coupon_issued, coupon_charged, coupon_ready,
+                   coupon_used, coupon_expired, level_reached, referral_reward_vested, referral_reward_released]
+          partyId: {type: string, format: uuid}
+          occurredAt: {type: string, format: date-time}
+          sourceService: {type: string, const: rewards-service}
+          missionId: {type: string}
+          cycle: {type: string}
+          couponId: {type: string, format: uuid}
+          couponDefId: {type: string}
+          state: {type: string}
+          flux: {type: integer}
+          source: {type: string}
+          level: {type: string}
+        additionalProperties: true

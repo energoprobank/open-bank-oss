@@ -1,0 +1,439 @@
+openapi: 3.0.3
+info:
+  title: OpenBank Rewards Service (FLUX)
+  description: >-
+    The FLUX engine: missions, the FLUX ledger, coupons and charging, benefit fulfilment, budgets
+    and the daily liability. FLUX is a closed-loop engagement unit: earned only from behaviour,
+    never bought, never paid out, never transferred between parties. The customer API is reached
+    only through customer-edge (/customer/v1/rewards/*), which injects the authoritative partyId.
+    Errors are {code, message}; business refusals are 409.
+  version: 1.0.0
+tags:
+  - name: customer
+  - name: staff
+paths:
+  /api/v1/rewards/parties/{partyId}/summary:
+    get:
+      tags: [customer]
+      summary: Balance, level, charging coupon, counts to claim and ready
+      parameters: [{$ref: "#/components/parameters/PartyId"}]
+      responses:
+        "200": {description: Summary, content: {application/json: {schema: {$ref: "#/components/schemas/Summary"}}}}
+  /api/v1/rewards/parties/{partyId}/missions:
+    get:
+      tags: [customer]
+      summary: Active (current cycle), claimable and history missions
+      parameters: [{$ref: "#/components/parameters/PartyId"}]
+      responses:
+        "200":
+          description: Missions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  active: {type: array, items: {$ref: "#/components/schemas/Mission"}}
+                  claimable: {type: array, items: {$ref: "#/components/schemas/Mission"}}
+                  history: {type: array, items: {$ref: "#/components/schemas/Mission"}}
+  /api/v1/rewards/parties/{partyId}/missions/{missionId}/claim:
+    post:
+      tags: [customer]
+      summary: Claim a completed mission (auto-claimed after 30 days)
+      parameters:
+        - {$ref: "#/components/parameters/PartyId"}
+        - {name: missionId, in: path, required: true, schema: {type: string}}
+        - {$ref: "#/components/parameters/IdempotencyKey"}
+      responses:
+        "200":
+          description: Claimed; a replay of the key returns the stored response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  mission: {$ref: "#/components/schemas/Mission"}
+                  entries: {type: array, items: {$ref: "#/components/schemas/LedgerEntry"}}
+                  coupon: {$ref: "#/components/schemas/Coupon"}
+                  balance: {type: integer}
+        "409": {$ref: "#/components/responses/Refused"}
+  /api/v1/rewards/parties/{partyId}/coupons:
+    get:
+      tags: [customer]
+      summary: The wallet (holding coupons plus those used or expired in the last 90 days)
+      parameters: [{$ref: "#/components/parameters/PartyId"}]
+      responses:
+        "200": {description: Wallet, content: {application/json: {schema: {type: object, properties: {items: {type: array, items: {$ref: "#/components/schemas/Coupon"}}}}}}}
+    post:
+      tags: [customer]
+      summary: Add a catalogue coupon to the wallet
+      parameters: [{$ref: "#/components/parameters/PartyId"}, {$ref: "#/components/parameters/IdempotencyKey"}]
+      requestBody:
+        required: true
+        content: {application/json: {schema: {type: object, required: [couponDefId], properties: {couponDefId: {type: string}}}}}
+      responses:
+        "201": {description: Added, content: {application/json: {schema: {$ref: "#/components/schemas/Coupon"}}}}
+        "409": {$ref: "#/components/responses/Refused"}
+  /api/v1/rewards/parties/{partyId}/catalogue:
+    get:
+      tags: [customer]
+      summary: The coupons the customer can add, level-gated items marked locked
+      parameters: [{$ref: "#/components/parameters/PartyId"}]
+      responses:
+        "200": {description: Catalogue, content: {application/json: {schema: {type: object, properties: {items: {type: array, items: {$ref: "#/components/schemas/CatalogueItem"}}}}}}}
+  /api/v1/rewards/parties/{partyId}/coupons/{couponId}/activate:
+    post:
+      tags: [customer]
+      summary: Make the coupon the one charging coupon (the previous one keeps its charge)
+      parameters: [{$ref: "#/components/parameters/PartyId"}, {$ref: "#/components/parameters/CouponId"}]
+      responses:
+        "200": {description: Activated, content: {application/json: {schema: {$ref: "#/components/schemas/Coupon"}}}}
+        "409": {$ref: "#/components/responses/Refused"}
+  /api/v1/rewards/parties/{partyId}/coupons/{couponId}/charge:
+    post:
+      tags: [customer]
+      summary: Charge FLUX from the balance into the coupon (never more than it can hold)
+      parameters: [{$ref: "#/components/parameters/PartyId"}, {$ref: "#/components/parameters/CouponId"}, {$ref: "#/components/parameters/IdempotencyKey"}]
+      requestBody:
+        required: true
+        content: {application/json: {schema: {type: object, required: [flux], properties: {flux: {type: integer, minimum: 1}}}}}
+      responses:
+        "200":
+          description: Charged
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  coupon: {$ref: "#/components/schemas/Coupon"}
+                  chargedOwn: {type: integer}
+                  chargedBonus: {type: integer}
+                  balance: {type: integer}
+                  levelReached: {$ref: "#/components/schemas/Level"}
+        "409": {$ref: "#/components/responses/Refused"}
+  /api/v1/rewards/parties/{partyId}/coupons/{couponId}/preview:
+    get:
+      tags: [customer]
+      summary: Before/after terms of using a coupon on a target (loan APRC, instalment, cashback)
+      parameters:
+        - {$ref: "#/components/parameters/PartyId"}
+        - {$ref: "#/components/parameters/CouponId"}
+        - {name: targetKind, in: query, required: true, schema: {$ref: "#/components/schemas/TargetKind"}}
+        - {name: targetId, in: query, required: false, schema: {type: string}}
+      responses:
+        "200":
+          description: Preview
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  before: {$ref: "#/components/schemas/Terms"}
+                  after: {$ref: "#/components/schemas/Terms"}
+                  notes: {type: array, items: {type: string}}
+  /api/v1/rewards/parties/{partyId}/coupons/{couponId}/use:
+    post:
+      tags: [customer]
+      summary: Use a READY coupon; runs the benefit saga
+      parameters: [{$ref: "#/components/parameters/PartyId"}, {$ref: "#/components/parameters/CouponId"}, {$ref: "#/components/parameters/IdempotencyKey"}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [targetKind]
+              properties:
+                targetKind: {$ref: "#/components/schemas/TargetKind"}
+                targetId: {type: string, description: "bill payment id, savings account id or loan id"}
+      responses:
+        "200":
+          description: USED (fulfilment APPLIED) or USING (fulfilment PENDING, retried by the engine)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  coupon: {$ref: "#/components/schemas/Coupon"}
+                  fulfilment: {$ref: "#/components/schemas/Fulfilment"}
+        "409": {$ref: "#/components/responses/Refused"}
+        "503": {description: A bank service is temporarily unavailable}
+  /api/v1/rewards/parties/{partyId}/ledger:
+    get:
+      tags: [customer]
+      summary: FLUX history, newest first
+      parameters:
+        - {$ref: "#/components/parameters/PartyId"}
+        - {name: page, in: query, schema: {type: integer, default: 0}}
+        - {name: size, in: query, schema: {type: integer, default: 20, maximum: 100}}
+      responses:
+        "200":
+          description: Page
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: {type: array, items: {$ref: "#/components/schemas/LedgerEntry"}}
+                  page: {type: integer}
+                  size: {type: integer}
+                  total: {type: integer}
+  /api/v1/rewards/parties/{partyId}/settings:
+    get:
+      tags: [customer]
+      summary: Participation, quiet mode, notifications
+      parameters: [{$ref: "#/components/parameters/PartyId"}]
+      responses:
+        "200": {description: Settings, content: {application/json: {schema: {$ref: "#/components/schemas/Settings"}}}}
+    put:
+      tags: [customer]
+      summary: Change participation, quiet mode or notifications (fields optional)
+      parameters: [{$ref: "#/components/parameters/PartyId"}]
+      requestBody:
+        content: {application/json: {schema: {$ref: "#/components/schemas/Settings"}}}
+      responses:
+        "200": {description: Settings, content: {application/json: {schema: {$ref: "#/components/schemas/Settings"}}}}
+  /api/v1/rewards/parties/{partyId}/codes/claim:
+    post:
+      tags: [customer]
+      summary: Redeem a promo code through incentive-service; the engine pays the offer's reward
+      parameters: [{$ref: "#/components/parameters/PartyId"}, {$ref: "#/components/parameters/IdempotencyKey"}]
+      requestBody:
+        required: true
+        content: {application/json: {schema: {type: object, required: [code], properties: {code: {type: string}}}}}
+      responses:
+        "200": {description: Redeemed}
+        "404": {description: CODE_UNKNOWN}
+        "409": {$ref: "#/components/responses/Refused"}
+  /api/v1/rewards/parties/{partyId}/lessons:
+    get:
+      tags: [customer]
+      summary: In-app lessons with their quiz questions (Accept-Language cs, en, bg)
+      parameters: [{$ref: "#/components/parameters/PartyId"}]
+      responses:
+        "200": {description: Lessons}
+  /api/v1/rewards/parties/{partyId}/lessons/{lessonId}/quiz:
+    post:
+      tags: [customer]
+      summary: Submit quiz answers (option indexes); passing completes the lesson mission
+      parameters:
+        - {$ref: "#/components/parameters/PartyId"}
+        - {name: lessonId, in: path, required: true, schema: {type: string}}
+      requestBody:
+        required: true
+        content: {application/json: {schema: {type: object, required: [answers], properties: {answers: {type: array, items: {type: integer}}}}}}
+      responses:
+        "200": {description: "{passed, score, mission}"}
+  /api/v1/rewards/parties/{partyId}/referrals:
+    get:
+      tags: [customer]
+      summary: Referral rewards (vested, released, lapsed) on both sides
+      parameters: [{$ref: "#/components/parameters/PartyId"}]
+      responses:
+        "200": {description: Referral rewards}
+  /api/v1/rewards/staff/overview:
+    get: {tags: [staff], summary: Markets, budget lines, kill switches, billers, promotions, pending request count, responses: {"200": {description: Overview}}}
+  /api/v1/rewards/staff/missions:
+    get:
+      tags: [staff]
+      summary: Mission definitions (all versions' newest, incl. inactive)
+      parameters: [{name: market, in: query, schema: {type: string, enum: [CZ, BG]}}]
+      responses: {"200": {description: Definitions}}
+  /api/v1/rewards/staff/coupon-defs:
+    get:
+      tags: [staff]
+      summary: Coupon definitions
+      parameters: [{name: market, in: query, schema: {type: string, enum: [CZ, BG]}}]
+      responses: {"200": {description: Definitions}}
+  /api/v1/rewards/staff/parties/{partyId}:
+    get:
+      tags: [staff]
+      summary: Customer view (summary, coupons, missions, last 50 ledger entries, referrals)
+      parameters: [{$ref: "#/components/parameters/PartyId"}]
+      responses: {"200": {description: Customer view}}
+  /api/v1/rewards/staff/change-requests:
+    get:
+      tags: [staff]
+      summary: Change requests (maker-checker queue)
+      parameters: [{name: status, in: query, schema: {type: string, enum: [PENDING, APPROVED, REJECTED, FAILED]}}]
+      responses: {"200": {description: Requests}}
+    post:
+      tags: [staff]
+      summary: Submit a change (maker). A different operator approves.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [kind, payload, reason]
+              properties:
+                kind: {type: string, enum: [GRANT, MIGRATION, PROMOTION, PROMOTION_STOP, BUDGET_LINE, MARKET, BILLER, MISSION_DEF, COUPON_DEF, OFFER_REWARD, KILL_SWITCH]}
+                payload: {type: object}
+                reason: {type: string, maxLength: 400}
+      responses:
+        "201": {description: Submitted}
+        "400": {description: Malformed payload}
+  /api/v1/rewards/staff/change-requests/{id}:
+    get:
+      tags: [staff]
+      summary: One change request
+      parameters: [{name: id, in: path, required: true, schema: {type: string, format: uuid}}]
+      responses: {"200": {description: Request}}
+  /api/v1/rewards/staff/change-requests/{id}/approve:
+    post:
+      tags: [staff]
+      summary: Approve and apply (checker must not be the maker)
+      parameters: [{name: id, in: path, required: true, schema: {type: string, format: uuid}}]
+      responses:
+        "200": {description: Approved}
+        "409": {$ref: "#/components/responses/Refused"}
+  /api/v1/rewards/staff/change-requests/{id}/reject:
+    post:
+      tags: [staff]
+      summary: Reject
+      parameters: [{name: id, in: path, required: true, schema: {type: string, format: uuid}}]
+      requestBody: {content: {application/json: {schema: {type: object, properties: {note: {type: string}}}}}}
+      responses: {"200": {description: Rejected}}
+  /api/v1/rewards/staff/reports/economy:
+    get: {tags: [staff], summary: Earned, charged, burned, expired, balance and liability per market, responses: {"200": {description: Report}}}
+  /api/v1/rewards/staff/reports/liability:
+    get: {tags: [staff], summary: Daily liability snapshots with posted deltas and GL references, responses: {"200": {description: Snapshots}}}
+  /api/v1/rewards/staff/liability/run:
+    post: {tags: [staff], summary: Run the liability snapshot and GL posting now (idempotent), responses: {"200": {description: Snapshots}}}
+components:
+  parameters:
+    PartyId: {name: partyId, in: path, required: true, schema: {type: string, format: uuid}}
+    CouponId: {name: couponId, in: path, required: true, schema: {type: string, format: uuid}}
+    IdempotencyKey: {name: Idempotency-Key, in: header, required: true, schema: {type: string, maxLength: 128}}
+  responses:
+    Refused:
+      description: Business refusal
+      content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}
+  schemas:
+    Error:
+      type: object
+      properties: {code: {type: string}, message: {type: string}}
+    Money:
+      type: object
+      properties: {amount: {type: string, example: "12.50"}, currency: {type: string}}
+    TargetKind: {type: string, enum: [BILL_PAYMENT, SAVINGS_ACCOUNT, LOAN, NONE]}
+    Level:
+      type: object
+      properties:
+        code: {type: string, enum: [SPARK, CELL, BATTERY, TURBINE, REACTOR, POWER_PLANT]}
+        index: {type: integer}
+        lifetimeCharged: {type: integer}
+        nextCode: {type: string, nullable: true}
+        nextAt: {type: integer, nullable: true}
+    Summary:
+      type: object
+      properties:
+        partyId: {type: string, format: uuid}
+        market: {type: string, enum: [CZ, BG]}
+        currency: {type: string}
+        fluxValue: {$ref: "#/components/schemas/Money"}
+        balance: {type: integer}
+        chargedUnused: {type: integer}
+        level: {$ref: "#/components/schemas/Level"}
+        chargingCoupon: {$ref: "#/components/schemas/Coupon"}
+        counts: {type: object, properties: {claimable: {type: integer}, ready: {type: integer}}}
+        membership: {type: object, properties: {status: {type: string, enum: [ACTIVE, OPTED_OUT, QUIET]}, termsVersion: {type: string}, joinedAt: {type: string, format: date-time}}}
+        promotion: {type: object, nullable: true}
+        nextExpiry: {type: object, nullable: true}
+    Reward:
+      type: object
+      properties:
+        type: {type: string, enum: [FLUX, COUPON]}
+        flux: {type: integer, nullable: true}
+        couponDefId: {type: string, nullable: true}
+        preChargePct: {type: integer, nullable: true}
+    Mission:
+      type: object
+      properties:
+        missionId: {type: string}
+        version: {type: integer}
+        kind: {type: string, enum: [ONE_TIME, RECURRING]}
+        cadence: {type: string, enum: [ONCE, WEEKLY, MONTHLY, YEARLY, ROLLING]}
+        cycle: {type: string, nullable: true}
+        state: {type: string, enum: [NOT_STARTED, IN_PROGRESS, CLAIM_PENDING, CLAIMED, LAPSED]}
+        progress: {type: object, properties: {current: {type: integer}, target: {type: integer}}}
+        reward: {$ref: "#/components/schemas/Reward"}
+        windowEndsAt: {type: string, format: date-time, nullable: true}
+        completedAt: {type: string, format: date-time, nullable: true}
+        claimedAt: {type: string, format: date-time, nullable: true}
+        autoClaimAt: {type: string, format: date-time, nullable: true}
+        handoff: {type: string, nullable: true}
+    Benefit:
+      type: object
+      properties:
+        percent: {type: integer}
+        cap: {$ref: "#/components/schemas/Money"}
+        deltaBps: {type: integer}
+        durationDays: {type: integer}
+        balanceCap: {$ref: "#/components/schemas/Money"}
+        theme: {type: string}
+    CatalogueItem:
+      type: object
+      properties:
+        couponDefId: {type: string}
+        benefitType: {type: string}
+        category: {type: string, enum: [BILLS, SAVINGS, LOANS, STYLE]}
+        rarity: {type: string, enum: [STANDARD, GOLD, SIGNATURE]}
+        capacity: {type: integer}
+        validityDays: {type: integer, nullable: true}
+        levelGate: {type: integer}
+        locked: {type: boolean}
+        benefit: {$ref: "#/components/schemas/Benefit"}
+    Coupon:
+      type: object
+      nullable: true
+      properties:
+        couponId: {type: string, format: uuid}
+        couponDefId: {type: string}
+        benefitType: {type: string}
+        category: {type: string}
+        rarity: {type: string}
+        capacity: {type: integer}
+        chargedOwn: {type: integer}
+        chargedBonus: {type: integer}
+        preCharge: {type: integer}
+        charged: {type: integer}
+        percent: {type: integer}
+        state: {type: string, enum: [ISSUED, CHARGING, READY, USING, USED, EXPIRED, WITHDRAWN]}
+        issuedAt: {type: string, format: date-time}
+        expiresAt: {type: string, format: date-time, nullable: true}
+        usedAt: {type: string, format: date-time, nullable: true}
+        targetKind: {$ref: "#/components/schemas/TargetKind"}
+        benefit: {$ref: "#/components/schemas/Benefit"}
+        outcome: {type: object, nullable: true}
+    Fulfilment:
+      type: object
+      properties:
+        fulfilmentId: {type: string, format: uuid}
+        state: {type: string, enum: [PENDING, APPLIED, FAILED]}
+        outcome: {type: object, nullable: true}
+    Terms:
+      type: object
+      nullable: true
+      properties:
+        nominalRatePct: {type: number}
+        aprcPct: {type: number}
+        instalment: {$ref: "#/components/schemas/Money"}
+        amount: {$ref: "#/components/schemas/Money"}
+    LedgerEntry:
+      type: object
+      properties:
+        entryId: {type: string, format: uuid}
+        type: {type: string, enum: [EARN, CHARGE, RETURN, BURN, EXPIRE, REVERSE, MIGRATION]}
+        source: {type: string, enum: [mission, referral, promoCode, migratedLoyalty, promotionBonus, expiryReturn, redemption, manualGrant]}
+        flux: {type: integer, description: signed change of the balance}
+        couponFlux: {type: integer, description: signed change of FLUX held in coupons}
+        couponId: {type: string, format: uuid, nullable: true}
+        sourceRef: {type: string}
+        occurredAt: {type: string, format: date-time}
+    Settings:
+      type: object
+      properties:
+        participating: {type: boolean}
+        quietMode: {type: boolean}
+        notifications: {type: object, properties: {missions: {type: boolean}, coupons: {type: boolean}, expiry: {type: boolean}}}

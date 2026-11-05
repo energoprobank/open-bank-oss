@@ -443,6 +443,12 @@
         "openbank-loyalty-service/src/test"
       ]
     },
+    "openbank-rewards-service": {
+      "component": "rewards-service",
+      "exclude-paths": [
+        "openbank-rewards-service/src/test"
+      ]
+    },
     "openbank-wealth-service": {
       "component": "wealth-service",
       "exclude-paths": [

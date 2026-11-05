@@ -1,0 +1,196 @@
+quarkus:
+  application:
+    name: openbank-rewards-service
+  http:
+    port: 8161
+  datasource:
+    db-kind: postgresql
+    username: ${POSTGRES_USER:openbank}
+    password: ${POSTGRES_PASSWORD:CHANGE_ME_LOCAL_DEV_ONLY}
+    jdbc:
+      url: ${JDBC_URL:jdbc:postgresql://localhost:5432/openbank_rewards}
+      max-size: 20
+  flyway:
+    migrate-at-start: true
+    connect-retries: 10
+    connect-retries-interval: 2S
+  oidc:
+    auth-server-url: ${QUARKUS_OIDC_AUTH_SERVER_URL:http://localhost:8080/realms/openbank}
+    client-id: openbank-services
+    credentials:
+      secret: ${OIDC_CLIENT_SECRET:CHANGE_ME_LOCAL_DEV_ONLY}
+  # The engine's own client (service-account-openbank-rewards). Target services' OPA extensions
+  # admit this principal id for exactly the commands the benefit sagas issue.
+  oidc-client:
+    auth-server-url: ${QUARKUS_OIDC_CLIENT_AUTH_SERVER_URL:http://localhost:8080/realms/openbank}
+    client-id: ${REWARDS_OIDC_CLIENT_ID:openbank-rewards}
+    credentials:
+      secret: ${REWARDS_OIDC_CLIENT_SECRET:CHANGE_ME_LOCAL_DEV_ONLY}
+    grant:
+      type: client
+    early-tokens-acquisition: false
+  swagger-ui:
+    always-include: true
+    path: /api/docs
+  management:
+    enabled: true
+    port: 8085
+    host: 0.0.0.0
+    root-path: /q
+  shutdown:
+    timeout: 30S
+
+mp:
+  messaging:
+    # No group.id key: the group is the fallback `quarkus.application.name`. DLQ topics use the
+    # NESTED form, the only one SmallRye's YAML source resolves (#686).
+    incoming:
+      accounts-in:
+        connector: smallrye-kafka
+        topic: openbank.accounts.account.created
+        failure-strategy: dead-letter-queue
+        dead-letter-queue:
+          topic: openbank.dlq.rewards.accounts-in
+        value:
+          deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      transactions-in:
+        connector: smallrye-kafka
+        topic: openbank.transactions.transaction.initiated
+        failure-strategy: dead-letter-queue
+        dead-letter-queue:
+          topic: openbank.dlq.rewards.transactions-in
+        value:
+          deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      cards-in:
+        connector: smallrye-kafka
+        topic: openbank.cards.events
+        failure-strategy: dead-letter-queue
+        dead-letter-queue:
+          topic: openbank.dlq.rewards.cards-in
+        value:
+          deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      card-processing-in:
+        connector: smallrye-kafka
+        topic: openbank.card.processing.events
+        failure-strategy: dead-letter-queue
+        dead-letter-queue:
+          topic: openbank.dlq.rewards.card-processing-in
+        value:
+          deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      domestic-payments-in:
+        connector: smallrye-kafka
+        topic: openbank.domestic.payment.events
+        failure-strategy: dead-letter-queue
+        dead-letter-queue:
+          topic: openbank.dlq.rewards.domestic-payments-in
+        value:
+          deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      referral-in:
+        connector: smallrye-kafka
+        topic: openbank.referral.qualified.v1
+        failure-strategy: dead-letter-queue
+        dead-letter-queue:
+          topic: openbank.dlq.rewards.referral-in
+        value:
+          deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      lending-in:
+        connector: smallrye-kafka
+        topic: openbank.lending.events
+        failure-strategy: dead-letter-queue
+        dead-letter-queue:
+          topic: openbank.dlq.rewards.lending-in
+        value:
+          deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      incentive-in:
+        connector: smallrye-kafka
+        topic: openbank.incentive.events
+        failure-strategy: dead-letter-queue
+        dead-letter-queue:
+          topic: openbank.dlq.rewards.incentive-in
+        value:
+          deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    outgoing:
+      rewards-outbox-out:
+        connector: smallrye-kafka
+        topic: openbank.rewards.events.v1
+        value:
+          serializer: org.apache.kafka.common.serialization.StringSerializer
+
+opa:
+  url: "${OPA_URL:http://localhost:8181}"
+  path: "${OPA_PATH:/v1/data/openbank/rest/allow}"
+  timeout-ms: "${OPA_TIMEOUT_MS:500}"
+
+openbank:
+  # BUILD-TIME switch for the libs-runtime OPA PolicyDecisionPoint producer (@IfBuildProperty):
+  # without it every @Authorize endpoint fails closed with 503 "policy decision point not configured".
+  authz:
+    opa-pdp-producer:
+      enabled: true
+  outbox:
+    # Defaults to false in code by house convention; an outbox nobody dispatches fills forever.
+    dispatch-enabled: true
+    poll-interval: 5s
+    initial-delay: 5s
+
+rewards:
+  clients:
+    account-url: ${ACCOUNT_SERVICE_URL:http://localhost:8100}
+    card-url: ${CARD_ISSUANCE_SERVICE_URL:http://localhost:8118}
+    interest-url: ${INTEREST_SERVICE_URL:http://localhost:8125}
+    lending-url: ${LENDING_SERVICE_URL:http://localhost:8126}
+    incentive-url: ${INCENTIVE_SERVICE_URL:http://localhost:8156}
+    # Full URLs: the reward cash-credit and liability-posting commands (money path).
+    cash-credit-url: ${REWARDS_CASH_CREDIT_URL:http://localhost:8102/api/v1/reward-credits}
+    liability-posting-url: ${REWARDS_LIABILITY_POSTING_URL:http://localhost:8101/api/v1/ledger/reward-provisions}
+  jobs:
+    daily-cron: ${REWARDS_DAILY_CRON:0 10 2 * * ?}
+    fulfilment-retry: 60s
+
+"%test":
+  quarkus:
+    datasource:
+      username: openbank
+      password: openbank_secret
+      jdbc:
+        url: jdbc:postgresql://localhost:5432/openbank_rewards_it
+    devservices:
+      enabled: false
+    management:
+      enabled: false
+    oidc:
+      tenant-enabled: false
+    oidc-client:
+      enabled: false
+  # Advisory in tests only: the integration tests exercise the engine and HTTP contract; the
+  # policy is covered by the rego tests (rewards_rest_ext_test.rego).
+  authz:
+    enforce: false
+  mp:
+    messaging:
+      incoming:
+        accounts-in:
+          connector: smallrye-in-memory
+        transactions-in:
+          connector: smallrye-in-memory
+        cards-in:
+          connector: smallrye-in-memory
+        card-processing-in:
+          connector: smallrye-in-memory
+        domestic-payments-in:
+          connector: smallrye-in-memory
+        referral-in:
+          connector: smallrye-in-memory
+        lending-in:
+          connector: smallrye-in-memory
+        incentive-in:
+          connector: smallrye-in-memory
+      outgoing:
+        rewards-outbox-out:
+          connector: smallrye-in-memory
+
+"%dev":
+  quarkus:
+    oidc:
+      tls:
+        verification: none

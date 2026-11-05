@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: Apache-2.0
+# Per-service governance manifest (ADR-0071).
+dataDomain: open-banking
+primaryDatastore: PostgreSQL
+databaseName: openbank_rewards
+dataLineageRole: both
+dataClassification: confidential
+# The FLUX ledger is a liability record: kept 10 years, erasure anonymises party_id (spec).
+retentionPolicy: 10 years
+evidenceExported: false
+databaseLineage:
+  ownedDatabases:
+    - openbank_rewards
