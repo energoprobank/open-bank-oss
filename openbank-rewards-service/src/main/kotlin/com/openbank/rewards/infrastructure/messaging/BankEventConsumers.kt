@@ -124,24 +124,40 @@ class BankEventConsumers(private val handler: BankEventHandler, private val stor
     fun cardProcessing(msg: Message<String>) = handle(msg) { type, n ->
         val authId = n.text("authorizationId") ?: return@handle
         when (type) {
-            "card.authorised.v1" -> store.tx { it.putPendingTransaction(authKey(authId), msg.payload, Instant.now()) }
+            "card.authorised.v1" -> {
+                // The cleared event may have arrived first (different keys, different partitions).
+                val parked = store.tx { tx ->
+                    tx.putPendingTransaction(authKey(authId), msg.payload, Instant.now())
+                    tx.takePendingTransaction(clearedKey(authId))
+                }
+                parked?.let { cleared(authId, RewardsJson.mapper.readTree(it)) }
+            }
             "card.cleared.v1" -> {
                 if (n.has("fullyCleared") && !n["fullyCleared"].asBoolean()) return@handle
-                val auth = store.tx { it.takePendingTransaction(authKey(authId)) }?.let(RewardsJson.mapper::readTree)
-                val minor =
-                    n.decimal("cumulativeClearedMinorUnits") ?: n.decimal("clearedAmountMinorUnits") ?: return@handle
-                handler.cardPayment(
-                    authorizationId = authId,
-                    cardId = n.uuid("cardId") ?: auth?.uuid("cardId"),
-                    partyId = n.uuid("partyId") ?: auth?.uuid("partyId"),
-                    amount = minor.movePointLeft(2),
-                    currency = n.text("currencyCode") ?: auth?.text("currencyCode") ?: "CZK",
-                    merchant =
-                    n.text("merchantName") ?: auth?.text("merchantName") ?: auth?.text("mcc") ?: n.text("mcc"),
-                    at = n.instant("occurredAt") ?: Instant.now(),
-                )
+                val known = n.uuid("partyId") != null || store.tx { it.peekPendingTransaction(authKey(authId)) } != null
+                if (known) {
+                    cleared(authId, n)
+                } else {
+                    store.tx {
+                        it.putPendingTransaction(clearedKey(authId), msg.payload, Instant.now())
+                    }
+                }
             }
         }
+    }
+
+    private fun cleared(authId: String, n: JsonNode) {
+        val auth = store.tx { it.takePendingTransaction(authKey(authId)) }?.let(RewardsJson.mapper::readTree)
+        val minor = n.decimal("cumulativeClearedMinorUnits") ?: n.decimal("clearedAmountMinorUnits") ?: return
+        handler.cardPayment(
+            authorizationId = authId,
+            cardId = n.uuid("cardId") ?: auth?.uuid("cardId"),
+            partyId = n.uuid("partyId") ?: auth?.uuid("partyId"),
+            amount = minor.movePointLeft(2),
+            currency = n.text("currencyCode") ?: auth?.text("currencyCode") ?: "CZK",
+            merchant = n.text("merchantName") ?: auth?.text("merchantName") ?: auth?.text("mcc") ?: n.text("mcc"),
+            at = n.instant("occurredAt") ?: Instant.now(),
+        )
     }
 
     @Incoming("domestic-payments-in")
@@ -236,6 +252,8 @@ class BankEventConsumers(private val handler: BankEventHandler, private val stor
     }
 
     private fun authKey(authId: String): UUID = UUID.nameUUIDFromBytes("card-auth:$authId".toByteArray())
+
+    private fun clearedKey(authId: String): UUID = UUID.nameUUIDFromBytes("card-cleared:$authId".toByteArray())
 
     private fun JsonNode.text(field: String): String? = this[field]?.takeUnless {
         it.isNull

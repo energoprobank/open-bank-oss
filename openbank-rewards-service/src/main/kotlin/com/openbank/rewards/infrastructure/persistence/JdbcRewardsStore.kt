@@ -316,6 +316,9 @@ class JdbcTx(private val c: Connection) : RewardsTx {
         )
     }
 
+    override fun peekPendingTransaction(transactionId: UUID): String? =
+        one("SELECT payload FROM pending_transaction WHERE transaction_id = ?", transactionId) { it.getString(1) }
+
     override fun takePendingTransaction(transactionId: UUID): String? =
         one("DELETE FROM pending_transaction WHERE transaction_id = ? RETURNING payload", transactionId) {
             it.getString(1)

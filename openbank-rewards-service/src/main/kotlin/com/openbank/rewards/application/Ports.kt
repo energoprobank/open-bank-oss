@@ -148,6 +148,7 @@ interface RewardsTx {
     fun card(cardId: UUID): CardRef?
     fun putPendingTransaction(transactionId: UUID, payload: String, at: Instant)
     fun takePendingTransaction(transactionId: UUID): String?
+    fun peekPendingTransaction(transactionId: UUID): String?
 
     // facts and missions
     fun insertFact(fact: BehaviourFact, payload: String?, at: Instant): Boolean

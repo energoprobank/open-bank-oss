@@ -214,6 +214,28 @@ class RewardsEngineIT {
     }
 
     @Test
+    fun `a cleared event that overtakes its authorisation is parked, then counted`() {
+        val party = UUID.randomUUID()
+        directory.currentAndSavings(party)
+        customers.summary(party)
+        val source = connector.source<String>("card-processing-in")
+        val auth = UUID.randomUUID().toString()
+        source.send(
+            """{"eventType":"card.cleared.v1","authorizationId":"$auth","clearedAmountMinorUnits":9900,"currencyCode":"CZK","fullyCleared":true}""",
+        )
+        source.send(
+            """{"eventType":"card.authorised.v1","authorizationId":"$auth","partyId":"$party","merchantName":"Albert","currencyCode":"CZK"}""",
+        )
+        awaitTrue(Duration.ofSeconds(20)) { customers.missions(party).claimable.any { it.def.missionId == "M-CARD-2" } }
+        assertThat(
+            count(
+                "select count(*) from behaviour_fact where party_id = ? and fact_type = 'CARD_PAYMENT' and ref = 'Albert'",
+                party,
+            ),
+        ).isEqualTo(1)
+    }
+
+    @Test
     fun `G-CR-01 a credit fact never reaches a mission, and lending only feeds on-time repayments`() {
         val party = UUID.randomUUID()
         directory.currentAndSavings(party)
