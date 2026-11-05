@@ -84,6 +84,8 @@ class PartyEventEnvelopeContractTest {
         assertThat(json.has("payload")).isFalse()
         // AuditConsumer attribution (#3994/#5256): the strongest (EVENT-sourced) claim it reads.
         assertThat(json.get("sourceService").asText()).isEqualTo("party-service")
+        // Experience v2 step 8 (additive): account-service opens the accounts in this market's currency.
+        assertThat(json.get("market").asText()).isEqualTo("CZ")
     }
 
     @Test

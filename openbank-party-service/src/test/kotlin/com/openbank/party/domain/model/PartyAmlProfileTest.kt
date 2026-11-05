@@ -54,7 +54,7 @@ class PartyAmlProfileTest {
             arrayOf("not an ISO 3166-1", valid().copy(taxResidencies = listOf(TaxResidency("XX", null)))),
             arrayOf("not an ISO 3166-1", valid().copy(taxResidencies = listOf(TaxResidency("cz", null)))),
             arrayOf(
-                "tin is only accepted for a non-CZ",
+                "tin is only accepted for a foreign",
                 valid().copy(taxResidencies = listOf(TaxResidency("CZ", "123"))),
             ),
             arrayOf("exceeds 64", valid().copy(taxResidencies = listOf(TaxResidency("DE", "9".repeat(65))))),

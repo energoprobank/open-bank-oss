@@ -27,6 +27,7 @@ import com.openbank.party.domain.model.PartyStatus
 import com.openbank.party.domain.model.PartyType
 import com.openbank.party.domain.model.Payee
 import com.openbank.party.domain.model.PhoneDirectory
+import com.openbank.party.domain.model.TaxSelfCertification
 import com.openbank.party.infrastructure.persistence.entity.PartyDocumentEntity
 import com.openbank.party.infrastructure.persistence.entity.PartyDocumentFileEntity
 import com.openbank.party.infrastructure.persistence.entity.PartyEntity
@@ -217,6 +218,13 @@ class PartyRepositoryImpl(
         // (status = 'MERGED') = (merged_into IS NOT NULL) as a CHECK, so setting one
         // without the other fails the statement (ADR-0179).
         mergedInto = party.mergedIntoPartyId
+        // Self-service account opening (updateOnboardingDetails / certifyTaxResidency). The market
+        // itself is set at creation and never changes, so it is not copied here.
+        dateOfBirth = party.dateOfBirth
+        taxId = party.taxId
+        rcBlindIndex = party.rcBlindIndex
+        rcIndexKeyVersion = party.rcIndexKeyVersion
+        taxSelfCertification = party.taxSelfCertification?.let { objectMapper.writeValueAsString(it) }
     }
 
     /**
@@ -300,6 +308,8 @@ class PartyRepositoryImpl(
         it.pepCategory = pepCategory
         it.fatcaStatus = fatcaStatus
         it.crsStatus = crsStatus
+        it.market = market
+        it.taxSelfCertification = taxSelfCertification?.let { c -> objectMapper.writeValueAsString(c) }
     }
 
     private fun PartyEntity.toDomain() = Party(
@@ -336,6 +346,10 @@ class PartyRepositoryImpl(
         pepCategory = pepCategory,
         fatcaStatus = fatcaStatus,
         crsStatus = crsStatus,
+        market = market,
+        taxSelfCertification = taxSelfCertification?.let {
+            objectMapper.readValue(it, TaxSelfCertification::class.java)
+        },
     )
 }
 

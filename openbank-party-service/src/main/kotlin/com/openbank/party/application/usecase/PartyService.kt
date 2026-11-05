@@ -8,6 +8,7 @@ import com.openbank.libs.api.pagination.CursorEncoder
 import com.openbank.libs.api.pagination.CursorPage
 import com.openbank.libs.api.pagination.PageInfo
 import com.openbank.libs.api.search.SearchRequest
+import com.openbank.libs.domain.account.Market
 import com.openbank.libs.domain.error.ResourceConflictException
 import com.openbank.libs.domain.error.ResourceNotFoundException
 import com.openbank.libs.domain.identifiers.Ids
@@ -20,6 +21,7 @@ import com.openbank.party.application.port.`in`.CreatePartyCommand
 import com.openbank.party.application.port.`in`.ErasePartyCommand
 import com.openbank.party.application.port.`in`.GrantMandateCommand
 import com.openbank.party.application.port.`in`.MergePartyCommand
+import com.openbank.party.application.port.`in`.OnboardingDetailsCommand
 import com.openbank.party.application.port.`in`.PartyMandateRejectedException
 import com.openbank.party.application.port.`in`.PartyUseCase
 import com.openbank.party.application.port.`in`.PayeeLimitExceededException
@@ -29,6 +31,7 @@ import com.openbank.party.application.port.`in`.RevokeMandateCommand
 import com.openbank.party.application.port.`in`.SavePayeeCommand
 import com.openbank.party.application.port.`in`.SearchPartiesQuery
 import com.openbank.party.application.port.`in`.SelfRegisterPartyCommand
+import com.openbank.party.application.port.`in`.TaxSelfCertificationCommand
 import com.openbank.party.application.port.`in`.UpdateMarketingConsentCommand
 import com.openbank.party.application.port.`in`.UpdatePartyCommand
 import com.openbank.party.application.port.`in`.UploadDocumentCommand
@@ -44,8 +47,26 @@ import com.openbank.party.application.port.out.PartyPayeeRepository
 import com.openbank.party.application.port.out.PartyRepository
 import com.openbank.party.application.port.out.PartyWrite
 import com.openbank.party.application.port.out.PortabilityAggregationPort
-import com.openbank.party.domain.model.*
+import com.openbank.party.domain.model.AmlProfileDeclaration
+import com.openbank.party.domain.model.AmlStatus
+import com.openbank.party.domain.model.KycStatus
+import com.openbank.party.domain.model.MandateAuthority
+import com.openbank.party.domain.model.MandateStatus
+import com.openbank.party.domain.model.Party
+import com.openbank.party.domain.model.PartyActor
+import com.openbank.party.domain.model.PartyChange
+import com.openbank.party.domain.model.PartyDocument
 import com.openbank.party.domain.model.PartyDocumentFile
+import com.openbank.party.domain.model.PartyEvents
+import com.openbank.party.domain.model.PartyGdprExport
+import com.openbank.party.domain.model.PartyMandate
+import com.openbank.party.domain.model.PartyPortabilityExport
+import com.openbank.party.domain.model.PartyStatus
+import com.openbank.party.domain.model.PartyType
+import com.openbank.party.domain.model.Payee
+import com.openbank.party.domain.model.PhoneDirectory
+import com.openbank.party.domain.model.TaxResidency
+import com.openbank.party.domain.model.TaxSelfCertification
 import jakarta.enterprise.context.ApplicationScoped
 import jakarta.inject.Inject
 import java.time.Clock
@@ -54,6 +75,8 @@ import java.util.Optional
 import java.util.UUID
 
 private const val RC_KEY_VERSION = 1
+private const val MAX_PHONE = 32
+private const val MAX_RESIDENCIES = 10
 
 /**
  * A national / personal identifier as an operator types it, for ANY country — birth number (CZ/SK),
@@ -158,6 +181,8 @@ class PartyService : PartyUseCase {
         cmd.id?.let { requested ->
             partyRepo.findById(requested)?.let { return it }
         }
+        val market = Market.of(cmd.market)
+            ?: throw IllegalArgumentException("market must be one of ${Market.entries.joinToString()}")
         val (rcIndex, rcKeyVer) = computeRcBlindIndex(cmd.taxId)
         val consentCapturedAt = if (cmd.consentGdpr != null || cmd.consentMarketing != null) {
             Instant.now(clock)
@@ -191,6 +216,7 @@ class PartyService : PartyUseCase {
             consentGdpr = cmd.consentGdpr,
             consentMarketing = cmd.consentMarketing,
             consentCapturedAt = consentCapturedAt,
+            market = market.name,
         )
         val saved = partyRepo.save(
             party,
@@ -380,6 +406,90 @@ class PartyService : PartyUseCase {
         // event is published either way — account-service reconciles on PARTY_UPDATED regardless
         // — but only MATERIAL is a KYC re-screening trigger, and NO_CHANGE is its own outcome.
         changeMetrics.changeClassified(PartyChange.classify(result.before, result.after).materiality)
+        return result.after
+    }
+
+    /**
+     * The applicant's own details during self-service account opening. Only while PENDING_KYC: once the
+     * bank has decided, a change goes through the operator PATCH and its materiality rules. The national
+     * number is validated for the party's market, must encode the declared birthdate, and is set once.
+     */
+    override suspend fun updateOnboardingDetails(cmd: OnboardingDetailsCommand): Party {
+        val dateOfBirth = try {
+            java.time.LocalDate.parse(cmd.dateOfBirth)
+        } catch (e: java.time.format.DateTimeParseException) {
+            throw IllegalArgumentException("dateOfBirth must be an ISO date (yyyy-MM-dd)")
+        }
+        require(cmd.phone.isNotBlank() && cmd.phone.length <= MAX_PHONE) { "phone must be 1..$MAX_PHONE characters" }
+        require(
+            cmd.address.line1.isNotBlank() && cmd.address.city.isNotBlank() && cmd.address.postalCode.isNotBlank(),
+        ) {
+            "address needs street, city and postal code"
+        }
+        val result = partyRepo.modify(cmd.id) { party ->
+            if (party.status != PartyStatus.PENDING_KYC) {
+                throw ResourceConflictException(
+                    "Personal details can only be given while the account opening is in progress",
+                )
+            }
+            val market = Market.of(party.market) ?: Market.DEFAULT
+            val nationalId = market.canonicalNationalId(cmd.nationalId)
+                ?: throw IllegalArgumentException("nationalId is not a valid ${market.nationalIdName}")
+            require(market.birthdateOf(nationalId) == dateOfBirth) { "nationalId does not encode dateOfBirth" }
+            if (party.taxId != null && party.taxId != nationalId) {
+                throw ResourceConflictException("A different national number is already recorded for this party")
+            }
+            val (rcIndex, rcKeyVer) = if (market == Market.CZ) computeRcBlindIndex(nationalId) else (null to null)
+            val updated = party.copy(
+                dateOfBirth = dateOfBirth.toString(),
+                taxId = nationalId,
+                phone = cmd.phone.trim(),
+                address = cmd.address,
+                rcBlindIndex = rcIndex ?: party.rcBlindIndex,
+                rcIndexKeyVersion = rcKeyVer ?: party.rcIndexKeyVersion,
+                updatedAt = Instant.now(clock),
+            )
+            PartyWrite(
+                updated,
+                PartyEvents.updated(party, updated, Instant.now(clock), PartyActor.system("onboarding")),
+            )
+        } ?: throw PartyNotFoundException(cmd.id)
+        changeMetrics.changeClassified(PartyChange.classify(result.before, result.after).materiality)
+        return result.after
+    }
+
+    /**
+     * FATCA/CRS self-certification. Countries are ISO 3166-1 alpha-2, none repeated, and a US tax
+     * residency implies a US person. Stored apart from the AML profile (never sets `fatcaStatus`).
+     */
+    override suspend fun certifyTaxResidency(cmd: TaxSelfCertificationCommand): Party {
+        require(cmd.residencies.isNotEmpty()) { "residencies must name at least one country" }
+        require(cmd.residencies.size <= MAX_RESIDENCIES) { "at most $MAX_RESIDENCIES tax residencies" }
+        val iso = java.util.Locale.getISOCountries().toSet()
+        val residencies = cmd.residencies.map {
+            val country = it.country.trim().uppercase()
+            require(country in iso) { "'${it.country}' is not an ISO 3166-1 alpha-2 country code" }
+            require((it.tin?.length ?: 0) <= AmlProfileDeclaration.MAX_TIN) { "tin for $country is too long" }
+            TaxResidency(country, it.tin?.trim()?.takeIf { tin -> tin.isNotEmpty() })
+        }
+        require(
+            residencies.map {
+                it.country
+            }.toSet().size == residencies.size,
+        ) { "residencies must not repeat a country" }
+        require(cmd.usPerson || residencies.none { it.country == AmlProfileDeclaration.US }) {
+            "usPerson must be true when US is a tax residency"
+        }
+        val result = partyRepo.modify(cmd.id) { party ->
+            val updated = party.copy(
+                taxSelfCertification = TaxSelfCertification(cmd.usPerson, residencies, Instant.now(clock)),
+                updatedAt = Instant.now(clock),
+            )
+            PartyWrite(
+                updated,
+                PartyEvents.updated(party, updated, Instant.now(clock), PartyActor.system("onboarding")),
+            )
+        } ?: throw PartyNotFoundException(cmd.id)
         return result.after
     }
 

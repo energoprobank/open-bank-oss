@@ -44,7 +44,7 @@ enum class PepCategory {
 /** `parties.fatca_status` vocabulary. V2 created the column with no values; these are the first. */
 enum class FatcaStatus { US_PERSON, NON_US }
 
-/** `parties.crs_status` vocabulary. REPORTABLE = at least one tax residency outside CZ. */
+/** `parties.crs_status` vocabulary. REPORTABLE = at least one tax residency outside the party's market country. */
 enum class CrsStatus { REPORTABLE, NON_REPORTABLE }
 
 /** Why a declaration routes the party to enhanced due diligence. Order is the declaration order. */
@@ -77,6 +77,8 @@ data class AmlProfileDeclaration(
     val taxResidencies: List<TaxResidency>,
     val usPerson: Boolean,
     val truthful: Boolean,
+    /** The party's own market country: its residency carries no TIN and is not CRS-reportable. */
+    val domesticCountry: String = DOMESTIC,
 ) {
     fun validate() {
         check(purposes.isNotEmpty()) { "purpose must name at least one value" }
@@ -110,7 +112,7 @@ data class AmlProfileDeclaration(
         check(taxResidencies.isNotEmpty()) { "taxResidencies must name at least one country" }
         taxResidencies.forEach { r ->
             check(r.country in ISO_COUNTRIES) { "taxResidencies: '${r.country}' is not an ISO 3166-1 alpha-2 code" }
-            check(r.tin == null || r.country != DOMESTIC) { "tin is only accepted for a non-CZ tax residency" }
+            check(r.tin == null || r.country != domesticCountry) { "tin is only accepted for a foreign tax residency" }
             check((r.tin?.length ?: 0) <= MAX_TIN) { "tin for ${r.country} exceeds $MAX_TIN characters" }
         }
         check(taxResidencies.map { it.country }.toSet().size == taxResidencies.size) {
@@ -164,7 +166,7 @@ object AmlProfiles {
         pepFlag = d.pep.isPep,
         pepCategory = d.pep.category.takeIf { d.pep.isPep },
         fatcaStatus = if (d.usPerson) FatcaStatus.US_PERSON else FatcaStatus.NON_US,
-        crsStatus = if (d.taxResidencies.any { it.country != AmlProfileDeclaration.DOMESTIC }) {
+        crsStatus = if (d.taxResidencies.any { it.country != d.domesticCountry }) {
             CrsStatus.REPORTABLE
         } else {
             CrsStatus.NON_REPORTABLE

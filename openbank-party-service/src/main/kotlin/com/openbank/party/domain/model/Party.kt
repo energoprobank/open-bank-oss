@@ -85,6 +85,14 @@ data class Party(
     val pepCategory: String? = null,
     val fatcaStatus: String? = null,
     val crsStatus: String? = null,
+    /**
+     * The commercial market the person banks in (`CZ` default, `BG`): account currency and IBAN,
+     * which national number [taxId] carries (rodné číslo or ЕГН) and the domestic tax residency.
+     * Set at creation; a person who moves countries is a new relationship, not an edit.
+     */
+    val market: String = "CZ",
+    /** FATCA/CRS self-certification given at account opening (not the full AML profile, see [amlProfileDeclared]). */
+    val taxSelfCertification: TaxSelfCertification? = null,
 ) {
     /**
      * Whether a personal AML profile has been declared. A declaration always writes
@@ -105,6 +113,13 @@ data class Party(
         else -> null
     }
 }
+
+/**
+ * A FATCA/CRS self-certification: whether the person is a US person and every country they are tax
+ * resident in. Deliberately separate from [PartyAmlProfile] — writing it never sets
+ * `fatcaStatus`, which would claim the full AML declaration had been made.
+ */
+data class TaxSelfCertification(val usPerson: Boolean, val residencies: List<TaxResidency>, val certifiedAt: Instant)
 
 data class Address(
     val line1: String,

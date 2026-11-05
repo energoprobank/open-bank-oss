@@ -58,15 +58,16 @@ class PartyAmlProfileService : PartyAmlProfileUseCase {
     override suspend fun declareAmlProfile(cmd: DeclareAmlProfileCommand): PartyAmlProfile {
         val party = partyRepo.findById(cmd.partyId) ?: throw PartyNotFoundException(cmd.partyId)
         requireEligible(party)
-        cmd.declaration.validate()
+        val declaration = cmd.declaration.copy(domesticCountry = party.market)
+        declaration.validate()
         val now = Instant.now(clock)
         val previous = profileRepo.findCurrent(party.id)
         val profile = PartyAmlProfile(
             partyId = party.id,
             version = (previous?.version ?: 0) + 1,
-            declaration = cmd.declaration,
+            declaration = declaration,
             riskFactors = AmlProfiles.riskFactors(
-                cmd.declaration,
+                declaration,
                 highRiskCountries.map { it.trim().uppercase() }.toSet(),
             ),
             declaredAt = now,

@@ -223,6 +223,9 @@ object PartyEvents {
             "kycStatus" to party.kycStatus,
             "legalName" to party.legalName,
             "email" to party.email,
+            // Additive (experience v2 step 8): the market decides the currency and IBAN of the
+            // accounts account-service opens on PARTY_CREATED. Absent on older events = CZ.
+            "market" to party.market,
             "occurredAt" to at,
             EventActor.FIELD_ACTOR_ID to actor.id,
             EventActor.FIELD_ACTOR_TYPE to actor.type,

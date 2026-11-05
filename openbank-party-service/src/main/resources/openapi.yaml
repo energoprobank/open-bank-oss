@@ -19,7 +19,7 @@ info:
   # 1.27.0 -> 1.28.0: additive only — GET /api/v1/reporting/parties/{id}/tax-facts (ADR-0340 B1,
   # the CRS/FATCA TIN boundary: the derived statuses and residencies WITH TINs, readable by
   # service-account-openbank-tax-reporting alone, audit-logged without TINs).
-  version: 1.29.0
+  version: 1.30.0
   description: Legal entity and individual party management with document storage.
   license:
     name: Apache-2.0
@@ -130,6 +130,56 @@ paths:
         '403':
           description: Caller lacks a permitted role
 
+  /api/v1/parties/{id}/onboarding-details:
+    put:
+      summary: Personal details given during self-service account opening (machine callers)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [dateOfBirth, nationalId, phone, address]
+              properties:
+                dateOfBirth: { type: string, format: date }
+                nationalId: { type: string, description: "Rodné číslo (CZ) or ЕГН (BG), by the party's market" }
+                phone: { type: string, maxLength: 32 }
+                address: { $ref: '#/components/schemas/AddressDto' }
+      responses:
+        '200': { description: The updated party }
+        '400': { description: Invalid national number, or it does not encode the date of birth }
+        '404': { description: Party not found }
+        '409': { description: Application already decided, or a different national number is recorded }
+  /api/v1/parties/{id}/tax-self-certification:
+    put:
+      summary: FATCA/CRS tax-residency self-certification (machine callers)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [usPerson, residencies]
+              properties:
+                usPerson: { type: boolean }
+                residencies:
+                  type: array
+                  minItems: 1
+                  maxItems: 10
+                  items:
+                    type: object
+                    required: [country]
+                    properties:
+                      country: { type: string, description: ISO 3166-1 alpha-2 }
+                      tin: { type: string, maxLength: 64 }
+      responses:
+        '200': { description: The updated party }
+        '400': { description: Invalid country, repeated country, or US residency without usPerson }
+        '404': { description: Party not found }
   /api/v1/parties/{id}:
     get:
       tags: [Parties]
@@ -1118,6 +1168,14 @@ components:
             taxId: { type: string, nullable: true }
             registrationNumber: { type: string, nullable: true }
             registrationCountry: { type: string, nullable: true, description: "ADR-0284: ISO 3166-1 alpha-2 of the register that issued registrationNumber" }
+            market: { type: string, enum: [CZ, BG], description: "The market the party banks in (CZ default)" }
+            taxSelfCertification:
+              type: object
+              nullable: true
+              properties:
+                usPerson: { type: boolean }
+                residencies: { type: array, items: { type: object, properties: { country: { type: string }, tin: { type: string, nullable: true } } } }
+                certifiedAt: { type: string, format: date-time }
             legalForm: { type: string, nullable: true, description: "ADR-0284: register legal-form code (ARES pravniForma, ISO 20275 ELF)" }
             email: { type: string }
             phone: { type: string, nullable: true }
@@ -1250,6 +1308,11 @@ components:
         legalForm:
           type: string
           description: ADR-0284. Register legal-form code (ARES pravniForma, ISO 20275 ELF) for a legal entity.
+        market:
+          type: string
+          enum: [CZ, BG]
+          default: CZ
+          description: The market a retail customer opens their accounts in (currency, IBAN, national number).
         email:
           type: string
           format: email

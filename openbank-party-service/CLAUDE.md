@@ -79,3 +79,18 @@ PII surface are recorded here.
     `@RolesAllowed`, and `PartyApiIT` proves 200 on detail and 403 on search and list.
   - *Residual risk:* no per-party scoping — an officer who learns another id can read that party;
     accepted because the role is internal staff and VIEWER has the same reach.
+- **2026-11-05 — machine writes for self-service account opening (experience v2 step 8).**
+  `PUT /api/v1/parties/{id}/onboarding-details` (date of birth, national number, phone, address)
+  and `PUT /api/v1/parties/{id}/tax-self-certification` admit `ROLE_API` so onboarding-service can
+  record what the applicant typed after customer-edge has taken the party from their token.
+  - *Tampering:* onboarding-details is refused (409) once the party leaves `PENDING_KYC`, and the
+    national number is set once — a later change goes through the operator PATCH. The number is
+    validated for the party's `market` (rodné číslo / ЕГН) and must encode the date of birth.
+  - *Elevation:* no customer reaches these routes directly; customer-edge never forwards a path
+    party id, only the token's.
+  - *Residual risk:* any `ROLE_API` principal could call them for any PENDING_KYC party; the OPA
+    actions `party.onboarding-details` / `party.tax-self-certification` are where a per-principal
+    grant narrows that once authz enforcement is on.
+- **Known gap (not changed here, plan step 7):** `PartyRepositoryImpl.applyFrom` does not copy
+  `legalName`, `nationality` (and until step 8 `dateOfBirth`), so the operator PATCH accepts those
+  material fields, emits PARTY_UPDATED and then does not persist them.

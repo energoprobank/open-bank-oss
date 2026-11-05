@@ -59,7 +59,25 @@ data class CreatePartyCommand(
     /** ADR-0284: legal-entity register facts; null for a natural person. */
     val legalForm: String? = null,
     val registrationCountry: String? = null,
+    /** `CZ` (default) or `BG`: the market a retail customer opens their accounts in. */
+    val market: String = "CZ",
 )
+
+/**
+ * The personal details an applicant gives during self-service account opening, after the party was
+ * created by `POST /onboarding/start`. Accepted only while the party is PENDING_KYC; the national
+ * number is set once and must be valid for the party's market and encode [dateOfBirth].
+ */
+data class OnboardingDetailsCommand(
+    val id: UUID,
+    val dateOfBirth: String,
+    val nationalId: String,
+    val phone: String,
+    val address: Address,
+)
+
+/** FATCA/CRS self-certification at account opening (see [TaxSelfCertification]). */
+data class TaxSelfCertificationCommand(val id: UUID, val usPerson: Boolean, val residencies: List<TaxResidency>)
 
 /**
  * ADR-0179: retire [id] as a duplicate of [mergedIntoPartyId]. Both parties must be live, distinct,
@@ -159,6 +177,10 @@ interface PartyUseCase {
     suspend fun createParty(cmd: CreatePartyCommand): Party
     suspend fun getParty(id: UUID): Party
     suspend fun updateParty(cmd: UpdatePartyCommand): Party
+
+    suspend fun updateOnboardingDetails(cmd: OnboardingDetailsCommand): Party
+
+    suspend fun certifyTaxResidency(cmd: TaxSelfCertificationCommand): Party
 
     /**
      * Pay-to-phone directory lookup. Answers ONLY about parties that opted into being

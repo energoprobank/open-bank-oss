@@ -48,6 +48,14 @@ class PartyEntity : PanacheEntity() {
     @Column(name = "registration_country")
     var registrationCountry: String? = null
 
+    /** CZ or BG (V28); every party created before markets existed is CZ. */
+    @Column(name = "market", nullable = false)
+    var market: String = "CZ"
+
+    /** FATCA/CRS self-certification as JSON (V28): `{usPerson, residencies[{country, tin}], certifiedAt}`. */
+    @Column(name = "tax_self_certification")
+    var taxSelfCertification: String? = null
+
     @Column(name = "email", nullable = false, unique = true)
     lateinit var email: String
 

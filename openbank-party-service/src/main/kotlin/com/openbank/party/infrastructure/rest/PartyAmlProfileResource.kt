@@ -172,10 +172,9 @@ data class AmlProfileRequest(
         val countries = requireNotNull(taxResidencies) { "taxResidencies is required" }
             .map { requireNotNull(it.blankToNull()) { "taxResidencies entries must be ISO country codes" }.uppercase() }
         val tins = tin.orEmpty().mapKeys { (k, _) -> k.trim().uppercase() }
-        tins.keys.forEach { key ->
-            require(key != AmlProfileDeclaration.DOMESTIC) { "tin is only accepted for a non-CZ tax residency" }
-            require(key in countries) { "tin key '$key' is not a declared tax residency" }
-        }
+        // A TIN for the party's own (domestic) country is refused by AmlProfileDeclaration.validate,
+        // which knows the party's market; here only the shape is checked.
+        tins.keys.forEach { key -> require(key in countries) { "tin key '$key' is not a declared tax residency" } }
         return countries.map { TaxResidency(it, tins[it].blankToNull()) }
     }
 }

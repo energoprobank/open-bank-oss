@@ -16,12 +16,14 @@ import com.openbank.party.application.port.`in`.AddDocumentCommand
 import com.openbank.party.application.port.`in`.CreatePartyCommand
 import com.openbank.party.application.port.`in`.ErasePartyCommand
 import com.openbank.party.application.port.`in`.MergePartyCommand
+import com.openbank.party.application.port.`in`.OnboardingDetailsCommand
 import com.openbank.party.application.port.`in`.PartyUseCase
 import com.openbank.party.application.port.`in`.PayeeLimitExceededException
 import com.openbank.party.application.port.`in`.ResolvePartyByRcCommand
 import com.openbank.party.application.port.`in`.SavePayeeCommand
 import com.openbank.party.application.port.`in`.SearchPartiesQuery
 import com.openbank.party.application.port.`in`.SelfRegisterPartyCommand
+import com.openbank.party.application.port.`in`.TaxSelfCertificationCommand
 import com.openbank.party.application.port.`in`.UpdateMarketingConsentCommand
 import com.openbank.party.application.port.`in`.UpdatePartyCommand
 import com.openbank.party.application.port.`in`.UploadDocumentCommand
@@ -34,6 +36,7 @@ import com.openbank.party.domain.model.PartyGdprExport
 import com.openbank.party.domain.model.PartyStatus
 import com.openbank.party.domain.model.PartyType
 import com.openbank.party.domain.model.Payee
+import com.openbank.party.domain.model.TaxResidency
 import io.quarkus.security.Authenticated
 import io.quarkus.security.identity.SecurityIdentity
 import jakarta.annotation.security.RolesAllowed
@@ -274,6 +277,50 @@ class PartyResource {
                 legalName = req.legalName,
                 dateOfBirth = req.dateOfBirth,
                 nationality = req.nationality,
+            ),
+        )
+        return Response.ok(party.toResponse()).build()
+    }
+
+    /**
+     * Self-service account opening (experience v2 step 8): the applicant's date of birth, national
+     * number (rodné číslo or ЕГН, by the party's market), phone and address. Machine callers only —
+     * onboarding-service, after customer-edge has taken the party from the customer's token.
+     * 409 once the bank has decided on the application, or when another national number is recorded.
+     */
+    @PUT
+    @Path("/{id}/onboarding-details")
+    @RolesAllowed("ROLE_API", "ROLE_OPERATOR", "ROLE_ADMIN")
+    @Authorize(action = "party.onboarding-details", resource = "#id")
+    @Operation(summary = "Personal details given during self-service account opening")
+    suspend fun updateOnboardingDetails(@PathParam("id") id: UUID, req: OnboardingDetailsRequest?): Response {
+        val body = requireNotNull(req) { "request body is required" }
+        val party = partyUseCase.updateOnboardingDetails(
+            OnboardingDetailsCommand(
+                id = id,
+                dateOfBirth = requireNotNull(body.dateOfBirth) { "dateOfBirth is required" },
+                nationalId = requireNotNull(body.nationalId) { "nationalId is required" },
+                phone = requireNotNull(body.phone) { "phone is required" },
+                address = requireNotNull(body.address) { "address is required" }.toDomain(),
+            ),
+        )
+        return Response.ok(party.toResponse()).build()
+    }
+
+    /** FATCA/CRS self-certification (account opening, or later from the profile). Machine callers only. */
+    @PUT
+    @Path("/{id}/tax-self-certification")
+    @RolesAllowed("ROLE_API", "ROLE_OPERATOR", "ROLE_ADMIN")
+    @Authorize(action = "party.tax-self-certification", resource = "#id")
+    @Operation(summary = "Record the person's FATCA/CRS tax-residency self-certification")
+    suspend fun certifyTaxResidency(@PathParam("id") id: UUID, req: TaxSelfCertificationRequest?): Response {
+        val body = requireNotNull(req) { "request body is required" }
+        val party = partyUseCase.certifyTaxResidency(
+            TaxSelfCertificationCommand(
+                id = id,
+                usPerson = requireNotNull(body.usPerson) { "usPerson is required" },
+                residencies = requireNotNull(body.residencies) { "residencies is required" }
+                    .map { TaxResidency(requireNotNull(it.country) { "residencies[].country is required" }, it.tin) },
             ),
         )
         return Response.ok(party.toResponse()).build()
@@ -772,6 +819,8 @@ data class CreatePartyRequest(
     /** ADR-0284: register legal-form code + issuing country of [registrationNumber] for a legal entity. */
     val legalForm: String? = null,
     val registrationCountry: String? = null,
+    /** CZ (default) or BG — the market a retail customer opens their accounts in. */
+    val market: String? = null,
 ) {
     fun classification(): PartyClassification = classification?.let {
         PartyClassification.valueOf(it.uppercase())
@@ -788,6 +837,7 @@ data class CreatePartyRequest(
             classification = classification,
             legalForm = legalForm?.takeIf { it.isNotBlank() },
             registrationCountry = registrationCountry?.takeIf { it.isNotBlank() }?.uppercase(),
+            market = market?.takeIf { it.isNotBlank() }?.uppercase() ?: "CZ",
         )
     }
 }
@@ -826,6 +876,20 @@ fun Payee.toResponse() = mapOf(
     "bic" to bic,
     "createdAt" to createdAt,
 )
+data class OnboardingDetailsRequest(
+    val dateOfBirth: String? = null,
+    val nationalId: String? = null,
+    val phone: String? = null,
+    val address: AddressRequest? = null,
+)
+
+data class TaxResidencyRequest(val country: String? = null, val tin: String? = null)
+
+data class TaxSelfCertificationRequest(
+    val usPerson: Boolean? = null,
+    val residencies: List<TaxResidencyRequest>? = null,
+)
+
 data class AddressRequest(
     val line1: String,
     val line2: String?,
@@ -859,6 +923,10 @@ fun Party.toResponse() = mapOf(
     "tradingName" to tradingName, "email" to email, "phone" to phone,
     // ADR-0284: register facts of a legal entity (null for a person).
     "registrationNumber" to registrationNumber, "registrationCountry" to registrationCountry, "legalForm" to legalForm,
+    "market" to market,
+    "taxSelfCertification" to taxSelfCertification?.let {
+        mapOf("usPerson" to it.usPerson, "residencies" to it.residencies, "certifiedAt" to it.certifiedAt)
+    },
     "kycStatus" to kycStatus, "address" to address, "createdAt" to createdAt, "updatedAt" to updatedAt,
     // Onboarding-time consent snapshot (consentGdpr is informational/non-revocable — see
     // UpdateMarketingConsentCommand kdoc) + the live, revocable marketing preference.
