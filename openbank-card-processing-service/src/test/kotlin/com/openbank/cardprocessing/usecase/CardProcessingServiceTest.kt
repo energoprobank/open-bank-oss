@@ -29,6 +29,7 @@ import com.openbank.cardprocessing.application.usecase.CardNotFoundException
 import com.openbank.cardprocessing.application.usecase.CardProcessingService
 import com.openbank.cardprocessing.application.usecase.ClearingLedgerPoster
 import com.openbank.cardprocessing.domain.event.CardAuthorised
+import com.openbank.cardprocessing.domain.event.CardCleared
 import com.openbank.cardprocessing.domain.event.CardDeclined
 import com.openbank.cardprocessing.domain.model.AuthorizationStatus
 import com.openbank.cardprocessing.domain.model.CardAuthorization
@@ -343,6 +344,26 @@ class CardProcessingServiceTest {
         assertThat(captured.captured.amountMinorUnits).isEqualTo(4_000)
         assertThat(captured.captured.currencyCode).isEqualTo("CZK")
         assertThat(captured.captured.requestFingerprint).hasSize(SHA256_HEX_LENGTH)
+        Unit
+    }
+
+    @Test
+    fun `a clearing event names the party and the merchant of the authorisation it settles`(): Unit = runBlocking {
+        val approved = authorization(AuthorizationStatus.APPROVED)
+        coEvery { repository.findById(approved.id) } returns approved
+        coEvery { repository.findClearing(approved.id, "clr-party") } returns null
+        val event = slot<OutboxMessage>()
+        coEvery { repository.saveClearing(any(), capture(event), any()) } answers { firstArg() }
+        coEvery { ledger.postClearedSpend(any(), any(), any()) } returns
+            PostingResult(PostingOutcome.POSTED, null, null)
+
+        service().clear(PresentmentCommand(approved.id, 4_000, "CZK", "clr-party"))
+
+        assertThat(event.captured.eventType).isEqualTo(CardCleared.EVENT_TYPE)
+        val payload = ObjectMapper().readTree(event.captured.payload)
+        assertThat(payload.get("partyId").asText()).isEqualTo(partyId.toString())
+        assertThat(payload.get("merchantName").asText()).isEqualTo("Restaurace")
+        assertThat(payload.get("mcc").asText()).isEqualTo("5812")
         Unit
     }
 

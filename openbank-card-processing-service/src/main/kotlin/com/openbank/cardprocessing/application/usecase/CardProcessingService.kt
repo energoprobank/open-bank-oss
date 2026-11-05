@@ -299,6 +299,9 @@ class CardProcessingService(
             fullyCleared = fullyCleared,
             category = cleared.category,
             occurredAt = Instant.now(clock),
+            partyId = cleared.partyId,
+            merchantName = cleared.merchantName,
+            mcc = cleared.mcc,
         )
         val appliedAt = Instant.now(clock)
         val claimToken = Ids.randomId()

@@ -65,7 +65,7 @@ Publikované na `openbank.card.processing.events`, popsané v `openbank-contract
 |---|---|---|
 | `card.authorised.v1` | schválení | částka, měna, kanál, mcc, kategorie, obchodník, `expiresAt` |
 | `card.declined.v1` | zamítnutí | `reason` (důvod zamítnutí z card-issuance, doslovně) |
-| `card.cleared.v1` | přijatý clearing | `clearedAmountMinorUnits`, `cumulativeClearedMinorUnits`, `fullyCleared` |
+| `card.cleared.v1` | přijatý clearing | `clearedAmountMinorUnits`, `cumulativeClearedMinorUnits`, `fullyCleared`, volitelně `partyId`, `merchantName`, `mcc` |
 | `card.hold_released.v1` | reverzace nebo expirace | `releasedAmountMinorUnits`, `releaseKind` (`REVERSAL` / `EXPIRY`) |
 
 | `card.token.provisioned.v1` | token vydán | `registrationId`, `tokenReference`, `requestorId`, `requestorLabel`, `scheme`, `status`, `expiry` |

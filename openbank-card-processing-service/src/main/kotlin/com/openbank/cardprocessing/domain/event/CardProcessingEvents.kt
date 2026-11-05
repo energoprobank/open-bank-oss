@@ -106,6 +106,12 @@ data class CardCleared(
     val category: String,
     override val occurredAt: Instant,
     override val sourceService: String = SOURCE_SERVICE,
+    // Additive, optional on the wire (FLUX rewards): who spent and where, copied from the
+    // authorisation this clearing settles so a consumer need not join card.authorised.v1.
+    // merchantName and mcc are null when the acquirer did not send them.
+    val partyId: UUID? = null,
+    val merchantName: String? = null,
+    val mcc: String? = null,
 ) : CardProcessingEvent() {
     companion object {
         /** See [CardAuthorised.EVENT_TYPE] for why the constant lives on the event. */

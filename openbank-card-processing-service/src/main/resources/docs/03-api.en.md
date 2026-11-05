@@ -65,7 +65,7 @@ Published on `openbank.card.processing.events`, documented in `openbank-contract
 |---|---|---|
 | `card.authorised.v1` | approval | amount, currency, channel, mcc, category, merchant, `expiresAt` |
 | `card.declined.v1` | decline | `reason` (card-issuance's decline reason, verbatim) |
-| `card.cleared.v1` | accepted clearing | `clearedAmountMinorUnits`, `cumulativeClearedMinorUnits`, `fullyCleared` |
+| `card.cleared.v1` | accepted clearing | `clearedAmountMinorUnits`, `cumulativeClearedMinorUnits`, `fullyCleared`, optional `partyId`, `merchantName`, `mcc` |
 | `card.hold_released.v1` | reversal or expiry | `releasedAmountMinorUnits`, `releaseKind` (`REVERSAL` / `EXPIRY`) |
 
 | `card.token.provisioned.v1` | token provisioned | `registrationId`, `tokenReference`, `requestorId`, `requestorLabel`, `scheme`, `status`, `expiry` |

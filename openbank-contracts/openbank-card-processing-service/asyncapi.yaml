@@ -4,7 +4,7 @@
 asyncapi: 3.0.0
 info:
   title: OpenBank Card Processing Service — card money-path events
-  version: 1.1.0
+  version: 1.2.0
   description: |
     What the card money path publishes (ADR-0283 phase 1, #8809): an authorisation decision, the
     clearing presentments against it, and the release of a hold nobody presented against.
@@ -189,6 +189,18 @@ components:
         category: { type: string }
         occurredAt: { type: string, format: date-time }
         sourceService: { type: string, enum: [card-processing-service] }
+        partyId:
+          type: [string, 'null']
+          format: uuid
+          description: >-
+            The card holder's party, copied from the authorisation (additive, optional — absent on
+            events published before 1.2.0).
+        merchantName:
+          type: [string, 'null']
+          description: The merchant name from the authorisation, when the acquirer sent one.
+        mcc:
+          type: [string, 'null']
+          description: The merchant category code from the authorisation, when the acquirer sent one.
     cardHoldReleased:
       type: object
       required: [authorizationId, cardId, accountId, releasedAmountMinorUnits, currencyCode, releaseKind, occurredAt, sourceService]
