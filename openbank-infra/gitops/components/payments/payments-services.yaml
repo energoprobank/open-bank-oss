@@ -42,7 +42,7 @@ spec:
         # Rolls the pods when the OPA bundle changes — subPath mounts do NOT hot-reload.
         # Kept in sync by gen-transaction-opa-bundle.sh via the trailing marker comment
         # (do not hand-edit, do not drop the marker).
-        openbank.tech/policy-checksum: "d7025cedf98b8102" # transaction-opa-bundle
+        openbank.tech/policy-checksum: "fb285a77b264631e" # transaction-opa-bundle
     spec:
       securityContext:
         runAsNonRoot: true
@@ -144,6 +144,9 @@ spec:
               value: http://ledger-service.ledger.svc:8101
             - name: BALANCE_SERVICE_URL
               value: http://balance-service.balances.svc:8103
+            # ADR-0344 D3: reward-credit target checks (GET /api/v1/accounts/{id}, account.read).
+            - name: ACCOUNT_SERVICE_URL
+              value: http://account-service.accounts.svc:8100
             # Cross-currency rate lookup (FxRateClient). Without this the rest-client fell back to
             # application.yaml's http://localhost:8119 inside this pod, so every
             # GET /api/v1/fx/rates/{base}/{quote} was a connection refused. fx-service's private-CA

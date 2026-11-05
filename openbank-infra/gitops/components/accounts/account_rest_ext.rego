@@ -186,6 +186,18 @@ allowed_reasons contains "service-tax-reporting-account-read" if {
 	input.action == "account.list"
 }
 
+# ADR-0344 D3 — transaction-service's own identity (named oidc-client `m2m`, Keycloak client
+# `openbank-transaction`, ROLE_API only) reads ONE account by id (AccountLookupRestClient,
+# GET /api/v1/accounts/{accountId} -> account.read) to check a FLUX reward credit's target: owner
+# party, CURRENT type, ACTIVE status, currency. account.read only — not account.list (no roster walk),
+# not account.search, no write. The ownership projection (account.verifyOwnership) cannot replace it:
+# it answers {owned, active} for an IBAN and says nothing about type or currency.
+allowed_reasons contains "service-transaction-account-read" if {
+	input.principal.type == "HUMAN"
+	machine_named("service-account-openbank-transaction")
+	input.action == "account.read"
+}
+
 # ADR-0335 D2 — declared callers of the ownership projection. pension-service's own client (`openbank-pension`, ROLE_API only) verifies that a
 # payout/own-account IBAN belongs to the participant and is active. It gets the ownership
 # projection (AccountOwnershipResource: the answer is exactly {owned, active}, identical for an

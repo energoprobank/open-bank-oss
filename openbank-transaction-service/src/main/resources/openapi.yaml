@@ -25,7 +25,9 @@ info:
   # Also additive: TransactionPage.pagination now declares the fields the server actually sends
   # (limit, hasNextPage, previousCursor, totalCount - libs `PageInfo`); `hasMore`, which the server
   # never sent, is kept and labelled. No path, parameter or status code changes.
-  version: 1.21.1
+  # 1.21.1 -> 1.22.0 (ADR-0344 D3): additive — POST /api/v1/reward-credits, the FLUX reward cash
+  # credit (rewards engine only). No existing path, field or status code changes.
+  version: 1.22.0
   description: BIAN-aligned transaction history, search and retrieval.
   license:
     name: Apache-2.0
@@ -35,6 +37,7 @@ servers:
     description: Local development
 tags:
   - name: Transactions
+  - name: Reward credits
 
 paths:
   /api/v1/transactions:
@@ -380,6 +383,74 @@ paths:
           $ref: '#/components/responses/NotFound'
         '422':
           description: Transaction is not in COMPLETED status and cannot be reversed
+
+  /api/v1/reward-credits:
+    post:
+      tags: [Reward credits]
+      summary: Pay a FLUX reward in cash to the customer's own current account (ADR-0344)
+      description: >-
+        Bill cashback, instalment relief or referral cash from the FLUX rewards programme. Books a real
+        CREDIT transaction through the ordinary payment saga, visible in the customer's history with a
+        reason-specific "FLUX odměna / FLUX reward" description, whose journal debits the FLUX provision
+        (ledger GL 2400 CZK / 2401 EUR) and credits the customer's deposit-control sub-ledger. The account
+        must belong to partyId, be an ACTIVE CURRENT account and be denominated in `currency`; each call
+        is capped per currency (default 2000.00 CZK / 100.00 EUR, configurable). Idempotent on sourceRef:
+        a retry with the same content answers 200 with the original transaction and
+        `Idempotent-Replayed: true`; a different account, amount, currency or reason under the same
+        sourceRef is a 409. A FAILED credit stays FAILED for its sourceRef — pay it again under a new one.
+        Requires ROLE_API and authorize action `transaction.rewardCredit`, which OPA grants to
+        service-account-openbank-rewards only.
+      operationId: createRewardCredit
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RewardCreditRequest'
+      responses:
+        '201':
+          description: Booked. Location names the transaction.
+          headers:
+            Idempotent-Replayed:
+              schema: { type: string, enum: ['false'] }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RewardCreditResponse'
+        '200':
+          description: Replay of an already-paid sourceRef with the same content; nothing new was booked.
+          headers:
+            Idempotent-Replayed:
+              schema: { type: string, enum: ['true'] }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RewardCreditResponse'
+        '400':
+          description: A required field is missing or malformed, or the reason is not one of the three.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: The sourceRef was already used for a different reward credit (code SOURCE_REF_REUSED).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: >-
+            Refused before any money moved. `code` is one of ACCOUNT_NOT_FOUND, ACCOUNT_NOT_OWNED_BY_PARTY,
+            ACCOUNT_NOT_CURRENT, ACCOUNT_NOT_ACTIVE, CURRENCY_MISMATCH, CURRENCY_NOT_SUPPORTED,
+            AMOUNT_NOT_POSITIVE, AMOUNT_PRECISION, AMOUNT_ABOVE_CAP.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
 
   # #8573: operator maintenance of the merchant enrichment catalogue. Additive and
   # operator-only — nothing here is proxied by customer-edge.
@@ -986,6 +1057,46 @@ components:
             Ties the posting to the approved merge case. The same value appears in party-service's
             `party.merge` audit event as `approval_reference`, so either end resolves the other.
 
+    RewardCreditRequest:
+      type: object
+      required: [partyId, accountId, amount, currency, reason, sourceRef]
+      properties:
+        partyId:
+          type: string
+          format: uuid
+          description: The party the account must belong to.
+        accountId:
+          type: string
+          format: uuid
+          description: The party's ACTIVE CURRENT account to credit.
+        amount:
+          type: number
+          description: Positive, at most two decimal places, at most the per-currency cap.
+          example: 125.50
+        currency:
+          type: string
+          enum: [CZK, EUR]
+        reason:
+          type: string
+          enum: [BILL_CASHBACK, INSTALMENT_RELIEF, REFERRAL_CASH]
+        sourceRef:
+          type: string
+          maxLength: 80
+          description: The rewards engine's reference for this payout; the same reference never pays twice.
+    RewardCreditResponse:
+      type: object
+      required: [creditId, transactionId, status]
+      properties:
+        creditId:
+          type: string
+          format: uuid
+          description: Stable for a sourceRef (name-based UUID), so a retry answers the same id.
+        transactionId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [PENDING, PROCESSING, COMPLETED, FAILED, REVERSED]
     ReverseTransactionRequest:
       type: object
       required: [idempotencyKey, reason]

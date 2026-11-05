@@ -9,6 +9,7 @@ import com.openbank.libs.domain.payment.InstructionType
 import com.openbank.libs.domain.payment.PaymentRail
 import com.openbank.transaction.domain.model.Transaction
 import com.openbank.transaction.domain.model.TransactionType
+import com.openbank.transaction.domain.reward.RewardReason
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.util.UUID
@@ -47,6 +48,12 @@ data class InitiateTransactionCommand(
     val rail: PaymentRail? = null,
     /** How the movement was instructed (ADR-0103 D2) — orthogonal to [rail]. */
     val instructionType: InstructionType? = null,
+    /**
+     * FLUX reward cash credit (ADR-0344 D3): funds the credit from the FLUX provision GL. Set only by
+     * RewardCreditService; the public `POST /api/v1/transactions` body has no such field, so no
+     * `transaction.create` caller can draw on the provision.
+     */
+    val rewardReason: RewardReason? = null,
 )
 
 data class GetTransactionQuery(val transactionId: UUID)

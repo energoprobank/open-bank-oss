@@ -280,6 +280,9 @@ private fun TransactionEntity.toDomain(): com.openbank.transaction.domain.model.
         reversalOf = reversalOf,
         isReversal = isReversal,
         counterpartyName = counterpartyName,
+        rewardReason = rewardReason?.let {
+            strictPersisted(it, "rewardReason", id, com.openbank.transaction.domain.reward.RewardReason::valueOf)
+        },
     )
 }
 
@@ -318,6 +321,7 @@ private fun com.openbank.transaction.domain.model.Transaction.toEntity() = Trans
     reversalOf = this@toEntity.reversalOf
     isReversal = this@toEntity.isReversal
     counterpartyName = this@toEntity.counterpartyName
+    rewardReason = this@toEntity.rewardReason?.name
 }
 
 /**

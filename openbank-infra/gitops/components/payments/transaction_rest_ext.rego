@@ -10,6 +10,7 @@
 #   transaction.create  — initiate a transaction (resource = "")
 #   transaction.reverse — reverse a completed transaction, R-transaction return path (resource = "")
 #   transaction.sweep   — identity-merge balance sweep, four-eyes (resource = #request.idempotencyKey)
+#   transaction.rewardCredit — FLUX reward cash credit (RewardCreditResource, ADR-0344, resource = "")
 #
 # Base rest.rego already grants operator-read-any for *.list / *.read to any HUMAN with
 # ROLE_OPERATOR/ROLE_ADMIN — covers transaction.list and transaction.read. This extension
@@ -230,4 +231,18 @@ allowed_reasons contains "service-mcp-transaction-read" if {
 	input.principal.type == "HUMAN"
 	machine_named("service-account-openbank-mcp")
 	input.action == "transaction.list"
+}
+
+# ADR-0344 D3 — the FLUX rewards engine on its own identity (Keycloak client `openbank-rewards`, ROLE_API
+# only). Its WHOLE grant here is transaction.rewardCredit (POST /api/v1/reward-credits): a capped credit,
+# funded from the FLUX provision GL, to an account account-service confirms is the named party's own
+# ACTIVE CURRENT account in that currency. It is NOT granted transaction.create — a stolen rewards
+# credential cannot initiate a transfer, debit an account or credit an arbitrary one — and no read.
+# Granted by identity alone: machine principals reach no role grant (rest.rego matrix-allows excludes
+# them), the action is not in rules.yaml's role_action_matrix, and operator-transaction-write does not
+# list it, so no staff session reaches it either. Not a four-eyes verb (`credit` is): automated call.
+allowed_reasons contains "service-rewards-transaction-reward-credit" if {
+	input.principal.type == "HUMAN"
+	machine_named("service-account-openbank-rewards")
+	input.action == "transaction.rewardCredit"
 }

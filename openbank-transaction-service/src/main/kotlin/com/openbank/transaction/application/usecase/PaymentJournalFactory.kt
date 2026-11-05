@@ -38,6 +38,16 @@ import java.util.UUID
  *    The ledger's per-currency [JournalEntry.validateBalance] then sees debits == credits in each
  *    currency. `fxRate` rides on every line for audit; each line's base amount is its own leg
  *    amount so the ledger groups it under its own currency.
+ *
+ *  - FLUX reward cash credit (`rewardReason != null`, ADR-0344 D3): an incoming credit whose funding
+ *    leg is the FLUX provision liability instead of cash clearing:
+ *
+ *        reward credit (target, no source):  DEBIT  FLUX provision (2400/2401)  CREDIT deposit-control(sub=target)
+ *
+ *    The expense was recognised when the FLUX were earned (ledger's daily provision posting), so
+ *    the payout only moves the obligation from "owed in FLUX" to "paid to the customer". Funding it
+ *    from cash clearing (the welcome-bonus shape) would recognise nothing and leave the provision
+ *    overstated forever. Any other shape carrying a reason is refused, never silently cash-funded.
  */
 object PaymentJournalFactory {
 
@@ -70,9 +80,18 @@ object PaymentJournalFactory {
         "GBP" to UUID.fromString("a0000000-0000-0000-0000-000000001993"),
     )
 
+    // V33__flux_reward_accounts.sql (ledger): 2400 FLUX Reward Provision (LIABILITY, CZK), 2401 (EUR).
+    // Only the two reward markets' currencies; a reward credit in any other currency is refused here
+    // (and earlier, by RewardCreditPolicy's caps).
+    private val FLUX_PROVISION: Map<String, UUID> = mapOf(
+        "CZK" to UUID.fromString("a0000000-0000-0000-0000-000000002400"),
+        "EUR" to UUID.fromString("a0000000-0000-0000-0000-000000002401"),
+    )
+
     fun buildLines(transaction: Transaction): List<JournalLineRequest> {
         val payCcy = transaction.amount.currency.code
         val baseCcy = transaction.baseAmount.currency.code
+        if (transaction.rewardReason != null) return rewardCreditLines(transaction)
         return if (payCcy == baseCcy) {
             sameCurrencyLines(transaction)
         } // Cross-currency is FX-routed and (today) always an outbound sell, so its sub-account is the
@@ -106,6 +125,27 @@ object PaymentJournalFactory {
             )
             else -> error("Payment ${transaction.id} has neither a source nor a target account")
         }
+    }
+
+    private fun rewardCreditLines(transaction: Transaction): List<JournalLineRequest> {
+        val ccy = transaction.amount.currency.code
+        val target = transaction.targetAccountId
+        check(
+            transaction.sourceAccountId == null && target != null && ccy == transaction.baseAmount.currency.code,
+        ) { "Reward credit ${transaction.id} must be a same-currency credit to a target account with no source" }
+        val provision = FLUX_PROVISION[ccy] ?: error("No FLUX provision GL account seeded for currency $ccy")
+        return listOf(
+            JournalLineRequest(
+                glAccountId = provision,
+                side = "DEBIT",
+                amount = transaction.amount.amount,
+                currencyCode = ccy,
+                fxRate = transaction.fxRate,
+                baseAmount = transaction.baseAmount.amount,
+                baseCurrencyCode = ccy,
+            ),
+            depositLeg(transaction, ccy, "CREDIT", target),
+        )
     }
 
     private fun depositLeg(transaction: Transaction, ccy: String, side: String, subAccountId: UUID) =

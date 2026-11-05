@@ -305,6 +305,30 @@ Numbered 4h: #8874 took §4d, self-hosted merchant logos took §4e, and main has
 | **D**oS | Unbounded override rows per account | Rows are keyed `(account_id, counterparty_key)`, so an account has at most one row per counterparty it has actually transacted with; there is no path that mints keys without a matching transaction |
 | **E**oP | An M2M service account recategorises a customer's spending | **Not mitigated.** `transaction.categorise` sits in the `ROLE_OPERATOR` matrix, which the shared M2M service account holds, and is declared in `shared_m2m_matrix_write_grants` (#3765). Declaring is an acknowledgement, not a control. No money moves, but the statement's description of the customer's own spending can be changed by a non-human caller. The narrower fix is an identity-scoped rule naming the caller, which does not exist for operator writes fleet-wide |
 
+## 4i. FLUX reward cash credit (ADR-0344 D3) — STRIDE supplement
+
+`POST /api/v1/reward-credits` (`RewardCreditResource`, action `transaction.rewardCredit`) lets the FLUX
+rewards engine pay bill cashback, instalment relief or referral cash into a customer's own current
+account. It books an ordinary `CREDIT` through the payment saga (visible in the customer's history as
+"FLUX odměna … / FLUX reward …"); the persisted `reward_reason` (V23) makes `PaymentJournalFactory`
+fund it from the FLUX provision — **Dr 2400/2401 FLUX Reward Provision / Cr 2100/2101 deposit-control
+(sub = account)** — instead of cash clearing. New outbound edge: `GET /api/v1/accounts/{id}` on
+account-service (`account.read`, this service's own `openbank-transaction` identity).
+
+| STRIDE | Threat | Mitigation |
+|---|---|---|
+| **S**poofing / **E**oP | Another caller pays itself or anyone a reward, or the rewards credential initiates arbitrary movements | `@RolesAllowed(ROLE_API)`; `transaction_rest_ext.rego` grants the action to `machine_named("service-account-openbank-rewards")` only, and that principal holds no `transaction.create` or read. Not in the role matrix, not in `operator-transaction-write`, not a four-eyes verb. `transaction_rest_ext_test.rego` asserts allow-for-rewards and deny for the shared client, the edge, staff and a renamed machine |
+| **T**ampering | Credit to someone else's account, a savings/closed account, or in the wrong currency | account-service (the owner of the data) must answer the account with `partyId` = the request's, `accountType` CURRENT, `status` ACTIVE and the credit's currency; unknown → 422 `ACCOUNT_NOT_FOUND`; a 200 missing a field is a 500, never a payment (`RewardCreditPolicyTest`, `AccountLookupClientTest`) |
+| **T**ampering | Drawing on the provision through the general endpoint | `rewardReason` exists only on the internal command; `InitiateTransactionRequest` has no such field. `TransactionService` refuses a reason on anything but a same-currency, bank-initiated CREDIT with a target and no source; the journal factory refuses any other shape rather than cash-fund it |
+| **T**ampering / **R**epudiation | Double payment on retry; a reused sourceRef silently answered | Key `reward-credit:<sourceRef>` in the global idempotency registry (V22); same content → 200 replay with the original transaction, different account/amount/currency/reason → 409 `SOURCE_REF_REUSED` (`RewardCreditServiceTest`). The reason is persisted on the row; the initiator is a fixed rewards id |
+| **D**oS / financial exposure | A compromised engine drains the provision | Per-call cap per currency (default 2000.00 CZK / 100.00 EUR, `openbank.rewards.credit.cap.*`), positive, ≤ 2 decimals; currencies without a cap are refused. **Residual:** no per-party or daily aggregate limit here — the engine's budget is the control |
+| **I**nfo disclosure | Account enumeration via refusal codes | Only the OPA-gated rewards principal can call; it already knows its members' accounts. account.read for this service is one account by id, never `account.list` |
+
+**Residual risk:** a FAILED credit is terminal for its sourceRef (the engine retries under a new
+one). No Pact yet for the new account-service read — covered by a WireMock client test; a consumer
+pact plus account-service `@PactFolder` replay is a follow-up. Rollback: remove the rego rule
+(the endpoint then 403s under enforcement); V23 rollback note covers the column.
+
 ## 5. Residual risks / assumptions
 
 - **Booked balance is now a ledger projection (ADR-0039 Phase D-2).** The saga no longer debits/credits

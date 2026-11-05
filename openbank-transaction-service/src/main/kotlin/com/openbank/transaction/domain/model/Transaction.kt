@@ -57,6 +57,11 @@ data class Transaction(
      * and so the key a customer's own categorisation hangs off. See [CounterpartyKey].
      */
     val counterpartyName: String? = null,
+    /**
+     * Set only on a FLUX reward cash credit (ADR-0344 D3, V23 `reward_reason`). Non-null means the
+     * credit is funded from the FLUX provision GL, not cash clearing — see PaymentJournalFactory.
+     */
+    val rewardReason: com.openbank.transaction.domain.reward.RewardReason? = null,
 ) {
     fun complete(clock: Clock): Transaction {
         check(status == TransactionStatus.PENDING || status == TransactionStatus.PROCESSING) {

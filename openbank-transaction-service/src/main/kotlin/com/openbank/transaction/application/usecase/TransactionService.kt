@@ -137,6 +137,14 @@ class TransactionService(
             }
         }
 
+        // ADR-0344 D3: a reward-funded credit is an incoming, same-currency credit to one customer
+        // account and nothing else — the journal factory's provision leg exists only for that shape.
+        if (command.rewardReason != null) {
+            require(isRewardCreditShape(command)) {
+                "A reward credit is a same-currency, bank-initiated CREDIT to a target account with no source"
+            }
+        }
+
         val (fxRate, baseAmount) = resolveSettlement(amount, command.settlementCurrencyCode, command.settlementAmount)
 
         // Own-account TRANSFER (checking <-> savings, pocket moves) never goes through
@@ -208,6 +216,7 @@ class TransactionService(
             instructionType = command.instructionType,
             reversalOf = command.reversalOf,
             isReversal = command.type == TransactionType.REVERSAL,
+            rewardReason = command.rewardReason,
         )
 
         val saved = try {
@@ -247,6 +256,13 @@ class TransactionService(
         // single source of truth for status.
         return transactionRepository.findById(saved.id)
             ?: error("Transaction ${saved.id} vanished while its payment workflow ran (state=$state)")
+    }
+
+    private fun isRewardCreditShape(command: InitiateTransactionCommand): Boolean {
+        val bankInitiatedCredit = command.type == TransactionType.CREDIT && command.initiatedByPartyId == null
+        val incoming = command.sourceAccountId == null && command.targetAccountId != null
+        val sameCurrency = command.settlementCurrencyCode.let { it == null || it == command.currencyCode }
+        return bankInitiatedCredit && incoming && sameCurrency
     }
 
     override suspend fun getTransaction(query: GetTransactionQuery): Transaction =

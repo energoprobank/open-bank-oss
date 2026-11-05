@@ -8,6 +8,7 @@ import com.openbank.libs.domain.money.Money
 import com.openbank.transaction.domain.model.Transaction
 import com.openbank.transaction.domain.model.TransactionStatus
 import com.openbank.transaction.domain.model.TransactionType
+import com.openbank.transaction.domain.reward.RewardReason
 import com.openbank.transaction.infrastructure.client.JournalLineRequest
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
@@ -226,6 +227,66 @@ class PaymentJournalFactoryTest {
         assertThatThrownBy { PaymentJournalFactory.buildLines(tx) }
             .isInstanceOf(IllegalStateException::class.java)
             .hasMessageContaining("PLN")
+    }
+
+    // --- ADR-0344 D3: FLUX reward cash credit is funded from the FLUX provision, never cash clearing ---
+
+    private val fluxProvisionCzk = UUID.fromString("a0000000-0000-0000-0000-000000002400")
+    private val fluxProvisionEur = UUID.fromString("a0000000-0000-0000-0000-000000002401")
+
+    @Test
+    fun `a reward credit debits the FLUX provision and credits the customer deposit-control`() {
+        val target = UUID.randomUUID()
+        val tx = transaction(
+            amount = Money.of("150.00", "CZK"),
+            baseAmount = Money.of("150.00", "CZK"),
+            sourceAccountId = null,
+            targetAccountId = target,
+        ).copy(type = TransactionType.CREDIT, rewardReason = RewardReason.BILL_CASHBACK)
+
+        val lines = PaymentJournalFactory.buildLines(tx)
+
+        assertThat(lines).hasSize(2)
+        lines.single { it.side == "DEBIT" }.matchesLine("DEBIT", "150.00", "CZK", fluxProvisionCzk)
+        val deposit = lines.single { it.side == "CREDIT" }
+        deposit.matchesLine("CREDIT", "150.00", "CZK", depositControlCzk)
+        assertThat(deposit.subAccountId).isEqualTo(target)
+        assertThat(lines.single { it.side == "DEBIT" }.subAccountId).isNull()
+        assertThat(lines.map { it.glAccountId }).doesNotContain(cashClearingCzk)
+        assertPerCurrencyBalanced(lines)
+    }
+
+    @Test
+    fun `a EUR reward credit uses the EUR provision and EUR deposit-control`() {
+        val tx = transaction(
+            amount = Money.of("5.00", "EUR"),
+            baseAmount = Money.of("5.00", "EUR"),
+            sourceAccountId = null,
+        ).copy(type = TransactionType.CREDIT, rewardReason = RewardReason.REFERRAL_CASH)
+
+        val lines = PaymentJournalFactory.buildLines(tx)
+
+        assertThat(lines.map { it.glAccountId }).containsExactly(fluxProvisionEur, depositControlEur)
+        assertThat(lines.map { it.glAccountId }).doesNotContain(cashClearingEur)
+    }
+
+    @Test
+    fun `a reward reason on any other shape is refused, never cash-funded`() {
+        // Outbound (has a source).
+        val outbound = transaction(Money.of("1.00", "CZK"), Money.of("1.00", "CZK"), targetAccountId = null)
+            .copy(rewardReason = RewardReason.INSTALMENT_RELIEF)
+        assertThatThrownBy { PaymentJournalFactory.buildLines(outbound) }
+            .isInstanceOf(IllegalStateException::class.java)
+        // Cross-currency.
+        val fx = transaction(Money.of("1.00", "EUR"), Money.of("25.00", "CZK"), sourceAccountId = null)
+            .copy(rewardReason = RewardReason.INSTALMENT_RELIEF)
+        assertThatThrownBy { PaymentJournalFactory.buildLines(fx) }
+            .isInstanceOf(IllegalStateException::class.java)
+        // A currency with no provision account.
+        val usd = transaction(Money.of("1.00", "USD"), Money.of("1.00", "USD"), sourceAccountId = null)
+            .copy(rewardReason = RewardReason.INSTALMENT_RELIEF)
+        assertThatThrownBy { PaymentJournalFactory.buildLines(usd) }
+            .isInstanceOf(IllegalStateException::class.java)
     }
 
     private fun assertPerCurrencyBalanced(lines: List<JournalLineRequest>) {

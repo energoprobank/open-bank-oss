@@ -174,6 +174,10 @@ class TransactionEntity : PanacheEntityBase {
     // ── ADR-0108: rail payment that triggered this transaction (null for operator/system postings) ──
     @Column(name = "originating_payment_id")
     var originatingPaymentId: UUID? = null
+
+    // ── ADR-0344 D3 (V23): FLUX reward cash credit, funded from the FLUX provision GL ──
+    @Column(name = "reward_reason")
+    var rewardReason: String? = null
 }
 
 data class TransactionEntityId(val id: UUID = Ids.newId(), val bookingDate: LocalDate = LocalDate.EPOCH) :

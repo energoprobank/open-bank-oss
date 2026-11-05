@@ -96,6 +96,12 @@ quarkus:
       url: ${BALANCE_SERVICE_URL:http://localhost:8103}
       connect-timeout: 2000
       read-timeout: 3000
+    # ADR-0344 D3: the reward credit's target checks read GET /api/v1/accounts/{id} (account.read,
+    # granted to this service's own identity in account_rest_ext.rego).
+    account-service:
+      url: ${ACCOUNT_SERVICE_URL:http://localhost:8100}
+      connect-timeout: 2000
+      read-timeout: 3000
 
   management:
     enabled: true
@@ -178,6 +184,13 @@ openbank:
     server-url: ${TEMPORAL_SERVER_URL:localhost:7233}
     namespace: ${TEMPORAL_NAMESPACE:openbank-payments}
     task-queue: ${TEMPORAL_TASK_QUEUE:openbank-payment-execution}
+  # ADR-0344: the most a single FLUX reward cash credit may pay, per market currency. A currency
+  # without a cap is never paid. Override per environment with OPENBANK_REWARDS_CREDIT_CAP_CZK/_EUR.
+  rewards:
+    credit:
+      cap:
+        czk: ${OPENBANK_REWARDS_CREDIT_CAP_CZK:2000.00}
+        eur: ${OPENBANK_REWARDS_CREDIT_CAP_EUR:100.00}
   api:
     version: "1"
   build:

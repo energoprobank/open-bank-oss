@@ -136,6 +136,8 @@ b5_grants := {
 	"lending": {"reason": "service-lending-account-read", "actions": {"account.list"}},
 	"party": {"reason": "service-party-account-read", "actions": {"account.list"}},
 	"tax-reporting": {"reason": "service-tax-reporting-account-read", "actions": {"account.list"}},
+	# ADR-0344 D3: reward-credit target checks read one account by id; never the roster.
+	"transaction": {"reason": "service-transaction-account-read", "actions": {"account.read"}},
 }
 
 b5_all_account_actions := {
@@ -287,4 +289,15 @@ test_shared_and_other_api_principals_denied_catalog_read if {
 		not rest.allow.allow with input as {"principal": principal, "action": "catalog.read", "resource": {"type": "catalog", "id": "r-1"}}
 			with data.rules as rules_mock
 	}
+}
+
+# --- ADR-0344 D3: transaction-service reads one account, and only its own identity does ---
+
+test_transaction_account_read_is_its_own_identity_only if {
+	every p in [sa_api("rewards"), sa_api("mcp"), sa_api("settlement"), edge] {
+		not "service-transaction-account-read" in rest.allowed_reasons with input as {"principal": p, "action": "account.read"}
+			with data.rules as b5_rules
+	}
+	# The ownership projection is a separate grant it does not hold.
+	rest.allow == false with input as verify_input(sa_api("transaction")) with data.rules as b5_rules
 }

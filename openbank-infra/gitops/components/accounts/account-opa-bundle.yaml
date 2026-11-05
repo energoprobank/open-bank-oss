@@ -9,7 +9,7 @@ metadata:
     app.kubernetes.io/name: account-service
     app.kubernetes.io/part-of: accounts
   annotations:
-    openbank.tech/policy-checksum: "2b928615c0d1faa6"
+    openbank.tech/policy-checksum: "f167b7f2908cb09e"
 data:
   rest.rego: |
     # SPDX-License-Identifier: Apache-2.0
@@ -947,6 +947,18 @@ data:
     	not input.principal.service_account == null
     	machine_named("service-account-openbank-tax-reporting")
     	input.action == "account.list"
+    }
+
+    # ADR-0344 D3 — transaction-service's own identity (named oidc-client `m2m`, Keycloak client
+    # `openbank-transaction`, ROLE_API only) reads ONE account by id (AccountLookupRestClient,
+    # GET /api/v1/accounts/{accountId} -> account.read) to check a FLUX reward credit's target: owner
+    # party, CURRENT type, ACTIVE status, currency. account.read only — not account.list (no roster walk),
+    # not account.search, no write. The ownership projection (account.verifyOwnership) cannot replace it:
+    # it answers {owned, active} for an IBAN and says nothing about type or currency.
+    allowed_reasons contains "service-transaction-account-read" if {
+    	input.principal.type == "HUMAN"
+    	machine_named("service-account-openbank-transaction")
+    	input.action == "account.read"
     }
 
     # ADR-0335 D2 — declared callers of the ownership projection. pension-service's own client (`openbank-pension`, ROLE_API only) verifies that a

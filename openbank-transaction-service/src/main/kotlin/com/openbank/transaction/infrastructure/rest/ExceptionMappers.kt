@@ -4,8 +4,10 @@
 
 package com.openbank.transaction.infrastructure.rest
 
+import com.openbank.transaction.application.usecase.RewardCreditConflictException
 import com.openbank.transaction.application.usecase.TransactionNotFoundException
 import com.openbank.transaction.application.usecase.TransactionUpdateConflictException
+import com.openbank.transaction.domain.reward.RewardCreditRefusedException
 import jakarta.ws.rs.core.MediaType
 import jakarta.ws.rs.core.Response
 import jakarta.ws.rs.ext.ExceptionMapper
@@ -48,3 +50,28 @@ class TransactionUpdateConflictExceptionMapper : ExceptionMapper<TransactionUpda
 // SelfApprovalNotAllowedMapper / InvalidApprovalStateMapper (403/409) moved to
 // openbank-libs-runtime's CommonExceptionMappers (issue #1394) — a service-local copy of the
 // same exact type would collide non-deterministically with the shared one (issue #526).
+
+// ADR-0344 D3: a reward credit refused before any money moved. 422 with the contract's {code, message}
+// error shape, so the rewards engine can branch on the code (e.g. ACCOUNT_NOT_OWNED_BY_PARTY) instead of
+// parsing prose. Dedicated type, not IllegalStateException, for the reason given above (#526).
+@Provider
+class RewardCreditRefusedExceptionMapper : ExceptionMapper<RewardCreditRefusedException> {
+    override fun toResponse(exception: RewardCreditRefusedException): Response {
+        val body = mapOf("code" to exception.refusal.name, "message" to (exception.message ?: exception.refusal.name))
+        return Response.status(UNPROCESSABLE_ENTITY).entity(body).type(MediaType.APPLICATION_JSON).build()
+    }
+
+    private companion object {
+        const val UNPROCESSABLE_ENTITY = 422
+    }
+}
+
+// ADR-0344 D3: the sourceRef was already paid with a different account, amount, currency or reason.
+@Provider
+class RewardCreditConflictExceptionMapper : ExceptionMapper<RewardCreditConflictException> {
+    override fun toResponse(exception: RewardCreditConflictException): Response =
+        Response.status(Response.Status.CONFLICT)
+            .entity(mapOf("code" to "SOURCE_REF_REUSED", "message" to (exception.message ?: "sourceRef reused")))
+            .type(MediaType.APPLICATION_JSON)
+            .build()
+}

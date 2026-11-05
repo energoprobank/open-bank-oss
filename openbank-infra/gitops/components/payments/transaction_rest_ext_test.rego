@@ -204,3 +204,40 @@ test_operator_sweep_grant_does_not_leak_to_other_actions if {
 	not "operator-transaction-sweep" in rest.allowed_reasons with input as {"principal": {"service_account": false, "type": "HUMAN", "id": "u-op", "roles": ["ROLE_OPERATOR"]}, "action": "transaction.create"}
 		with data.rules as rules_mock
 }
+
+# --- ADR-0344 D3: the FLUX rewards engine's own identity, transaction.rewardCredit alone ---
+
+rewards_sa := sa("rewards")
+
+reward_credit_input(p) := {"principal": p, "action": "transaction.rewardCredit", "resource": ""}
+
+test_rewards_may_pay_a_reward_credit if {
+	decision := rest.allow with input as reward_credit_input(rewards_sa) with data.rules as rules_mock
+	decision.allow == true
+	"service-rewards-transaction-reward-credit" in rest.allowed_reasons with input as reward_credit_input(rewards_sa)
+		with data.rules as rules_mock
+}
+
+# Above all not transaction.create: the rewards credential must never initiate an arbitrary movement.
+test_rewards_denied_every_other_transaction_action if {
+	every action in all_actions | {"transaction.list", "transaction.read"} {
+		rest.allow == false with input as {"principal": rewards_sa, "action": action}
+			with data.rules as rules_mock
+	}
+}
+
+# Every other principal: the batch identities, the shared client and the edge (ROLE_OPERATOR, which
+# reaches operator-transaction-write for create), staff operators and admins, and a machine using the
+# rewards NAME under another client id.
+test_reward_credit_admits_no_one_else if {
+	every p in [
+		sa("account"), sa("lending"), sa("sepa-payment"), sa("transaction"), sa("mcp"),
+		{"service_account": true, "client_id": "openbank-services", "type": "HUMAN", "id": "service-account-openbank-services", "roles": ["ROLE_OPERATOR"]},
+		{"service_account": true, "client_id": "openbank-edge", "type": "HUMAN", "id": "service-account-openbank-edge", "roles": ["ROLE_OPERATOR"]},
+		{"service_account": false, "type": "HUMAN", "id": "u-op", "roles": ["ROLE_OPERATOR"]},
+		{"service_account": false, "type": "HUMAN", "id": "u-admin", "roles": ["ROLE_ADMIN"]},
+		{"service_account": true, "client_id": "openbank-edge", "type": "HUMAN", "id": "service-account-openbank-rewards", "roles": ["ROLE_API"]},
+	] {
+		rest.allow == false with input as reward_credit_input(p) with data.rules as rules_mock
+	}
+}

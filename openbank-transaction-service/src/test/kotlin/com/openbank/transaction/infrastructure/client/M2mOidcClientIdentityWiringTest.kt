@@ -31,7 +31,12 @@ class M2mOidcClientIdentityWiringTest {
 
     @Test
     fun `the money-path rest-clients select the named m2m oidc-client and not the default one`() {
-        listOf(LedgerRestClient::class.java, BalanceCoverRestClient::class.java).forEach { client ->
+        listOf(
+            LedgerRestClient::class.java,
+            BalanceCoverRestClient::class.java,
+            // ADR-0344 D3: account.read is granted to this service's own identity, not the shared one.
+            AccountLookupRestClient::class.java,
+        ).forEach { client ->
             val named = client.getAnnotation(OidcClientFilter::class.java)
             assertThat(named).describedAs("@OidcClientFilter on %s", client.simpleName).isNotNull
             assertThat(named.value).describedAs("%s oidc-client name", client.simpleName).isEqualTo(M2M)
