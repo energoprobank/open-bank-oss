@@ -65,11 +65,15 @@ class RewardsEngine(
             }.getOrDefault(emptyList())
         val cards = runCatching { directory.cardsOf(partyId) }
             .onFailure { log.warnf("card backfill for %s failed: %s", partyId, it.message) }.getOrDefault(emptyList())
+        val partyMarket = runCatching { directory.marketOf(partyId) }
+            .onFailure { log.warnf("market lookup for %s failed: %s", partyId, it.message) }.getOrNull()
         return store.tx { tx ->
             tx.membership(partyId, forUpdate = true) ?: run {
                 accounts.forEach(tx::upsertAccount)
                 cards.forEach(tx::upsertCard)
-                val market = Market.forCurrency(
+                // The party's own market first (a customer joins during account opening, before any
+                // account exists); the account currency only when party-service cannot be asked.
+                val market = partyMarket?.let { runCatching { Market.valueOf(it) }.getOrNull() } ?: Market.forCurrency(
                     accounts.firstOrNull { it.accountType == "CURRENT" }?.currency ?: accounts.firstOrNull()?.currency,
                 )
                 val m = Membership.join(partyId, market, now())

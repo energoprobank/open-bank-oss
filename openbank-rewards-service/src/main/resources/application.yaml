@@ -177,6 +177,8 @@ rewards:
   clients:
     account-url: ${ACCOUNT_SERVICE_URL:http://localhost:8100}
     card-url: ${CARD_ISSUANCE_SERVICE_URL:http://localhost:8118}
+    # Experience v2 step 8: the party's market (CZ / BG) decides the FLUX economy at first contact.
+    party-url: ${PARTY_SERVICE_URL:http://localhost:8111}
     interest-url: ${INTEREST_SERVICE_URL:http://localhost:8125}
     lending-url: ${LENDING_SERVICE_URL:http://localhost:8126}
     incentive-url: ${INCENTIVE_SERVICE_URL:http://localhost:8156}

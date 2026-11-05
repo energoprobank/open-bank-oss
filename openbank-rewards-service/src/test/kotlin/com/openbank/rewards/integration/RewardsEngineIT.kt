@@ -107,6 +107,17 @@ class RewardsEngineIT {
     }
 
     @Test
+    fun `a Bulgarian customer who joins during account opening, before any account exists, is in the EUR economy`() {
+        val party = UUID.randomUUID()
+        directory.markets[party] = "BG"
+        assertThat(customers.summary(party).membership.market).isEqualTo(Market.BG)
+        // Without party-service's answer the account currency still decides, as before.
+        val czech = UUID.randomUUID()
+        directory.currentAndSavings(czech, currency = "CZK")
+        assertThat(customers.summary(czech).membership.market).isEqualTo(Market.CZ)
+    }
+
+    @Test
     fun `a manual grant needs a second operator`() {
         val party = UUID.randomUUID()
         directory.currentAndSavings(party)

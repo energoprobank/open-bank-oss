@@ -69,6 +69,11 @@ class FakeDirectory : BankDirectoryPort {
 
     override fun cardsOf(partyId: UUID): List<CardRef> = cards[partyId].orEmpty()
 
+    /** party-service's market per party (experience v2 step 8); absent = cannot be asked. */
+    val markets = ConcurrentHashMap<UUID, String>()
+
+    override fun marketOf(partyId: UUID): String? = markets[partyId]
+
     fun currentAndSavings(partyId: UUID, currency: String = "CZK"): Pair<UUID, UUID> {
         val current = AccountRef(UUID.randomUUID(), partyId, "CURRENT", currency, "ACTIVE", null)
         val savings = AccountRef(UUID.randomUUID(), partyId, "SAVINGS", currency, "ACTIVE", null)

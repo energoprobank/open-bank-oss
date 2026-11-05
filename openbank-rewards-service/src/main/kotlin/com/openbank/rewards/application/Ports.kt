@@ -253,6 +253,13 @@ data class LoanRef(
 interface BankDirectoryPort {
     fun accountsOf(partyId: UUID): List<AccountRef>
     fun cardsOf(partyId: UUID): List<CardRef>
+
+    /**
+     * The party's market (CZ / BG) as party-service holds it (experience v2 step 8), or null when it
+     * cannot be asked. Authoritative over the account currency: a customer joins the programme during
+     * account opening, before any account exists.
+     */
+    fun marketOf(partyId: UUID): String? = null
 }
 
 interface InterestPort {

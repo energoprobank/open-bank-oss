@@ -137,7 +137,14 @@ class HttpBankDirectory(
     private val http: ServiceHttp,
     @ConfigProperty(name = "rewards.clients.account-url") private val accountUrl: String,
     @ConfigProperty(name = "rewards.clients.card-url") private val cardUrl: String,
+    @ConfigProperty(name = "rewards.clients.party-url") private val partyUrl: String,
 ) : BankDirectoryPort {
+    override fun marketOf(partyId: UUID): String? =
+        http.call("GET", "$partyUrl/api/v1/parties/$partyId")?.text("market")?.uppercase()?.takeIf {
+            it == "CZ" ||
+                it == "BG"
+        }
+
     override fun accountsOf(partyId: UUID): List<AccountRef> =
         http.call("GET", "$accountUrl/api/v1/accounts?partyId=$partyId&limit=100")?.items().orEmpty().mapNotNull { a ->
             AccountRef(
