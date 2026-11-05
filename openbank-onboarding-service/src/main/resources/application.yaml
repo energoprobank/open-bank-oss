@@ -60,6 +60,10 @@ quarkus:
     client-id: ${ONBOARDING_OIDC_CLIENT_ID:openbank-services}
     credentials:
       secret: ${ONBOARDING_OIDC_CLIENT_SECRET:${OIDC_CLIENT_SECRET:CHANGE_ME_LOCAL_DEV_ONLY}}
+    # Refresh the cached token 30 s BEFORE it expires. With the default (no skew) a token checked as
+    # valid can expire in transit, and the provider answers 401: seen on the face-check poll, where
+    # customer-edge then reports "not available right now" to a customer mid-check.
+    refresh-token-time-skew: 30S
 
   rest-client:
     # Local-dev default ONLY — the in-cluster URL comes from PARTY_SERVICE_URL on the Deployment
