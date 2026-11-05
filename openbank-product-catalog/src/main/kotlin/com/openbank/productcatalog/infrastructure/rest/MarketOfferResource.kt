@@ -23,26 +23,34 @@ import jakarta.ws.rs.core.Response
 import java.math.BigDecimal
 
 /**
- * Retail market offer (experience v2 step 8): account packages and the pre-contract disclosures a
- * customer sees before signing — the fee information and the deposit-guarantee information.
- * `lang` is cs, bg or en (an Accept-Language value works too); unknown → English.
+ * Retail market offer (experience v2 step 8): account packages, localised. `lang` is cs, bg or en
+ * (an Accept-Language value works too); unknown → English.
  */
 @ApplicationScoped
-@Path("/api/v1")
+@Path("/api/v1/packages")
 @Produces(MediaType.APPLICATION_JSON)
-class MarketOfferResource(private val service: ProductCatalogService) {
+class PackagesResource {
 
     @GET
-    @Path("/packages")
     @RolesAllowed(Roles.API, Roles.VIEWER, Roles.OPERATOR, Roles.ADMIN, CatalogRoles.READ)
     @Authorize(action = "catalog.list")
     fun packages(@QueryParam("market") market: String?, @QueryParam("lang") lang: String?): List<PackageView> {
         val language = Lang.of(lang)
         return MarketOffers.packages(market).map { PackageView.of(it, language) }
     }
+}
+
+/**
+ * Pre-contract disclosures of one product. Its own class with the FULL path: a class at `/api/v1`
+ * would lose every `/api/v1/products/...` request to [ProductCatalogResource] (the longer class
+ * path wins), and this route would answer 404.
+ */
+@ApplicationScoped
+@Path("/api/v1/products/by-code/{code}/disclosures")
+@Produces(MediaType.APPLICATION_JSON)
+class DisclosuresResource(private val service: ProductCatalogService) {
 
     @GET
-    @Path("/products/by-code/{code}/disclosures")
     @RolesAllowed(Roles.API, Roles.VIEWER, Roles.OPERATOR, Roles.ADMIN, CatalogRoles.READ)
     @Authorize(action = "catalog.read", resource = "#code")
     suspend fun disclosures(@PathParam("code") code: String, @QueryParam("lang") lang: String?): Response {
