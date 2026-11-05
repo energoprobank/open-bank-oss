@@ -12,7 +12,7 @@ info:
   # ReferralProgram status enum widens with DRAFT for that read model. NOT a
   # re-claim of 1.4.0: that number is taken by the referralLink bump above — a skipped number is
   # harmless, a collided one is not.
-  version: 1.5.0
+  version: 1.6.0
 paths:
   /api/v1/referrals/parties/{partyId}/invites:
     get:
@@ -93,6 +93,33 @@ paths:
           content:
             application/json:
               schema: {$ref: '#/components/schemas/ReferralConflict'}
+  /api/v1/referrals/invites/{token}/preview:
+    get:
+      summary: Who sent an invite that can still be used (machine callers; account opening)
+      parameters:
+        - { name: token, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: The verdict
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  valid: { type: boolean }
+                  referrerPartyId: { type: string, format: uuid, nullable: true }
+  /api/v1/referrals/referees/{partyId}/referrer:
+    get:
+      summary: Who referred a customer (machine callers; welcome screen)
+      parameters:
+        - { name: partyId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: The referrer
+          content:
+            application/json:
+              schema: { type: object, properties: { referrerPartyId: { type: string, format: uuid } } }
+        '404': { description: Nobody referred this customer }
   /api/v1/referrals/invites/{token}/attribute:
     post:
       summary: Attribute an invite, rejecting self and replay
