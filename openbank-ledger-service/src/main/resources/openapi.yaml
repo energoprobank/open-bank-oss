@@ -14,7 +14,9 @@ info:
   # 1.26.0 -> 1.27.0 (ADR-0341 D3): additive. GET /accounting-classes[/resolve] and an alternative way to
   # name a journal line's account (accountingClass + accountingRole) -- glAccountId stops being required,
   # which relaxes the request and breaks no caller.
-  version: 1.27.0
+  # 1.27.0 -> 1.28.0 (ADR-0344): additive. POST /api/v1/ledger/reward-provisions, the FLUX provision
+  # posting template (rewards engine only).
+  version: 1.28.0
   description: Double-entry journal ledger — query journal entries and transaction postings.
   license:
     name: Apache-2.0
@@ -496,6 +498,65 @@ paths:
           description: The revaluation result for that business day
         '403':
           $ref: '#/components/responses/Forbidden'
+
+  /api/v1/ledger/reward-provisions:
+    post:
+      tags: [Ledger]
+      summary: Post the day's FLUX provision change for one market (ADR-0344)
+      description: >-
+        Fixed two-leg template the rewards engine drives once a day per market. A positive
+        deltaAmount debits FLUX reward expense (5300 CZK / 5301 EUR) and credits FLUX provision
+        (2400 CZK / 2401 EUR); a negative one (breakage, expiry release) posts the reverse. The
+        caller never names an account. Idempotent on sourceRef: the same reference with the same
+        content answers 200 with the original journal and `Idempotent-Replayed: true`; with
+        different content it answers 409. Requires ROLE_API and authorize action
+        `ledger.rewardProvision`, which OPA grants to service-account-openbank-rewards only.
+      operationId: postRewardProvision
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RewardProvisionRequest'
+      responses:
+        '201':
+          description: Posted. Location names the journal entry.
+          headers:
+            Idempotent-Replayed:
+              schema: { type: string, enum: ['false'] }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RewardProvisionResponse'
+        '200':
+          description: Replay of an already-posted sourceRef with the same content; nothing was posted.
+          headers:
+            Idempotent-Replayed:
+              schema: { type: string, enum: ['true'] }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RewardProvisionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: The sourceRef was already posted with a different date, amount or sign.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: >-
+            Business rule refused it — zero delta, more than two decimal places, a currency that is not
+            the market's (CZ = CZK, BG = EUR), or a locked accounting day / period / attested year.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
 
   /api/v1/ledger/close/trial-balance:
     get:
@@ -1609,6 +1670,55 @@ components:
             type: number
           description: Net booked delta per currency across the window — a sanity preview of what the replay carries.
 
+    RewardProvisionRequest:
+      type: object
+      required: [postingDate, market, currency, deltaAmount, sourceRef]
+      properties:
+        postingDate:
+          type: string
+          format: date
+          description: Entry and value date of the journal.
+        market:
+          type: string
+          enum: [CZ, BG]
+        currency:
+          type: string
+          enum: [CZK, EUR]
+          description: Must be the market's currency (CZ = CZK, BG = EUR).
+        deltaAmount:
+          type: number
+          description: Signed change of the FLUX liability in money, at most two decimal places, never zero.
+          example: -125.50
+        sourceRef:
+          type: string
+          maxLength: 200
+          description: Caller's idempotency reference; the ledger key is `flux-provision:<sourceRef>`.
+    RewardProvisionResponse:
+      type: object
+      required: [status, journalId, postingDate, market, currency, deltaAmount, sourceRef]
+      properties:
+        status:
+          type: string
+          enum: [POSTED, REPLAYED]
+        journalId:
+          type: string
+          format: uuid
+        entryNumber:
+          type: integer
+          format: int64
+          nullable: true
+        postingDate:
+          type: string
+          format: date
+        market:
+          type: string
+          enum: [CZ, BG]
+        currency:
+          type: string
+        deltaAmount:
+          type: number
+        sourceRef:
+          type: string
     AccountingClassMappingResponse:
       type: object
       required: [accountingClass, role, currencyCode, glAccountId, glCode]

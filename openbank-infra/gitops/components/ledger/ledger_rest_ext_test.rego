@@ -406,3 +406,59 @@ test_close_inspect_grant_reaches_no_write if {
 			with data.rules as rules_mock
 	}
 }
+
+# --- ADR-0344: the FLUX rewards engine's own identity (ROLE_API only), ledger.rewardProvision alone ---
+
+rewards_m2m := {"service_account": true, "client_id": "openbank-rewards", "type": "HUMAN", "id": "service-account-openbank-rewards", "roles": ["ROLE_API"]}
+
+provision_input(p) := {"principal": p, "action": "ledger.rewardProvision", "resource": ""}
+
+# must-ALLOW: exactly this principal, via its own reason.
+test_rewards_may_post_the_provision_template if {
+	decision := rest.allow with input as provision_input(rewards_m2m) with data.rules as rules_mock
+	decision.allow == true
+	"service-rewards-ledger-provision" in rest.allowed_reasons with input as provision_input(rewards_m2m)
+		with data.rules as rules_mock
+}
+
+# must-DENY: the rewards identity holds no other ledger action — above all not ledger.create, which
+# would let it post an arbitrary journal.
+test_rewards_may_not_perform_any_other_ledger_action if {
+	every action in {
+		"ledger.create", "ledger.reverse", "ledger.trigger", "ledger.replay", "ledger.approve",
+		"ledger.close.draft", "ledger.close.inspect", "ledger.read", "ledger.list",
+	} {
+		rest.allow == false with input as {"principal": rewards_m2m, "action": action}
+			with data.rules as rules_mock
+	}
+}
+
+# must-DENY: every other principal — other ROLE_API machines, the shared client and the edge (both hold
+# ROLE_OPERATOR), staff operators and admins, a machine claiming the rewards NAME with another client id.
+test_provision_template_admits_no_one_else if {
+	every p in [
+		other_role_api_sa,
+		interest_m2m,
+		lending_m2m,
+		clearing_m2m,
+		transaction_m2m,
+		settlement_m2m,
+		treasury_m2m,
+		services_m2m,
+		edge,
+		operator,
+		{"service_account": false, "type": "HUMAN", "id": "u-admin", "roles": ["ROLE_ADMIN", "ROLE_OPERATOR"]},
+		{"service_account": true, "client_id": "openbank-edge", "type": "HUMAN", "id": "service-account-openbank-rewards", "roles": ["ROLE_API"]},
+		no_role,
+	] {
+		rest.allow == false with input as provision_input(p) with data.rules as rules_mock
+	}
+}
+
+# A role grant can never reach it: even a matrix that (wrongly) granted the action to ROLE_OPERATOR
+# would not admit a machine, because matrix-allows excludes machines.
+test_provision_template_not_reachable_through_a_matrix_grant_by_a_machine if {
+	matrix_mock := object.union(rules_mock, {"authz": {"role_action_matrix": {"ROLE_OPERATOR": {"grant": ["ledger.rewardProvision"]}}}})
+	rest.allow == false with input as provision_input(services_m2m) with data.rules as matrix_mock
+	rest.allow == false with input as provision_input(edge) with data.rules as matrix_mock
+}
