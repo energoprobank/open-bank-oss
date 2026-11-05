@@ -14,6 +14,7 @@ import com.openbank.rewards.application.CustomerService
 import com.openbank.rewards.application.Jobs
 import com.openbank.rewards.application.OfferReward
 import com.openbank.rewards.application.Promotion
+import com.openbank.rewards.application.RewardsEngine
 import com.openbank.rewards.application.RewardsStore
 import com.openbank.rewards.application.StaffService
 import com.openbank.rewards.domain.BudgetKind
@@ -79,6 +80,7 @@ class StaffRewardsResource(
     private val customers: CustomerService,
     private val jobs: Jobs,
     private val store: RewardsStore,
+    private val engine: RewardsEngine,
 ) {
     @Inject
     lateinit var identity: SecurityIdentity
@@ -146,6 +148,14 @@ class StaffRewardsResource(
             ),
         )
     }
+
+    /** Re-reads the party's accounts and cards and re-derives activation facts (idempotent). */
+    @POST
+    @Path("/parties/{partyId}/refresh-projections")
+    @RolesAllowed("ROLE_OPERATOR", "ROLE_ADMIN")
+    @Authorize(action = "rewards.staff.write", resource = "#partyId")
+    fun refresh(@PathParam("partyId") partyId: UUID): Response =
+        engine.refreshProjections(partyId).let { (a, c) -> ok(mapOf("accounts" to a, "cards" to c)) }
 
     @GET
     @Path("/change-requests")

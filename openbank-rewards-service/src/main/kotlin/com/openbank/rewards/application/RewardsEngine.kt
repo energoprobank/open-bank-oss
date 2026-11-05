@@ -80,6 +80,23 @@ class RewardsEngine(
         }
     }
 
+    /**
+     * Re-reads the party's accounts and cards from the bank and re-derives the facts they imply
+     * (operator action, e.g. after a source service was down at first contact). Idempotent: facts
+     * have natural keys, so nothing is counted twice.
+     */
+    fun refreshProjections(partyId: UUID): Pair<Int, Int> {
+        ensureMembership(partyId)
+        val accounts = directory.accountsOf(partyId)
+        val cards = directory.cardsOf(partyId)
+        store.tx { tx ->
+            accounts.forEach(tx::upsertAccount)
+            cards.forEach(tx::upsertCard)
+            backfillFacts(tx, tx.membership(partyId, forUpdate = true)!!, accounts, cards)
+        }
+        return accounts.size to cards.size
+    }
+
     /** Membership inside an open transaction, without backfill (used when a second party is touched). */
     fun membershipInTx(tx: RewardsTx, partyId: UUID, fallbackMarket: Market): Membership =
         tx.membership(partyId, forUpdate = true)

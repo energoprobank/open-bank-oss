@@ -7,7 +7,7 @@ info:
     never bought, never paid out, never transferred between parties. The customer API is reached
     only through customer-edge (/customer/v1/rewards/*), which injects the authoritative partyId.
     Errors are {code, message}; business refusals are 409.
-  version: 1.0.0
+  version: 1.1.0
 tags:
   - name: customer
   - name: staff
@@ -250,6 +250,12 @@ paths:
       summary: Customer view (summary, coupons, missions, last 50 ledger entries, referrals)
       parameters: [{$ref: "#/components/parameters/PartyId"}]
       responses: {"200": {description: Customer view}}
+  /api/v1/rewards/staff/parties/{partyId}/refresh-projections:
+    post:
+      tags: [staff]
+      summary: Re-read the party's accounts and cards and re-derive activation facts (idempotent)
+      parameters: [{$ref: "#/components/parameters/PartyId"}]
+      responses: {"200": {description: "{accounts, cards}"}}
   /api/v1/rewards/staff/change-requests:
     get:
       tags: [staff]
