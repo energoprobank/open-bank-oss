@@ -37,6 +37,9 @@ interface IncentiveStore {
 
     /** Reserve AND commit one code for one party in a single transaction (rewards engine). */
     suspend fun redeem(command: RedeemIncentive): PromoReservation
+
+    /** The offer a code belongs to and the code's inventory status (AVAILABLE / RESERVED / REDEEMED), or null. */
+    suspend fun findCode(digest: CodeDigest): Pair<IncentiveOffer, String>?
 }
 
 data class ReserveIncentive(

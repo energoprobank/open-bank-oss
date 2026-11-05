@@ -128,6 +128,17 @@ class IncentiveApplication(
         )
     }
 
+    /**
+     * Experience v2 step 8: whether [code] could be redeemed at account opening — before the applicant has
+     * a party. Read-only (nothing is reserved); per-party limits are checked at the real redemption.
+     * Returns the offer when the code is available on a published, current, onboarding-claimable offer.
+     */
+    suspend fun checkCode(code: String, now: Instant = Instant.now()): IncentiveOffer? {
+        val codeDigest = runCatching { digest(code) }.getOrNull() ?: return null
+        val (offer, status) = store.findCode(codeDigest) ?: return null
+        return offer.takeIf { status == "AVAILABLE" && it.claimableIn(RedemptionContext.ONBOARDING, now) }
+    }
+
     private fun digest(code: String): CodeDigest {
         val normalized = code.trim().uppercase()
         require(normalized.length in MIN_CODE_LENGTH..MAX_CODE_LENGTH) { "code length is invalid" }

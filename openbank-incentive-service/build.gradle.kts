@@ -21,6 +21,7 @@ dependencies {
     implementation(project(":openbank-libs-runtime"))
 
     testImplementation(libs.quarkus.test.security)
+    testImplementation(libs.mockk)
     testImplementation(libs.quarkus.test.security.oidc)
     testImplementation(libs.smallrye.reactive.messaging.inmemory)
     testImplementation(libs.testcontainers)

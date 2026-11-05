@@ -57,6 +57,21 @@ class CustomerIncentiveResource(
     @ConfigProperty(name = "openbank.incentive.customer-caller-principal")
     private val callerPrincipal: Optional<String>,
 ) {
+    /**
+     * Experience v2 step 8: is this promo code usable at account opening? Called by customer-edge for an
+     * applicant who has no party yet, so nothing is reserved and no party limit is checked. Only the
+     * offer's name is returned; an unknown, used or expired code is simply `valid: false`.
+     */
+    @POST
+    @Path("/codes/check")
+    suspend fun checkCode(request: CodeCheckRequest?): Response {
+        if (!callerPermitted()) return Response.status(Response.Status.FORBIDDEN).build()
+        val code = requireNotNull(request?.code) { "code is required" }
+        require(code.length <= MAX_CHECK_CODE_LENGTH) { "code is too long" }
+        val offer = application.checkCode(code)
+        return Response.ok(CodeCheckResponse(valid = offer != null, offerName = offer?.ref?.name)).build()
+    }
+
     @POST
     @Path("/offers/{id}/reservations")
     suspend fun reserve(
@@ -164,3 +179,9 @@ private fun com.openbank.incentive.domain.PromoReservation.toCustomerResponse() 
  */
 internal fun isCustomerEdgeCaller(identity: SecurityIdentity, configured: String): Boolean =
     ServiceAccountIdentity.isPrincipal(identity, configured)
+
+data class CodeCheckRequest(val code: String? = null)
+
+data class CodeCheckResponse(val valid: Boolean, val offerName: String?)
+
+private const val MAX_CHECK_CODE_LENGTH = 128

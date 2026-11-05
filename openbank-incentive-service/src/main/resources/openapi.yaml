@@ -1,9 +1,32 @@
 openapi: 3.0.3
 info:
   title: OpenBank Incentive Service
-  version: 1.4.0
+  version: 1.5.0
   description: Governed fixed-benefit offers and opaque promo-code reservations.
 paths:
+  /api/v1/customer-incentives/codes/check:
+    post:
+      summary: Whether a promo code is usable at account opening (customer-edge only; reserves nothing)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code: { type: string, maxLength: 128 }
+      responses:
+        '200':
+          description: The verdict
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  valid: { type: boolean }
+                  offerName: { type: string, nullable: true }
+        '403': { description: Caller is not customer-edge }
   /api/v1/customer-incentives/offers/{id}/reservations:
     post:
       summary: Reserve an attributed offer for an authenticated customer through customer-edge

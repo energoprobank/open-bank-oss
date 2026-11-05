@@ -273,6 +273,12 @@ class PanacheIncentiveStore(
             .replaceWith(offer)
     }.awaitSuspending()
 
+    override suspend fun findCode(digest: CodeDigest): Pair<IncentiveOffer, String>? {
+        val code = Panache.withSession { codes.find("digest", digest.value).firstResult<CodeEntity>() }
+            .awaitSuspending() ?: return null
+        return findOffer(code.offerId)?.let { it to code.status }
+    }
+
     override suspend fun findOffer(id: UUID): IncentiveOffer? =
         Panache.withSession { offers.find("id", id).firstResult<OfferEntity>() }.awaitSuspending()?.toDomain()
 
