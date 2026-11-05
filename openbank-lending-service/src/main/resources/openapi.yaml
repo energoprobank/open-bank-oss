@@ -34,7 +34,11 @@ info:
   # payloadRef — all optional) on ApprovalResponse; no breaking change.
   # 1.39.0: re-bump — 1.38.0 was taken on main by #12769 (ADR-0211) after this branch
   # was cut; the api-contract gate requires a fresh MINOR on live main.
-  version: 1.39.0
+  # 1.39.0 -> 1.40.0: additive — FLUX rewards CR-1 loan rate adjustments
+  # (GET /api/v1/loans/{loanId}/rate-adjustments/preview, POST /api/v1/loans/{loanId}/rate-adjustments,
+  # DELETE /api/v1/loans/{loanId}/rate-adjustments/{adjustmentId}) and the party loan overview
+  # GET /api/v1/lending/loans/overview. 1.39.0 is what live origin/main holds.
+  version: 1.40.0
   description: >-
     Loan origination, servicing, collateral and IFRS 9 provisioning (ADR-0028). The loan book posts
     cash events to ledger-service and never owns balances. Credit decisions and collateral
@@ -894,6 +898,32 @@ paths:
                 items: { $ref: '#/components/schemas/Loan' }
         '403':
           $ref: '#/components/responses/Forbidden'
+  /api/v1/lending/loans/overview:
+    get:
+      tags: [Lending]
+      operationId: loanOverview
+      summary: A party's loans with outstanding, effective rate, next instalment and arrears days
+      description: >-
+        The app's loan screens. One row per loan: outstanding principal (opening balance of the
+        first unpaid instalment), the nominal rate of the next instalment with any reward rate
+        adjustment applied, the contract rate, the next instalment and days past due.
+      parameters:
+        - name: partyId
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: The party's loans
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/LoanOverview' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /api/v1/lending/loans/{id}:
     get:
       tags: [Lending]
@@ -1573,6 +1603,103 @@ paths:
         '422':
           description: The void is not APPROVED
 
+  /api/v1/loans/{loanId}/rate-adjustments/preview:
+    get:
+      tags: [Lending]
+      operationId: previewRateAdjustment
+      summary: Preview a reward rate adjustment (never writes)
+      description: >-
+        Before/after nominal rate, APRC and instalment of a deltaBps adjustment for `months` months
+        from today. Callers: the rewards and customer-edge service-accounts only (verified token).
+        When a guardrail refuses, `eligible` is false, `reason` says why and `after` is absent.
+      parameters:
+        - $ref: '#/components/parameters/LoanIdPath'
+        - name: deltaBps
+          in: query
+          required: true
+          schema: { type: integer, minimum: -100, maximum: -1 }
+        - name: months
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 120, default: 12 }
+      responses:
+        '200':
+          description: The preview
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RateAdjustmentPreview' }
+        '400':
+          $ref: '#/components/responses/RateAdjustmentError'
+        '403':
+          $ref: '#/components/responses/RateAdjustmentError'
+        '404':
+          $ref: '#/components/responses/RateAdjustmentError'
+  /api/v1/loans/{loanId}/rate-adjustments:
+    post:
+      tags: [Lending]
+      operationId: createRateAdjustment
+      summary: Apply a reward rate adjustment (FLUX CR-1); idempotent on sourceRef
+      description: >-
+        Additive and time-boxed: every instalment due in (validFrom, validTo] is charged at the
+        contract rate plus deltaBps, clamped to the product floor and never below 0 %. The unpaid,
+        not-yet-accrued tail is re-amortised in place (amount and term never change), including the
+        reversion to the contract rate after validTo. Emits `loan.rate_adjusted`. A retry with the
+        same sourceRef and terms returns the stored adjustment (`replayed: true`). Caller: the
+        rewards service-account only (verified token).
+      parameters:
+        - $ref: '#/components/parameters/LoanIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RateAdjustmentCreateRequest' }
+      responses:
+        '201':
+          description: Applied (or replayed)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RateAdjustment' }
+        '400':
+          $ref: '#/components/responses/RateAdjustmentError'
+        '403':
+          $ref: '#/components/responses/RateAdjustmentError'
+        '404':
+          $ref: '#/components/responses/RateAdjustmentError'
+        '409':
+          description: >-
+            CREDIT_COUPON_BLOCKED (a guardrail refused; `reason` says which), SOURCE_REF_CONFLICT
+            (sourceRef already used with other terms) or CONFLICT (the schedule changed underneath).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RateAdjustmentErrorBody' }
+  /api/v1/loans/{loanId}/rate-adjustments/{adjustmentId}:
+    delete:
+      tags: [Lending]
+      operationId: cancelRateAdjustment
+      summary: Cancel a reward rate adjustment (compensation)
+      description: >-
+        Re-amortises the remaining unpaid, not-yet-accrued tail without the adjustment and emits
+        `loan.rate_adjustment_cancelled`. Cancelling an already cancelled adjustment is a no-op.
+        Caller: the rewards service-account only (verified token).
+      parameters:
+        - $ref: '#/components/parameters/LoanIdPath'
+        - name: adjustmentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Cancelled
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RateAdjustment' }
+        '403':
+          $ref: '#/components/responses/RateAdjustmentError'
+        '404':
+          $ref: '#/components/responses/RateAdjustmentError'
+        '409':
+          $ref: '#/components/responses/RateAdjustmentError'
+
 components:
   securitySchemes:
     bearerAuth:
@@ -1580,6 +1707,11 @@ components:
       scheme: bearer
       bearerFormat: JWT
   parameters:
+    LoanIdPath:
+      name: loanId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
     IdPath:
       name: id
       in: path
@@ -1596,6 +1728,11 @@ components:
         answers 409 IDEMPOTENCY_KEY_REUSED.
       schema: { type: string }
   responses:
+    RateAdjustmentError:
+      description: '`{code, message}` — FORBIDDEN, INVALID_REQUEST, NOT_FOUND, CONFLICT'
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/RateAdjustmentErrorBody' }
     IdempotencyConflict:
       description: >-
         IDEMPOTENCY_KEY_REUSED — the Idempotency-Key (or X-Request-ID) was already used for a
@@ -1625,6 +1762,114 @@ components:
           schema:
             $ref: '#/components/schemas/ApiError'
   schemas:
+    MoneyString:
+      type: object
+      required: [amount, currency]
+      properties:
+        amount: { type: string, example: '5636.17' }
+        currency: { type: string, example: CZK }
+    LoanTerms:
+      type: object
+      required: [nominalRatePct, instalment]
+      properties:
+        nominalRatePct: { type: number, description: 'Nominal rate of the instalment, percent p.a.' }
+        aprcPct:
+          type: number
+          nullable: true
+          description: >-
+            APRC in percent, solved with the CCD 2023/2225 Annex III equation over the REMAINING
+            schedule (no fees: lending holds none). Null when it cannot be computed — never 0.
+        instalment: { $ref: '#/components/schemas/MoneyString' }
+    RateAdjustmentPreview:
+      type: object
+      required: [eligible]
+      properties:
+        before: { $ref: '#/components/schemas/LoanTerms' }
+        after: { $ref: '#/components/schemas/LoanTerms' }
+        eligible: { type: boolean }
+        reason: { $ref: '#/components/schemas/RateAdjustmentBlockReason' }
+        effectiveFrom: { type: string, format: date, nullable: true }
+    RateAdjustmentBlockReason:
+      type: string
+      nullable: true
+      enum:
+        - LOAN_NOT_IN_GOOD_STANDING
+        - ARREARS
+        - FORBEARANCE
+        - ADJUSTMENT_ALREADY_ACTIVE
+        - TOTAL_CAP_EXCEEDED
+        - RATE_AT_FLOOR
+        - NO_REMAINING_SCHEDULE
+        - SCHEDULE_NOT_REPRICEABLE
+        - BACKDATED
+    RateAdjustmentCreateRequest:
+      type: object
+      required: [deltaBps, validFrom, validTo, source, sourceRef, approvalRef]
+      properties:
+        deltaBps: { type: integer, minimum: -100, maximum: -1, example: -50 }
+        validFrom: { type: string, format: date, description: 'Today or later — never backdated' }
+        validTo: { type: string, format: date }
+        source: { type: string, enum: [REWARDS] }
+        sourceRef: { type: string, maxLength: 128, description: 'Idempotency handle, unique across loans' }
+        approvalRef: { type: string, maxLength: 128, description: 'The customer approval (SCA) reference' }
+    RateAdjustment:
+      type: object
+      required: [adjustmentId, loanId, deltaBps, validFrom, validTo, source, sourceRef, status, replayed]
+      properties:
+        adjustmentId: { type: string, format: uuid }
+        loanId: { type: string, format: uuid }
+        deltaBps: { type: integer }
+        validFrom: { type: string, format: date }
+        validTo: { type: string, format: date }
+        source: { type: string, enum: [REWARDS] }
+        sourceRef: { type: string }
+        status: { type: string, enum: [ACTIVE, CANCELLED] }
+        before: { $ref: '#/components/schemas/LoanTerms' }
+        after: { $ref: '#/components/schemas/LoanTerms' }
+        effectiveFrom:
+          type: string
+          format: date
+          nullable: true
+          description: Due date of the first instalment charged at the adjusted rate
+        replayed: { type: boolean, description: 'True when returned for a repeated sourceRef' }
+    RateAdjustmentErrorBody:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+          enum: [CREDIT_COUPON_BLOCKED, SOURCE_REF_CONFLICT, CONFLICT, NOT_FOUND, INVALID_REQUEST, FORBIDDEN]
+        message: { type: string, nullable: true }
+        reason: { $ref: '#/components/schemas/RateAdjustmentBlockReason' }
+    LoanOverview:
+      type: object
+      required: [loanId, status, principal, outstanding, nominalRatePct, contractRatePct, daysPastDue]
+      properties:
+        loanId: { type: string, format: uuid }
+        contractNumber: { type: string, nullable: true }
+        productType: { type: string, nullable: true }
+        productKind: { type: string, nullable: true }
+        status: { type: string }
+        principal: { $ref: '#/components/schemas/MoneyString' }
+        outstanding: { $ref: '#/components/schemas/MoneyString' }
+        nominalRatePct: { type: number, description: 'Rate of the next instalment, adjustments included' }
+        contractRatePct: { type: number }
+        nextInstalment:
+          type: object
+          nullable: true
+          properties:
+            number: { type: integer }
+            dueDate: { type: string, format: date }
+            amount: { $ref: '#/components/schemas/MoneyString' }
+        daysPastDue: { type: integer }
+        rateAdjustment:
+          type: object
+          nullable: true
+          properties:
+            adjustmentId: { type: string, format: uuid }
+            deltaBps: { type: integer }
+            validFrom: { type: string, format: date }
+            validTo: { type: string, format: date }
     LoanEvidenceBundle:
       type: object
       required: [applicationId, attestation, tampered, truncated, eventCount, events, requestedBy]

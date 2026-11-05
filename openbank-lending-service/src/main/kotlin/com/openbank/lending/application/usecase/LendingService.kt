@@ -1139,9 +1139,38 @@ class LendingService @Inject constructor(
                                 }
                                 .map { target.copy(paid = true, paidAt = paidAt) }
                         }
+                        // FLUX rewards: the repayment fact other contexts act on (an on-time-payment
+                        // mission). Emitted inside the loan lock's transaction, after the money moved.
+                        .call { paid -> events.emit(instalmentPaidEvent(loan, paid, paidAt)) }
                 }
             }
         }
+    }
+
+    /**
+     * `loan.instalment_paid` — additive event type on `openbank.lending.events`. [onTime] and
+     * [daysPastDue] compare the settlement's calendar date (UTC) with the instalment's due date, the
+     * same arithmetic as the arrears figure (`Delinquency.daysPastDue`).
+     */
+    private fun instalmentPaidEvent(
+        loan: Loan,
+        installment: LoanInstallment,
+        paidAt: OffsetDateTime,
+    ): LendingOutboxMessage {
+        val paidOn = paidAt.atZoneSameInstant(java.time.ZoneOffset.UTC).toLocalDate()
+        val daysPastDue = Delinquency.daysPastDue(installment.dueDate, paidOn)
+        val amount = installment.principal + installment.interest
+        return LendingOutboxMessage(
+            aggregateId = loan.id.value,
+            eventType = "loan.instalment_paid",
+            payload = """{"aggregateType":"LOAN","aggregateId":"${loan.id.value}",""" +
+                """"loanId":"${loan.id.value}","partyId":"${loan.partyId}",""" +
+                """"instalmentNumber":${installment.number},"dueDate":"${installment.dueDate}",""" +
+                """"paidAt":"${paidAt.toInstant()}","amount":"${amount.amount.toPlainString()}",""" +
+                """"currency":"${amount.currency.code}","onTime":${daysPastDue == 0},""" +
+                """"daysPastDue":$daysPastDue,"occurredAt":"${paidAt.toInstant()}",""" +
+                """"sourceService":"lending"}""",
+        )
     }
 
     private fun debitBorrower(loan: Loan, installment: LoanInstallment): Uni<Unit> {

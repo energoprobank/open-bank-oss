@@ -444,6 +444,31 @@ class InstallmentRepositoryImpl @Inject constructor(
             .setParameter("l", loanId.value).executeUpdate()
     }
 
+    @WithTransaction
+    override fun reprice(rows: List<LoanInstallment>): Uni<Int> = if (rows.isEmpty()) {
+        Uni.createFrom().item(0)
+    } else {
+        sf.withTransaction { s, _ ->
+            rows.fold(Uni.createFrom().item(0)) { acc, row ->
+                acc.flatMap { changed ->
+                    s.createMutationQuery(
+                        "UPDATE InstallmentEntity SET openingBalance = :o, principal = :p, interest = :i, " +
+                            "payment = :pay, closingBalance = :c " +
+                            "WHERE id = :id AND paid = false AND interestAccrued = false",
+                    )
+                        .setParameter("o", row.openingBalance.amount)
+                        .setParameter("p", row.principal.amount)
+                        .setParameter("i", row.interest.amount)
+                        .setParameter("pay", row.payment.amount)
+                        .setParameter("c", row.closingBalance.amount)
+                        .setParameter("id", row.id)
+                        .executeUpdate()
+                        .map { changed + it }
+                }
+            }
+        }
+    }
+
     @WithSession
     override fun findByLoans(loanIds: Collection<UUID>): Uni<List<LoanInstallment>> = if (loanIds.isEmpty()) {
         Uni.createFrom().item(emptyList())

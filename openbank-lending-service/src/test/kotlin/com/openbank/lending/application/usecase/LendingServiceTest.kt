@@ -843,6 +843,65 @@ class LendingServiceTest {
     }
 
     @Test
+    fun `repayment emits loan_instalment_paid with lateness against the due date`() {
+        val loanId = LoanId.random()
+        val instId = UUID.randomUUID()
+        // The fixed clock reads 2024-01-01; this instalment fell due 12 days earlier.
+        val installment = LoanInstallment(
+            id = instId, loanId = loanId, number = 3, dueDate = LocalDate.parse("2023-12-20"),
+            openingBalance = eur("11053.81"), principal = eur("955.65"),
+            interest = eur("110.54"), payment = eur("1066.19"), closingBalance = eur("10098.16"),
+            interestAccrued = true,
+        )
+        every { loans.findById(loanId) } returns Uni.createFrom().item(activeLoan(loanId))
+        every { installments.findByLoan(loanId) } returns Uni.createFrom().item(listOf(installment))
+        every { installments.markPaid(instId, any()) } returns Uni.createFrom().item(1)
+        every { ledger.post(any()) } returns Uni.createFrom().item(Unit)
+        stubBorrowerDebitSucceeds()
+        val sent = mutableListOf<LendingOutboxMessage>()
+        every { events.emit(capture(sent)) } returns Uni.createFrom().item(Unit)
+
+        service.recordRepayment(loanId, instId).await().indefinitely()
+
+        val event = sent.single { it.eventType == "loan.instalment_paid" }
+        val json = com.fasterxml.jackson.databind.ObjectMapper().readTree(event.payload)
+        assertThat(json["loanId"].asText()).isEqualTo(loanId.value.toString())
+        assertThat(json["partyId"].asText()).isEqualTo(activeLoan(loanId).partyId.toString())
+        assertThat(json["instalmentNumber"].asInt()).isEqualTo(3)
+        assertThat(json["dueDate"].asText()).isEqualTo("2023-12-20")
+        assertThat(json["paidAt"].asText()).isEqualTo("2024-01-01T00:00:00Z")
+        assertThat(json["amount"].asText()).isEqualTo("1066.19")
+        assertThat(json["currency"].asText()).isEqualTo("EUR")
+        assertThat(json["onTime"].asBoolean()).isFalse()
+        assertThat(json["daysPastDue"].asInt()).isEqualTo(12)
+    }
+
+    @Test
+    fun `an instalment paid before its due date is on time`() {
+        val loanId = LoanId.random()
+        val instId = UUID.randomUUID()
+        val installment = LoanInstallment(
+            id = instId, loanId = loanId, number = 1, dueDate = firstDue,
+            openingBalance = eur("12000.00"), principal = eur("946.19"),
+            interest = eur("120.00"), payment = eur("1066.19"), closingBalance = eur("11053.81"),
+        )
+        every { loans.findById(loanId) } returns Uni.createFrom().item(activeLoan(loanId))
+        every { installments.findByLoan(loanId) } returns Uni.createFrom().item(listOf(installment))
+        every { installments.markPaid(instId, any()) } returns Uni.createFrom().item(1)
+        every { ledger.post(any()) } returns Uni.createFrom().item(Unit)
+        stubBorrowerDebitSucceeds()
+        val sent = mutableListOf<LendingOutboxMessage>()
+        every { events.emit(capture(sent)) } returns Uni.createFrom().item(Unit)
+
+        service.recordRepayment(loanId, instId).await().indefinitely()
+
+        val json = com.fasterxml.jackson.databind.ObjectMapper()
+            .readTree(sent.single { it.eventType == "loan.instalment_paid" }.payload)
+        assertThat(json["onTime"].asBoolean()).isTrue()
+        assertThat(json["daysPastDue"].asInt()).isZero()
+    }
+
+    @Test
     fun `repayment recognizes interest income directly when not yet accrued`() {
         val loanId = LoanId.random()
         val instId = UUID.randomUUID()

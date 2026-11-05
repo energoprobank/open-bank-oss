@@ -14,9 +14,13 @@ import com.openbank.lending.domain.model.Loan
 import com.openbank.lending.domain.model.LoanApplication
 import com.openbank.lending.domain.model.LoanApplicationRequest
 import com.openbank.lending.domain.model.LoanInstallment
+import com.openbank.lending.domain.model.LoanOverview
 import com.openbank.lending.domain.model.LoanStateSummary
 import com.openbank.lending.domain.model.ProvisioningRunOutcome
 import com.openbank.lending.domain.model.ProvisioningSnapshot
+import com.openbank.lending.domain.model.RateAdjustment
+import com.openbank.lending.domain.model.RateAdjustmentPreview
+import com.openbank.lending.domain.model.RateAdjustmentRequest
 import com.openbank.lending.domain.model.RescheduleRequest
 import com.openbank.lending.domain.model.SignApplicationRequest
 import com.openbank.lending.domain.model.SubmitDocumentsRequest
@@ -173,4 +177,30 @@ interface RunProvisioningCycleUseCase {
 /** READ-ONLY: the loan book as the risk engine's instrument model reads it (ADR-0314 D4). */
 interface LoanBookUseCase {
     fun loanBook(asOf: LocalDate): Uni<com.openbank.lending.domain.model.LoanBook>
+}
+
+/**
+ * Additive, time-boxed loan rate adjustments (FLUX rewards CR-1). [actor] is the verified caller
+ * principal, passed in by the adapter — never read from a request body.
+ */
+interface RateAdjustmentUseCase {
+    /** What a [deltaBps] adjustment for [months] months starting today would do; never writes. */
+    fun preview(loanId: LoanId, deltaBps: Int, months: Int): Uni<RateAdjustmentPreview>
+
+    /**
+     * Apply [request]: guardrails, then the adjustment row, the repriced tail and `loan.rate_adjusted`
+     * in one transaction under the loan lock. Idempotent on [RateAdjustmentRequest.sourceRef].
+     */
+    fun apply(loanId: LoanId, request: RateAdjustmentRequest, actor: String): Uni<RateAdjustmentOutcome>
+
+    /** Compensation: cancel [adjustmentId] and re-amortise the remaining tail without it. Idempotent. */
+    fun cancel(loanId: LoanId, adjustmentId: UUID, actor: String): Uni<RateAdjustment>
+}
+
+/** [replayed] is true when [adjustment] already existed under the request's sourceRef. */
+data class RateAdjustmentOutcome(val adjustment: RateAdjustment, val replayed: Boolean)
+
+/** The app's loan screens: a party's loans with the figures a customer actually reads. */
+interface LoanOverviewUseCase {
+    fun overview(partyId: UUID): Uni<List<LoanOverview>>
 }

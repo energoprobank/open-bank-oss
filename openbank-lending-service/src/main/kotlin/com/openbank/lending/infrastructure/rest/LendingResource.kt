@@ -78,6 +78,7 @@ class LendingResource(
     private val clock: Clock,
     private val idempotencyStore: IdempotencyStore,
     private val objectMapper: ObjectMapper,
+    private val overview: com.openbank.lending.application.port.`in`.LoanOverviewUseCase,
 ) {
     /**
      * The trusted acting principal for maker-checker controls: the authenticated JWT subject, never a
@@ -543,6 +544,25 @@ class LendingResource(
     fun listLoans(@QueryParam("partyId") partyId: UUID?) =
         servicing.listLoans(requireNotNull(partyId) { "query parameter 'partyId' is required" })
 
+    // The app's loan screens (FLUX experience v2): one row per loan with the figures a customer
+    // reads — outstanding principal, the rate of the next instalment (reward adjustments included),
+    // the next instalment and days past due. Same RBAC/OPA gate as the plain list above.
+    @GET
+    @Path("/loans/overview")
+    @Operation(summary = "A party's loans with outstanding, effective rate, next instalment and arrears days")
+    @RolesAllowed(
+        "ROLE_VIEWER",
+        "ROLE_OPERATOR",
+        "ROLE_LENDING_OFFICER",
+        "ROLE_CREDIT_RISK",
+        "ROLE_COMPLIANCE",
+        "ROLE_ADMIN",
+    )
+    @Authorize(action = "lending.list", resource = "")
+    fun loanOverview(@QueryParam("partyId") partyId: UUID?): Uni<List<LoanOverviewDto>> =
+        overview.overview(requireNotNull(partyId) { "query parameter 'partyId' is required" })
+            .map { rows -> rows.map { it.toDto() } }
+
     @GET
     @Path("/loans/active")
     @Operation(summary = "Backoffice portfolio: active loans fleet-wide (ADR-0230)")
@@ -655,3 +675,47 @@ class LendingResource(
 data class TerminationProposalRequest(val ground: String)
 
 data class DecideTerminationRequest(val approve: Boolean)
+
+/** Wire shape of one loan-overview row; money as `{amount: "12.50", currency}` strings. */
+data class LoanOverviewDto(
+    val loanId: UUID,
+    val contractNumber: String?,
+    val productType: String?,
+    val productKind: String?,
+    val status: String,
+    val principal: MoneyDto,
+    val outstanding: MoneyDto,
+    val nominalRatePct: java.math.BigDecimal,
+    val contractRatePct: java.math.BigDecimal,
+    val nextInstalment: NextInstalmentDto?,
+    val daysPastDue: Int,
+    val rateAdjustment: ActiveRateAdjustmentDto?,
+)
+
+data class NextInstalmentDto(val number: Int, val dueDate: LocalDate, val amount: MoneyDto)
+
+data class ActiveRateAdjustmentDto(
+    val adjustmentId: UUID,
+    val deltaBps: Int,
+    val validFrom: LocalDate,
+    val validTo: LocalDate,
+)
+
+private fun com.openbank.libs.domain.money.Money.toDto() = MoneyDto(amount.toPlainString(), currency.code)
+
+private fun com.openbank.lending.domain.model.LoanOverview.toDto() = LoanOverviewDto(
+    loanId = loanId,
+    contractNumber = contractNumber,
+    productType = productType,
+    productKind = productKind,
+    status = status.name,
+    principal = principal.toDto(),
+    outstanding = outstanding.toDto(),
+    nominalRatePct = nominalRatePct,
+    contractRatePct = contractRatePct,
+    nextInstalment = nextInstalment?.let { NextInstalmentDto(it.number, it.dueDate, it.amount.toDto()) },
+    daysPastDue = daysPastDue,
+    rateAdjustment = rateAdjustment?.let {
+        ActiveRateAdjustmentDto(it.adjustmentId, it.deltaBps, it.validFrom, it.validTo)
+    },
+)

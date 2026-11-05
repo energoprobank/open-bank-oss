@@ -47,6 +47,9 @@ class LendingEventIdentityTest {
         "LendingService.kt",
         "OriginationDecisionService.kt",
         "TerminationService.kt",
+        // FLUX rewards CR-1: its payloads are serialised from a map, so the raw-string scan below
+        // finds none there — RateAdjustmentServiceTest asserts their identity fields instead.
+        "RateAdjustmentService.kt",
     ).map { Path.of("src/main/kotlin/com/openbank/lending/application/usecase", it) }
 
     @Test
@@ -74,7 +77,7 @@ class LendingEventIdentityTest {
     }
 
     @Test
-    fun `the thirteen event types are the ones this test speaks for`() {
+    fun `the sixteen event types are the ones this test speaks for`() {
         // A new event type must consciously join this list, which is what makes the scan above a
         // ratchet rather than a snapshot. Eleven are literals; two arrive as a parameter.
         val publisher = Path.of(
@@ -97,6 +100,10 @@ class LendingEventIdentityTest {
             "loan.provisioned",
             "loan.withdrawn",
             "loan.accelerated",
+            // FLUX rewards (experience v2): repayment fact + additive rate adjustments.
+            "loan.instalment_paid",
+            "loan.rate_adjusted",
+            "loan.rate_adjustment_cancelled",
         )
     }
 

@@ -166,6 +166,14 @@ interface InstallmentRepository {
 
     /** Every installment of [loanIds] (paid or not), ordered by loan then number. Read-only (ADR-0314 D4). */
     fun findByLoans(loanIds: Collection<UUID>): Uni<List<LoanInstallment>>
+
+    /**
+     * Rewrite the amounts (opening/principal/interest/payment/closing) of [rows] in place, by id —
+     * the re-amortised tail of a rate adjustment. Conditional on each row still being unpaid and not
+     * yet accrued, so a row that was settled or recognised meanwhile is never repriced; returns the
+     * number of rows changed, which the caller compares with `rows.size`.
+     */
+    fun reprice(rows: List<LoanInstallment>): Uni<Int>
 }
 
 interface CollateralRepository {

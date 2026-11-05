@@ -253,6 +253,14 @@ lending:
     # unbounded window in which the same application is judged against different rules. This is the
     # bound on that window; it is not a cache TTL, and lowering it costs one indexed read per pod.
     refresh-interval: ${LENDING_COMPLIANCE_REFRESH_INTERVAL:30s}
+  # FLUX rewards CR-1: additive, time-boxed loan rate adjustments (LoanRateAdjustmentResource).
+  # product-floor-rate is a FRACTION (0.01 = 1 % p.a.); the clamp never goes below 0 % regardless.
+  # writer-principals create/cancel, preview-principals may only preview — verified service-account
+  # names, comma-separated. Never widen these to a human role: the coupon is the rewards engine's act.
+  rate-adjustments:
+    product-floor-rate: ${LENDING_RATE_ADJUSTMENTS_PRODUCT_FLOOR_RATE:0}
+    writer-principals: ${LENDING_RATE_ADJUSTMENTS_WRITER_PRINCIPALS:service-account-openbank-rewards}
+    preview-principals: ${LENDING_RATE_ADJUSTMENTS_PREVIEW_PRINCIPALS:service-account-openbank-rewards,service-account-openbank-edge}
   # Customer self-service origination intake (ADR-0211 "Customer intake" row; CustomerIntakeResource).
   # Default OFF. `caller-principal` is the ONLY identity permitted to submit on a customer's behalf —
   # left blank, EVERY call is refused, deliberately: customer-edge's M2M token carries ROLE_OPERATOR
