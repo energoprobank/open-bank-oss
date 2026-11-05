@@ -58,6 +58,17 @@ data class DomesticPaymentCreatedEvent(
      * that customer-edge already writes for its own events.
      */
     val sourceService: String = "domestic-payment",
+    /** Czech payment symbols (additive, optional — FLUX rewards matches bill payments on them). */
+    val variableSymbol: String? = null,
+    val constantSymbol: String? = null,
+    val specificSymbol: String? = null,
+    /**
+     * The party whose account is debited (additive, optional — FLUX rewards). For a delegated
+     * payment this is the account owner the service resolved and checked against the grant; for an
+     * owner-funded payment it is the initiating party ([initiatedByPartyId]), because the service
+     * does not resolve the debtor account's owner on that path. Null when neither is known.
+     */
+    val debtorPartyId: UUID? = null,
 )
 
 data class DomesticPaymentStatusChangedEvent(
@@ -82,7 +93,7 @@ data class DomesticPaymentStatusChangedEvent(
     val sourceService: String = "domestic-payment",
 )
 
-fun DomesticPayment.toCreatedEvent(clock: Clock) = DomesticPaymentCreatedEvent(
+fun DomesticPayment.toCreatedEvent(clock: Clock, debtorPartyId: UUID? = null) = DomesticPaymentCreatedEvent(
     paymentId = id,
     idempotencyKey = idempotencyKey,
     status = status,
@@ -102,6 +113,10 @@ fun DomesticPayment.toCreatedEvent(clock: Clock) = DomesticPaymentCreatedEvent(
     reservationId = reservationId,
     eventType = "DOMESTIC_PAYMENT_CREATED",
     sourceService = "domestic-payment",
+    variableSymbol = variableSymbol,
+    constantSymbol = constantSymbol,
+    specificSymbol = specificSymbol,
+    debtorPartyId = debtorPartyId ?: initiatedByPartyId,
 )
 
 fun DomesticPayment.toStatusChangedEvent(previous: DomesticPayment, clock: Clock) = DomesticPaymentStatusChangedEvent(

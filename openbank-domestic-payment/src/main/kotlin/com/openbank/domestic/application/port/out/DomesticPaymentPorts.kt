@@ -121,7 +121,11 @@ interface DomesticPaymentOutboxRepository : OutboxRepository
  */
 interface DomesticPaymentEventPublisher {
 
-    fun paymentCreatedPayload(payment: DomesticPayment): String
+    /**
+     * [debtorPartyId] is the debited account's owner when the caller resolved it (delegated path),
+     * else null — the event then falls back to the initiating party.
+     */
+    fun paymentCreatedPayload(payment: DomesticPayment, debtorPartyId: UUID?): String
 
     fun statusChangedPayload(previous: DomesticPayment, current: DomesticPayment): String
 

@@ -237,7 +237,13 @@ class DomesticPaymentService(
 
         val payment = buildReceivedPayment(normalized, requestFingerprint, transferScope, technicalAccountCode)
 
-        val createdMessage = createdOutboxMessage(payment, normalized.synthetic)
+        // Only the delegated path resolved the debtor account's owner; the owner-funded path carries
+        // the initiating actor, which the event falls back to on its own.
+        val createdMessage = createdOutboxMessage(
+            payment,
+            normalized.synthetic,
+            debtorPartyId = if (delegated) debitOwnerPartyId else null,
+        )
         val saveOutcome = if (delegated) {
             paymentRepository.saveDelegated(
                 payment = payment,
@@ -282,10 +288,14 @@ class DomesticPaymentService(
         return DelegatedDomesticPaymentResult.Accepted(CreateDomesticPaymentResult(received, replayed = false))
     }
 
-    private fun createdOutboxMessage(payment: DomesticPayment, synthetic: Boolean): OutboxMessage = OutboxMessage(
+    private fun createdOutboxMessage(
+        payment: DomesticPayment,
+        synthetic: Boolean,
+        debtorPartyId: UUID?,
+    ): OutboxMessage = OutboxMessage(
         aggregateId = payment.id,
         eventType = PAYMENT_CREATED_EVENT,
-        payload = eventPublisher.paymentCreatedPayload(payment),
+        payload = eventPublisher.paymentCreatedPayload(payment, debtorPartyId),
         synthetic = synthetic,
     )
 

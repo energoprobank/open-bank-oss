@@ -94,7 +94,7 @@ class KafkaDomesticPaymentEventPublisherTest {
         val emitter = mockk<MutinyEmitter<String>>()
         val publisher = KafkaDomesticPaymentEventPublisher(emitter, objectMapper, Clock.systemUTC())
 
-        val payload = publisher.paymentCreatedPayload(payment)
+        val payload = publisher.paymentCreatedPayload(payment, null)
 
         assertThat(payload).contains("\"paymentId\":\"${payment.id}\"")
         assertThat(payload).contains("\"status\":\"VALIDATED\"")
@@ -107,7 +107,7 @@ class KafkaDomesticPaymentEventPublisherTest {
         val emitter = mockk<MutinyEmitter<String>>()
         val publisher = KafkaDomesticPaymentEventPublisher(emitter, objectMapper, Clock.systemUTC())
 
-        val payload = publisher.paymentCreatedPayload(payment)
+        val payload = publisher.paymentCreatedPayload(payment, null)
         val node = objectMapper.readTree(payload)
 
         // These are the exact keys AuditConsumer.resolveSourceService / the eventType chain read
@@ -117,6 +117,20 @@ class KafkaDomesticPaymentEventPublisherTest {
         assertThat(node.get("eventType").asText()).isEqualTo("DOMESTIC_PAYMENT_CREATED")
         assertThat(node.get("sourceService").asText()).isEqualTo("domestic-payment")
         assertThat(node.get("aggregateRevision").asLong()).isEqualTo(payment.aggregateRevision)
+    }
+
+    @Test
+    fun `paymentCreatedPayload puts the symbols and debtorPartyId on the wire`() {
+        val payment = payment()
+        val owner = UUID.randomUUID()
+        val publisher = KafkaDomesticPaymentEventPublisher(mockk(), objectMapper, Clock.systemUTC())
+
+        val node = objectMapper.readTree(publisher.paymentCreatedPayload(payment, owner))
+
+        assertThat(node.has("variableSymbol")).isTrue()
+        assertThat(node.has("constantSymbol")).isTrue()
+        assertThat(node.has("specificSymbol")).isTrue()
+        assertThat(node.get("debtorPartyId").asText()).isEqualTo(owner.toString())
     }
 
     @Test

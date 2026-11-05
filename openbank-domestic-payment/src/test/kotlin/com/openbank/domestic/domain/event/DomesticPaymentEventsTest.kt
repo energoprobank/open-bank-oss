@@ -84,6 +84,29 @@ class DomesticPaymentEventsTest {
     }
 
     @Test
+    fun `toCreatedEvent carries the payment symbols and falls back to the initiator as debtor party`() {
+        val payment = payment().copy(variableSymbol = "1234567890", constantSymbol = "0308", specificSymbol = "77")
+
+        val event = payment.toCreatedEvent(Clock.fixed(Instant.parse("2026-06-01T10:00:00Z"), ZoneOffset.UTC))
+
+        assertThat(event.variableSymbol).isEqualTo("1234567890")
+        assertThat(event.constantSymbol).isEqualTo("0308")
+        assertThat(event.specificSymbol).isEqualTo("77")
+        assertThat(event.debtorPartyId).isEqualTo(payment.initiatedByPartyId)
+    }
+
+    @Test
+    fun `toCreatedEvent names a resolved debtor party over the initiator`() {
+        val owner = UUID.randomUUID()
+        val payment = payment()
+
+        val event = payment.toCreatedEvent(Clock.fixed(Instant.parse("2026-06-01T10:00:00Z"), ZoneOffset.UTC), owner)
+
+        assertThat(event.debtorPartyId).isEqualTo(owner)
+        assertThat(event.initiatedByPartyId).isEqualTo(payment.initiatedByPartyId)
+    }
+
+    @Test
     fun `toCreatedEvent carries no actor when the payment was created without one`() {
         val payment = payment(initiatedByPartyId = null)
 

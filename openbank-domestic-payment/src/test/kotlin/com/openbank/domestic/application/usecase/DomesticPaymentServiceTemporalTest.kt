@@ -71,7 +71,7 @@ class DomesticPaymentServiceTemporalTest {
 
         coEvery { repo.save(any(), any()) } answers { firstArg() }
         coEvery { accountLookupPort.findPartyByIban(any()) } returns null
-        every { eventPublisher.paymentCreatedPayload(any()) } returns "{\"event\":\"created\"}"
+        every { eventPublisher.paymentCreatedPayload(any(), any()) } returns "{\"event\":\"created\"}"
     }
 
     @AfterEach

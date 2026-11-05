@@ -22,6 +22,7 @@ import org.apache.kafka.common.header.internals.RecordHeaders
 import org.eclipse.microprofile.reactive.messaging.Channel
 import org.eclipse.microprofile.reactive.messaging.Message
 import java.time.Clock
+import java.util.UUID
 
 @ApplicationScoped
 class KafkaDomesticPaymentEventPublisher(
@@ -31,8 +32,8 @@ class KafkaDomesticPaymentEventPublisher(
 ) : DomesticPaymentEventPublisher,
     OutboxEventPublisher {
 
-    override fun paymentCreatedPayload(payment: DomesticPayment): String =
-        objectMapper.writeValueAsString(payment.toCreatedEvent(clock))
+    override fun paymentCreatedPayload(payment: DomesticPayment, debtorPartyId: UUID?): String =
+        objectMapper.writeValueAsString(payment.toCreatedEvent(clock, debtorPartyId))
 
     override fun statusChangedPayload(previous: DomesticPayment, current: DomesticPayment): String =
         objectMapper.writeValueAsString(current.toStatusChangedEvent(previous, clock))

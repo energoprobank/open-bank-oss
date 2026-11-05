@@ -60,7 +60,7 @@ class DelegatedDomesticPaymentServiceTest {
 
     @BeforeEach
     fun setUp() {
-        every { eventPublisher.paymentCreatedPayload(any()) } returns "{\"event\":\"created\"}"
+        every { eventPublisher.paymentCreatedPayload(any(), any()) } returns "{\"event\":\"created\"}"
         coEvery { paymentRepository.findByIdempotencyKey(any()) } returns null
         coEvery { accountLookup.findAccountIdByIban(DEBTOR_IBAN) } returns ACCOUNT_ID
         coEvery { accountLookup.findPartyByAccountId(ACCOUNT_ID) } returns GRANTOR_ID
@@ -204,6 +204,8 @@ class DelegatedDomesticPaymentServiceTest {
             assertThat(capturedPayment.captured.reservationId).isEqualTo(RESERVATION_ID)
             assertThat(capturedPayment.captured.debtorAccountId).isEqualTo(ACCOUNT_ID)
             assertThat(capturedDebitOwner.captured).isEqualTo(GRANTOR_ID)
+            // The created event names the resolved account owner as the debtor party, not the grantee.
+            verify(exactly = 1) { eventPublisher.paymentCreatedPayload(any(), GRANTOR_ID) }
             assertThat(capturedPayment.captured.transferScope).isEqualTo(DomesticTransferScope.INTERNAL_CLIENT)
             coVerify(exactly = 1) { accountLookup.findAccountIdByIban(DEBTOR_IBAN) }
             coVerify(exactly = 1) { accountLookup.findPartyByAccountId(ACCOUNT_ID) }
@@ -212,7 +214,7 @@ class DelegatedDomesticPaymentServiceTest {
     private fun assertNoCreationSideEffects() {
         coVerify(exactly = 0) { paymentRepository.findByIdempotencyKey(any()) }
         coVerify(exactly = 0) { paymentRepository.saveDelegated(any(), any(), any(), any()) }
-        verify(exactly = 0) { eventPublisher.paymentCreatedPayload(any()) }
+        verify(exactly = 0) { eventPublisher.paymentCreatedPayload(any(), any()) }
     }
 
     private fun command() = CreateDomesticPaymentCommand(

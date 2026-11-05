@@ -75,7 +75,7 @@ class DomesticPaymentServiceTest {
 
         coEvery { paymentRepository.save(any(), any()) } answers { firstArg() }
         coEvery { paymentRepository.update(any(), any()) } answers { firstArg() }
-        every { eventPublisher.paymentCreatedPayload(any()) } returns "{\"event\":\"created\"}"
+        every { eventPublisher.paymentCreatedPayload(any(), any()) } returns "{\"event\":\"created\"}"
         every { eventPublisher.statusChangedPayload(any(), any()) } returns "{\"event\":\"status-changed\"}"
     }
 
@@ -105,7 +105,7 @@ class DomesticPaymentServiceTest {
 
         coVerify(exactly = 0) { paymentRepository.findByIdempotencyKey(any()) }
         coVerify(exactly = 0) { paymentRepository.save(any(), any()) }
-        verify(exactly = 0) { eventPublisher.paymentCreatedPayload(any()) }
+        verify(exactly = 0) { eventPublisher.paymentCreatedPayload(any(), any()) }
     }
 
     // --- ADR-0335 D5: initiator scope ---

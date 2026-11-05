@@ -5,7 +5,7 @@ asyncapi: 3.0.0
 
 info:
   title: OpenBank Domestic Payment Service — events
-  version: 1.3.0
+  version: 1.4.0
   description: >-
     Events produced by the Czech domestic-payment lifecycle. A delegated payment carries one
     indivisible delegationId/reservationId pair from creation through every status transition;
@@ -170,6 +170,23 @@ components:
                 description: Database-backed monotonic ordering token; optional only for retained pre-1.2 events.
               eventType: {type: string, const: DOMESTIC_PAYMENT_CREATED}
               sourceService: {type: string, const: domestic-payment}
+              variableSymbol:
+                type: [string, 'null']
+                description: Czech variable symbol (VS), when the payment carries one. Additive since 1.4.
+              constantSymbol:
+                type: [string, 'null']
+                description: Czech constant symbol (KS), when the payment carries one. Additive since 1.4.
+              specificSymbol:
+                type: [string, 'null']
+                description: Czech specific symbol (SS), when the payment carries one. Additive since 1.4.
+              debtorPartyId:
+                type: [string, 'null']
+                format: uuid
+                description: >-
+                  Party whose account is debited. For a delegated payment the resolved account owner
+                  (checked against the grant); for an owner-funded payment the initiating party
+                  (initiatedByPartyId), as the service does not resolve the owner on that path.
+                  Additive since 1.4.
 
     DOMESTIC_PAYMENT_STATUS_CHANGED:
       name: DOMESTIC_PAYMENT_STATUS_CHANGED
