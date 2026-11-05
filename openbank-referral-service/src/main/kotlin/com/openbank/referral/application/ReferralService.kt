@@ -60,6 +60,14 @@ class ReferralService(
     // injection point, and an empty-string defaultValue does NOT rescue it (SmallRye still treats
     // the property as required). The default lives in orElse below.
     @ConfigProperty(name = "openbank.referral.link-base-url") linkBaseUrl: Optional<String>,
+    /**
+     * FLUX rewards (Energo-Pro spec): when true, openbank-rewards-service owns the referral reward —
+     * it consumes `referral.qualified.v1` and pays both sides itself — so this service records the
+     * qualification (status QUALIFIED) and stops writing the deprecated `RewardRequested` event.
+     * Default false keeps the pre-FLUX behaviour (QUALIFIED + REWARD_REQUESTED, both events).
+     */
+    @ConfigProperty(name = "openbank.referral.rewards-engine.enabled", defaultValue = "false")
+    private val rewardsEngineOwnsRewards: Boolean,
 ) {
     private val random = SecureRandom()
 
@@ -253,7 +261,8 @@ class ReferralService(
 
     /**
      * Creates the reward for an ATTRIBUTED [invite] under [program], keyed on [eventId], and writes
-     * its `Qualified` + `RewardRequested` outbox rows in the same transaction. The caller has
+     * its `Qualified` + `RewardRequested` outbox rows in the same transaction (only `Qualified` when
+     * the FLUX rewards engine owns the reward, see [rewardsEngineOwnsRewards]). The caller has
      * already decided eligibility — the operator route above by its own checks, the ADR-0310 D1
      * paths through `QualificationRule`. A second call with the same (invite, event) returns the
      * reward it already made.
@@ -277,9 +286,9 @@ class ReferralService(
             rewardReference = "referral-${invite.id}-$eventId",
             amount = program.rewardAmount,
             currency = program.currency,
-            status = RewardStatus.REWARD_REQUESTED,
+            status = if (rewardsEngineOwnsRewards) RewardStatus.QUALIFIED else RewardStatus.REWARD_REQUESTED,
             createdAt = now,
-            requestedAt = now,
+            requestedAt = if (rewardsEngineOwnsRewards) null else now,
             rewardedAt = null,
         )
         val qualified = ReferralEvent.Qualified(
@@ -291,6 +300,11 @@ class ReferralService(
             refereePartyId = refereePartyId,
             qualificationEventId = eventId,
         )
+        if (rewardsEngineOwnsRewards) {
+            val created = rewards.create(reward, listOf(outboxMessage(reward.id, qualified)))
+            audit.append("QUALIFIED", created.id, actor, created.rewardReference, now)
+            return created
+        }
         val rewardRequested = ReferralEvent.RewardRequested(
             eventId = Ids.randomId(),
             occurredAt = now,

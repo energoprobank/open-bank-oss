@@ -1,19 +1,27 @@
 asyncapi: 2.6.0
 info:
   title: Referral lifecycle events
-  version: 1.0.0
+  version: 1.1.0
   description: |
     Producer wired since #7190: qualification writes both Qualified and RewardRequested to
     `referral_outbox` in the same transaction as the reward row, and ReferralOutboxDispatcher
     relays them at-least-once to the topics below (each channel is its own Kafka topic —
     openbank.referral.qualified.v1, openbank.referral.reward-requested.v1,
     openbank.referral.reward-outcome.v1). A consumer can now build against these channels.
+
+    FLUX rewards (1.1.0): with `openbank.referral.rewards-engine.enabled=true` the rewards engine
+    owns referral rewards and consumes `referral.qualified.v1`; RewardRequested is then not
+    written at all. RewardRequested is deprecated — new consumers must use Qualified.
 channels:
   referral.qualified.v1:
     address: openbank.referral.qualified.v1
     publish: {operationId: referralQualified, message: {$ref: '#/components/messages/Qualified'}}
   referral.reward.requested.v1:
     address: openbank.referral.reward-requested.v1
+    x-deprecated: true
+    description: >-
+      Deprecated (FLUX rewards). Not emitted when openbank.referral.rewards-engine.enabled=true;
+      the rewards engine pays from referral.qualified.v1 instead.
     x-planned-consumer: https://github.com/JiRaska/open-bank-oss/issues/13176
     publish: {operationId: referralRewardRequested, message: {$ref: '#/components/messages/RewardRequested'}}
   referral.reward.outcome.v1:

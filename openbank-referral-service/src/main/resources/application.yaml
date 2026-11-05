@@ -54,6 +54,11 @@ openbank:
     # https://app.open-bank.tech/r/ — a ${VAR:} empty default would make it REQUIRED (SmallRye
     # SRCFG00014), so the default is spelled out here and in ReferralService.
     link-base-url: "https://app.open-bank.tech/r/"
+    rewards-engine:
+      # FLUX rewards: true when openbank-rewards-service pays referral rewards from
+      # referral.qualified.v1 — this service then stops writing the deprecated RewardRequested
+      # event and leaves the reward row QUALIFIED. Off by default (pre-FLUX behaviour).
+      enabled: ${OPENBANK_REFERRAL_REWARDS_ENGINE_ENABLED:false}
 
 mp:
   messaging:
