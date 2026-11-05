@@ -551,6 +551,9 @@ class LendingResource(
     @Path("/loans/overview")
     @Operation(summary = "A party's loans with outstanding, effective rate, next instalment and arrears days")
     @RolesAllowed(
+        // ROLE_API: the FLUX rewards engine checks loan ownership and the next instalment before a
+        // credit coupon is used; OPA admits only service-account-openbank-rewards (lending_rest_ext.rego).
+        "ROLE_API",
         "ROLE_VIEWER",
         "ROLE_OPERATOR",
         "ROLE_LENDING_OFFICER",

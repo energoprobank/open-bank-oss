@@ -300,3 +300,10 @@ prohibited if {
 backfill_role_held if "ROLE_ADMIN" in input.principal.roles
 
 backfill_role_held if "ROLE_FINANCE" in input.principal.roles
+
+# FLUX rewards reads a party's loan overview (ownership, next instalment, arrears) before a credit
+# coupon is used. Read-only, one action, one named machine.
+allowed_reasons contains "rewards-loan-overview-read" if {
+	machine_named("service-account-openbank-rewards")
+	input.action == "lending.list"
+}

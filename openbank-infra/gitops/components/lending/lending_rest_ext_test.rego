@@ -367,3 +367,13 @@ test_human_admin_denied_rate_adjustment if {
 		with data.rules as rules_mock
 }
 
+
+test_rewards_may_read_loan_overview if {
+	rest.allow with input as {"principal": rewards, "action": "lending.list"}
+		with data.rules as rules_mock
+}
+
+test_rewards_impostor_may_not_read_loan_overview if {
+	not rest.allow with input as {"principal": rewards_impostor, "action": "lending.list"}
+		with data.rules as rules_mock
+}
