@@ -4220,9 +4220,13 @@ class CustomerEdgeResource(
     @Blocking
     fun onboardingStatus(): Response {
         val customer = customer()
-        val partyResponse = upstream.get("$partyServiceUrl/api/v1/parties/${customer.partyId}", customer.partyId.toString())
+        val partyResponse = upstream.get(
+            "$partyServiceUrl/api/v1/parties/${customer.partyId}",
+            customer.partyId.toString(),
+        )
         if (partyResponse.status != 200) {
-            return Response.status(404).entity("""{"error":"Party not found"}""").type(MediaType.APPLICATION_JSON).build()
+            return Response.status(404).entity("""{"error":"Party not found"}""")
+                .type(MediaType.APPLICATION_JSON).build()
         }
         val legalName = extractTextField(objectMapper, (partyResponse.entity as? String).orEmpty(), "legalName")
             ?: return Response.status(422).entity("""{"error":"Party has no legal name"}""")
