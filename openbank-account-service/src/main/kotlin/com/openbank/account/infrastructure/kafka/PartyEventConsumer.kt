@@ -75,7 +75,8 @@ private data class PartyEvent(
 @ApplicationScoped
 // Constructor width comes from @ConfigProperty injection (the bonus feature alone is a
 // config triplet) — a config holder class would only move the noise, not remove it.
-@Suppress("LongParameterList")
+// TooManyFunctions: the onboarding-resume entry point (resumeAfterClearance) took it to 11.
+@Suppress("LongParameterList", "TooManyFunctions")
 class PartyEventConsumer(
     private val accountUseCase: AccountUseCase,
     private val accountRepository: AccountRepository,

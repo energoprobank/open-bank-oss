@@ -42,7 +42,11 @@ class SanctionsReviewConsumer(
             log.warnf("sanctions clearance for unknown party %s — nothing to resume", cleared.partyId)
             return
         }
-        partyEvents.resumeAfterClearance(cleared.partyId, party.legalName.ifBlank { cleared.name }, party.status == "ACTIVE")
+        partyEvents.resumeAfterClearance(
+            cleared.partyId,
+            party.legalName.ifBlank { cleared.name },
+            party.status == "ACTIVE",
+        )
         log.infof("onboarding resumed for party %s after sanctions clearance", cleared.partyId)
     }
 

@@ -25,8 +25,9 @@ class SanctionsReviewConsumerTest {
     private fun payload(status: String, key: String = "account-open:$party:onboarding-account-$party") =
         """{"status":"$status","idempotencyKey":"$key","name":"Michal Král"}"""
 
-    private fun record(type: String?, value: String) = ConsumerRecord("openbank.sanctions.screening.event", 0, 0L, "k", value)
-        .also { r -> type?.let { r.headers().add(SanctionsReviewConsumer.EVENT_TYPE_HEADER, it.toByteArray()) } }
+    private fun record(type: String?, value: String) =
+        ConsumerRecord("openbank.sanctions.screening.event", 0, 0L, "k", value)
+            .also { r -> type?.let { r.headers().add(SanctionsReviewConsumer.EVENT_TYPE_HEADER, it.toByteArray()) } }
 
     @Test
     fun `a cleared onboarding hit resumes the onboarding, activating when the party is active`(): Unit = runBlocking {
@@ -43,7 +44,9 @@ class SanctionsReviewConsumerTest {
         consumer.consume(record(null, payload("CLEAR")))
         consumer.consume(record(SanctionsReviewConsumer.REVIEWED, payload("HIT")))
         consumer.consume(record(SanctionsReviewConsumer.REVIEWED, payload("CLEAR", key = "manual-123")))
-        consumer.consume(record(SanctionsReviewConsumer.REVIEWED, payload("CLEAR", key = "account-open:$party:customer-key")))
+        consumer.consume(
+            record(SanctionsReviewConsumer.REVIEWED, payload("CLEAR", key = "account-open:$party:customer-key")),
+        )
         consumer.consume(record(SanctionsReviewConsumer.REVIEWED, "not json"))
 
         coVerify(exactly = 0) { partyEvents.resumeAfterClearance(any(), any(), any()) }
@@ -52,6 +55,8 @@ class SanctionsReviewConsumerTest {
 
     @Test
     fun `parse accepts WHITELISTED and reads the party from the key`() {
-        assertThat(consumer.parse(payload("WHITELISTED"))).isEqualTo(SanctionsReviewConsumer.Clearance(party, "Michal Král"))
+        assertThat(
+            consumer.parse(payload("WHITELISTED")),
+        ).isEqualTo(SanctionsReviewConsumer.Clearance(party, "Michal Král"))
     }
 }

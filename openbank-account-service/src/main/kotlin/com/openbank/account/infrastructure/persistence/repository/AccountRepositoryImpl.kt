@@ -4,6 +4,8 @@
 
 package com.openbank.account.infrastructure.persistence.repository
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.openbank.account.application.port.out.AccountOutboxRepository
 import com.openbank.account.application.port.out.AccountRepository
 import com.openbank.account.application.usecase.AccountUpdateConflictException
 import com.openbank.account.domain.model.Account
@@ -14,10 +16,13 @@ import com.openbank.account.domain.model.SigningRule
 import com.openbank.account.infrastructure.persistence.entity.AccountEntity
 import com.openbank.account.infrastructure.persistence.entity.AccountIdempotencyEntity
 import com.openbank.libs.domain.account.Iban
+import com.openbank.libs.domain.event.DomainEvent
 import com.openbank.libs.domain.money.CurrencyCode
+import com.openbank.libs.persistence.outbox.OutboxMessage
 import io.quarkus.hibernate.reactive.panache.Panache
 import io.quarkus.hibernate.reactive.panache.kotlin.PanacheRepository
 import io.quarkus.hibernate.reactive.panache.kotlin.PanacheRepositoryBase
+import io.smallrye.mutiny.Uni
 import io.smallrye.mutiny.coroutines.awaitSuspending
 import jakarta.enterprise.context.ApplicationScoped
 import java.time.Clock
@@ -47,6 +52,9 @@ class AccountRepositoryImpl(
     internal val clock: Clock,
     private val idempotencyRepository: AccountIdempotencyRepository,
     private val pocketRepository: CurrencyPocketRepositoryImpl,
+    // internal for the same reason as clock: read by the file-scope updateWithOutbox below.
+    internal val outboxRepository: AccountOutboxRepository,
+    internal val objectMapper: ObjectMapper,
 ) : AccountRepository,
     PanacheRepository<AccountEntity> {
 
@@ -169,6 +177,23 @@ class AccountRepositoryImpl(
         }
     }
 
+    override suspend fun updateWithEvents(account: Account, events: List<DomainEvent>): Account {
+        val entity = account.toEntity()
+        return try {
+            updateWithOutbox(entity, events).awaitSuspending().toDomain()
+        } catch (e: jakarta.persistence.OptimisticLockException) {
+            throw AccountUpdateConflictException(
+                "Account ${entity.id} was modified concurrently (flush-time version check)",
+                e,
+            )
+        } catch (e: org.hibernate.StaleObjectStateException) {
+            throw AccountUpdateConflictException(
+                "Account ${entity.id} was modified concurrently (flush-time version check)",
+                e,
+            )
+        }
+    }
+
     override suspend fun existsByIban(iban: Iban): Boolean =
         Panache.withSession { count("accountNumber", iban.value) }.awaitSuspending() > 0
 
@@ -224,6 +249,26 @@ private fun AccountRepositoryImpl.versionMatchedUpdate(entity: AccountEntity) = 
         io.smallrye.mutiny.Uni.createFrom().item(existing)
     }
 }
+
+// The account row update and its outbox rows in ONE transaction: versionMatchedUpdate's own
+// Panache.withTransaction joins this outer one, so the outbox inserts commit or roll back with it.
+private fun AccountRepositoryImpl.updateWithOutbox(entity: AccountEntity, events: List<DomainEvent>) =
+    Panache.withTransaction {
+        versionMatchedUpdate(entity).flatMap { updated ->
+            events.fold(Uni.createFrom().voidItem()) { chain, event ->
+                chain.flatMap {
+                    outboxRepository.persistInTransaction(
+                        OutboxMessage(
+                            aggregateId = event.aggregateId,
+                            eventType = event.eventType,
+                            payload = objectMapper.writeValueAsString(event),
+                            createdAt = event.occurredAt,
+                        ),
+                    )
+                }
+            }.replaceWith(updated)
+        }
+    }
 
 // Entity<->domain mappers kept at file scope (pure functions) so AccountRepositoryImpl stays
 // within detekt's per-class function budget — same pattern as the ledger repository helpers.

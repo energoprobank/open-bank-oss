@@ -167,6 +167,50 @@ class AccountOutboxAtomicityIT {
         assertThat(writersOf(UUID.randomUUID())).isEmpty()
     }
 
+    /**
+     * FLUX rewards (ADR-0153 amendment): setting a savings goal writes the account row and its
+     * `SavingsGoalSet` outbox row in ONE transaction — same xmin probe as the proposal case. No
+     * balance-service runs here, so the Reached check fails soft and only `SavingsGoalSet` lands.
+     */
+    @Test
+    @TestSecurity(user = ACTOR_ID, roles = ["ROLE_OPERATOR"])
+    fun `setting a savings goal commits the account row and its SavingsGoalSet outbox row together`() {
+        val accountId = openAccount()
+
+        Given {
+            contentType("application/json")
+            body("""{"name": "Rewards IT", "targetMinorUnits": 100000}""")
+        } When {
+            put("/api/v1/accounts/$accountId/goal")
+        } Then {
+            statusCode(200)
+        }
+
+        val rows = dataSource.connection.use { connection ->
+            connection.prepareStatement(
+                """
+                SELECT a.xmin::text, o.xmin::text, o.event_type, o.payload::text
+                FROM accounts a JOIN account_outbox o ON o.aggregate_id = a.id
+                WHERE a.id = ?
+                """.trimIndent(),
+            ).use { statement ->
+                statement.setObject(1, UUID.fromString(accountId))
+                statement.executeQuery().use { rs ->
+                    generateSequence { if (rs.next()) rs else null }
+                        .map { listOf(it.getString(1), it.getString(2), it.getString(3), it.getString(4)) }
+                        .toList()
+                }
+            }
+        }
+        assertThat(rows).hasSize(1)
+        val row = rows.single()
+        val (accountXmin, outboxXmin, eventType) = row
+        val payload = row[3]
+        assertThat(eventType).isEqualTo("SavingsGoalSet")
+        assertThat(outboxXmin).isEqualTo(accountXmin)
+        assertThat(payload).contains("\"partyId\"", ownerParty.toString(), "\"goalAmount\"", "1000.00", "CZK")
+    }
+
     private data class WriterPair(val proposalXmin: String, val outboxXmin: String, val eventType: String)
 
     /** The transaction ids (`xmin`) that wrote the aggregate row and each of its outbox rows. */

@@ -33,6 +33,8 @@ import com.openbank.account.application.port.out.ProductLookupResult
 import com.openbank.account.domain.event.AccountClosedEvent
 import com.openbank.account.domain.event.AccountCreatedEvent
 import com.openbank.account.domain.event.AccountStatusChangedEvent
+import com.openbank.account.domain.event.SavingsGoalReachedEvent
+import com.openbank.account.domain.event.SavingsGoalSetEvent
 import com.openbank.account.domain.model.Account
 import com.openbank.account.domain.model.AccountStatus
 import com.openbank.account.domain.model.AccountType
@@ -46,6 +48,7 @@ import com.openbank.libs.api.pagination.PageInfo
 import com.openbank.libs.domain.account.Iban
 import com.openbank.libs.domain.error.ResourceConflictException
 import com.openbank.libs.domain.error.ResourceNotFoundException
+import com.openbank.libs.domain.event.DomainEvent
 import com.openbank.libs.domain.identifiers.Ids
 import com.openbank.libs.idempotency.IdempotencyKeyReusedException
 import com.openbank.libs.observability.DomainMetrics
@@ -277,6 +280,7 @@ class AccountService(
                 reason = "KYC + AML cleared (ADR-0267)",
                 occurredAt = clock.instant(),
                 sourceService = "account-service",
+                partyId = updated.partyId,
             ),
         )
 
@@ -305,6 +309,7 @@ class AccountService(
                 reason = command.reason,
                 occurredAt = clock.instant(),
                 sourceService = "account-service",
+                partyId = updated.partyId,
             ),
         )
 
@@ -335,6 +340,7 @@ class AccountService(
                 reason = command.reason,
                 occurredAt = clock.instant(),
                 sourceService = "account-service",
+                partyId = updated.partyId,
             ),
         )
 
@@ -469,9 +475,12 @@ class AccountService(
     }
 
     // ADR-0153: set/replace or clear the account's optional savings goal. Plain field
-    // updates on the existing aggregate (see the ADR's "not a new service" decision) —
-    // no new event, no new Kafka topic; the goal is customer-preference metadata, not a
-    // money-path state transition.
+    // updates on the existing aggregate (see the ADR's "not a new service" decision), no new
+    // Kafka topic. ADR-0153 AMENDMENT (FLUX rewards): the original "no new event" no longer
+    // holds — setting a goal publishes SavingsGoalSet, and SavingsGoalReached when the goal is
+    // set at or below the current booked balance, both through the account outbox in the
+    // same transaction as the goal update (see the event classes for the Reached limitation:
+    // this service never sees later balance movements). Clearing a goal publishes nothing.
     override suspend fun updateSavingsGoal(command: UpdateSavingsGoalCommand): Account {
         require(command.name.isNotBlank()) { "Goal name must not be blank" }
         require(command.name.length <= GOAL_NAME_MAX_LENGTH) {
@@ -479,14 +488,60 @@ class AccountService(
         }
         require(command.targetMinorUnits > 0) { "Goal target must be positive" }
         val account = requireAccount(command.accountId)
-        return accountRepository.update(
-            account.copy(
-                goalName = command.name,
-                goalTargetMinorUnits = command.targetMinorUnits,
-                goalTargetDate = command.targetDate,
-            ),
+        val withGoal = account.copy(
+            goalName = command.name,
+            goalTargetMinorUnits = command.targetMinorUnits,
+            goalTargetDate = command.targetDate,
         )
+        return accountRepository.updateWithEvents(withGoal, savingsGoalEvents(withGoal, command))
     }
+
+    private suspend fun savingsGoalEvents(account: Account, command: UpdateSavingsGoalCommand): List<DomainEvent> {
+        val now = clock.instant()
+        val goal = BigDecimal.valueOf(command.targetMinorUnits, account.currency.defaultFractionDigits)
+        val set = SavingsGoalSetEvent(
+            aggregateId = account.id,
+            version = account.version + 1,
+            accountId = account.id,
+            partyId = account.partyId,
+            goalAmount = goal.toPlainString(),
+            goalAmountMinorUnits = command.targetMinorUnits,
+            currency = account.currency.code,
+            targetDate = command.targetDate,
+            occurredAt = now,
+            sourceService = "account-service",
+        )
+        val booked = bookedBalanceOrNull(account) ?: return listOf(set)
+        if (booked < goal) return listOf(set)
+        val reached = SavingsGoalReachedEvent(
+            aggregateId = account.id,
+            version = account.version + 1,
+            accountId = account.id,
+            partyId = account.partyId,
+            goalAmount = goal.toPlainString(),
+            goalAmountMinorUnits = command.targetMinorUnits,
+            currency = account.currency.code,
+            bookedBalance = booked.setScale(account.currency.defaultFractionDigits).toPlainString(),
+            occurredAt = now,
+            sourceService = "account-service",
+        )
+        return listOf(set, reached)
+    }
+
+    /**
+     * The booked balance, or null when balance-service cannot answer. Fail-soft on purpose:
+     * setting a goal is a customer preference and must not fail because the Reached check could
+     * not run — the goal is still set (and SavingsGoalSet still published), only Reached is skipped.
+     */
+    private suspend fun bookedBalanceOrNull(account: Account): BigDecimal? = runCatching {
+        balancePort.getByAccountAndCurrency(account.id, account.currency.code)?.booked
+    }.onFailure { failure ->
+        LOG.warnf(
+            failure,
+            "savings goal set on %s but its balance could not be read; no SavingsGoalReached",
+            account.id,
+        )
+    }.getOrNull()
 
     override suspend fun clearSavingsGoal(command: ClearSavingsGoalCommand): Account {
         val account = requireAccount(command.accountId)

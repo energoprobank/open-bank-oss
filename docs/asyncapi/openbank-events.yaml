@@ -75,7 +75,7 @@ info:
       those topics trigger, so those rows assert a business time nobody measured (#3883).
 
     Known gaps this document now records rather than hides: `openbank.accounts.account.created`
-    carries four structurally unrelated bodies; sepa-instant carries `ce-type` and stable `ce-id`
+    carries six structurally unrelated bodies; sepa-instant carries `ce-type` and stable `ce-id`
     but no partition key, and drops every subtype-specific field before the wire; and the interest
     payloads carry no event time of any kind.
   license:
@@ -98,19 +98,20 @@ channels:
   account-events-out:
     address: openbank.accounts.account.created
     description: |
-      Account lifecycle. **The address is a misnomer: four structurally unrelated bodies share
+      Account lifecycle. **The address is a misnomer: six structurally unrelated bodies share
       this one topic**, because account-service's `AccountEventPublisher` has a single
       implementation that ignores the `topic` argument its callers pass and always emits on the
       `account-events-out` channel. `AccountStatusChanged` and `AccountClosed` therefore land here,
       not on the `...account.status-changed` topic their call sites name — that topic does not
       exist, has no Kafka resource, and nothing consumes it.
 
-      Mixed relay. Three of the four are published by a **direct emitter**
+      Mixed relay. Three of the six are published by a **direct emitter**
       (`KafkaAccountEventPublisher`, `writeValueAsString(event)`) which sets no headers at all;
-      `SavingsWithdrawalApproved` is outbox-relayed and so also carries `ce-type`. All four
-      serialise a `DomainEvent` subclass, so all four do carry a **body eventType** — this is one
-      of the few channels where the body-field idiom is genuinely correct. Discriminate on the body
-      field here; `ce-type` is present only on the withdrawal event.
+      `SavingsWithdrawalApproved`, `SavingsGoalSet` and `SavingsGoalReached` are outbox-relayed and
+      so also carry `ce-type`. All six serialise a `DomainEvent` subclass, so all six do carry a
+      **body eventType** — this is one of the few channels where the body-field idiom is genuinely
+      correct. Discriminate on the body field here; `ce-type` is present only on the outbox events.
+      Consumers must ack-and-skip body types they do not handle.
     messages:
       AccountCreated:
         $ref: '#/components/messages/AccountCreated'
@@ -120,6 +121,10 @@ channels:
         $ref: '#/components/messages/AccountClosed'
       SavingsWithdrawalApproved:
         $ref: '#/components/messages/SavingsWithdrawalApproved'
+      SavingsGoalSet:
+        $ref: '#/components/messages/SavingsGoalSet'
+      SavingsGoalReached:
+        $ref: '#/components/messages/SavingsGoalReached'
 
   ledger-journal-posted:
     address: openbank.ledger.journal.posted
@@ -655,6 +660,31 @@ components:
       payload:
         $ref: '#/components/schemas/SavingsWithdrawalApprovedPayload'
 
+    SavingsGoalSet:
+      name: SavingsGoalSet
+      title: Savings Goal Set
+      description: >-
+        Outbox-relayed (carries `ce-type`), written by `AccountRepositoryImpl.updateWithEvents` in the
+        same transaction as the goal update (ADR-0153 amendment, FLUX rewards). Emitted on every
+        set/replace of a goal; clearing a goal emits nothing. The free-text goal name is NOT on the
+        wire. Partition key = accountId.
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/SavingsGoalSetPayload'
+
+    SavingsGoalReached:
+      name: SavingsGoalReached
+      title: Savings Goal Reached
+      description: >-
+        Outbox-relayed, same transaction as `SavingsGoalSet`. LIMITATION: account-service does not
+        see balance movements, so it fires only when a goal is SET at or below the current booked
+        balance (read from balance-service at that moment; skipped if balance-service is
+        unreachable). A balance that later grows past an existing goal does NOT emit it. May repeat
+        if the same goal is set again — consumers dedupe per accountId.
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/SavingsGoalReachedPayload'
+
     JournalPosted:
       name: JournalPosted
       title: Journal Posted
@@ -1132,6 +1162,10 @@ components:
               type: string
             reason:
               type: [string, 'null']
+            partyId:
+              type: [string, 'null']
+              format: uuid
+              description: Account owner. Additive (FLUX rewards); absent on events produced before it.
 
     AccountClosedPayload:
       allOf:
@@ -1163,6 +1197,57 @@ components:
             scaSessionId:
               type: string
               format: uuid
+
+    SavingsGoalSetPayload:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          required: [accountId, partyId, goalAmount, goalAmountMinorUnits, currency]
+          properties:
+            accountId:
+              type: string
+              format: uuid
+            partyId:
+              type: string
+              format: uuid
+            goalAmount:
+              type: string
+              description: Goal in major units, plain decimal string (e.g. "40000.00").
+            goalAmountMinorUnits:
+              type: integer
+              format: int64
+            currency:
+              type: string
+            targetDate:
+              type: [string, 'null']
+              format: date
+            sourceService:
+              type: string
+
+    SavingsGoalReachedPayload:
+      allOf:
+        - $ref: '#/components/schemas/DomainEventEnvelope'
+        - type: object
+          required: [accountId, partyId, goalAmount, goalAmountMinorUnits, currency, bookedBalance]
+          properties:
+            accountId:
+              type: string
+              format: uuid
+            partyId:
+              type: string
+              format: uuid
+            goalAmount:
+              type: string
+            goalAmountMinorUnits:
+              type: integer
+              format: int64
+            currency:
+              type: string
+            bookedBalance:
+              type: string
+              description: Booked balance (major units) observed when the goal was set.
+            sourceService:
+              type: string
 
     JournalPostedPayload:
       allOf:

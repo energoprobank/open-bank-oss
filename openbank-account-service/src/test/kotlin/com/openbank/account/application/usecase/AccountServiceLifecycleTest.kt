@@ -117,6 +117,8 @@ class AccountServiceLifecycleTest {
             assertThat(statusChanged.previousStatus).isEqualTo(AccountStatus.PENDING_ACTIVATION)
             assertThat(statusChanged.newStatus).isEqualTo(AccountStatus.ACTIVE)
             assertThat(statusChanged.occurredAt).isEqualTo(fixedInstant)
+            // FLUX rewards: the owner rides on the event so party-keyed consumers need no lookup.
+            assertThat(statusChanged.partyId).isEqualTo(acc.partyId)
         }
 
     @Test
@@ -166,6 +168,7 @@ class AccountServiceLifecycleTest {
         assertThat(statusChanged.previousStatus).isEqualTo(AccountStatus.ACTIVE)
         assertThat(statusChanged.newStatus).isEqualTo(AccountStatus.FROZEN)
         assertThat(statusChanged.reason).isEqualTo("AML alert")
+        assertThat(statusChanged.partyId).isEqualTo(acc.partyId)
     }
 
     @Test

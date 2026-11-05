@@ -76,6 +76,8 @@ class PartyDirectoryClient(@RestClient private val client: PartyDirectoryRestCli
         val item = client.get(partyId.toString()).awaitSuspending()
         DirectoryParty(partyId, item.partyType, item.status, item.legalName.orEmpty().trim())
     } catch (e: WebApplicationException) {
-        if (e.response?.status == 404) null else throw e
+        if (e.response?.status == NOT_FOUND) null else throw e
     }
 }
+
+private const val NOT_FOUND = 404

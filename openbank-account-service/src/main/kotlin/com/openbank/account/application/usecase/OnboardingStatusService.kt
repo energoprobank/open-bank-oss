@@ -37,7 +37,7 @@ class OnboardingStatusService(
     private val sanctionsScreening: AccountSanctionsScreeningPort,
 ) {
     suspend fun state(partyId: UUID, legalName: String): OnboardingAccountState {
-        val accounts = accountRepository.findByPartyId(partyId, 50, null)
+        val accounts = accountRepository.findByPartyId(partyId, ACCOUNTS_PAGE, null)
         if (accounts.any { it.accountType == AccountType.CURRENT }) return OnboardingAccountState.OPEN
         val screening = sanctionsScreening.screen(
             name = legalName,
@@ -45,5 +45,10 @@ class OnboardingStatusService(
             partyId = partyId,
         )
         return if (screening.permitsOpening) OnboardingAccountState.PENDING else OnboardingAccountState.IN_REVIEW
+    }
+
+    private companion object {
+        /** One page of the party's accounts is plenty to spot an open CURRENT account. */
+        const val ACCOUNTS_PAGE = 50
     }
 }

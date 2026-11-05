@@ -8,6 +8,7 @@ import com.openbank.account.domain.model.Account
 import com.openbank.account.domain.model.AccountAuthorization
 import com.openbank.account.domain.model.CurrencyPocket
 import com.openbank.libs.domain.account.Iban
+import com.openbank.libs.domain.event.DomainEvent
 import java.math.BigDecimal
 import java.time.Instant
 import java.util.UUID
@@ -63,6 +64,13 @@ interface AccountRepository {
     suspend fun findIdempotencyRequestHash(idempotencyKey: String): String?
 
     suspend fun update(account: Account): Account
+
+    /**
+     * [update] the account AND write [events] as account-outbox rows in ONE transaction, so an
+     * event can never be published for a change that rolled back, nor a change committed without
+     * its event (savings goal events, ADR-0153 amendment).
+     */
+    suspend fun updateWithEvents(account: Account, events: List<DomainEvent>): Account
 
     suspend fun existsByIban(iban: Iban): Boolean
 

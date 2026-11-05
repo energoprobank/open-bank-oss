@@ -37,10 +37,12 @@ class OnboardingStatusServiceTest {
     @Test
     fun `the onboarding screening decides between IN_REVIEW and PENDING`(): Unit = runBlocking {
         coEvery { accounts.findByPartyId(party, any(), any()) } returns emptyList()
-        coEvery { screening.screen("Michal Král", onboardingKey, party) } returns SanctionsScreenResult("HIT", 1.0, null)
+        coEvery { screening.screen("Michal Král", onboardingKey, party) } returns
+            SanctionsScreenResult("HIT", 1.0, null)
         assertThat(service.state(party, "Michal Král")).isEqualTo(OnboardingAccountState.IN_REVIEW)
 
-        coEvery { screening.screen("Michal Král", onboardingKey, party) } returns SanctionsScreenResult("CLEAR", 1.0, null)
+        coEvery { screening.screen("Michal Král", onboardingKey, party) } returns
+            SanctionsScreenResult("CLEAR", 1.0, null)
         assertThat(service.state(party, "Michal Král")).isEqualTo(OnboardingAccountState.PENDING)
     }
 }

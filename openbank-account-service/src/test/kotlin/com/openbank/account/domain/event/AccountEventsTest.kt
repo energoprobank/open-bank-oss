@@ -109,4 +109,69 @@ class AccountEventsTest {
         assertThat(node.get("eventType").asText()).isEqualTo("SavingsWithdrawalApproved")
         assertThat(node.get("sourceService").asText()).isEqualTo("account-service")
     }
+
+    @Test
+    fun `AccountStatusChangedEvent carries the owning partyId on the wire`() {
+        val partyId = UUID.randomUUID()
+        val event = AccountStatusChangedEvent(
+            aggregateId = UUID.randomUUID(),
+            version = 1L,
+            previousStatus = AccountStatus.ACTIVE,
+            newStatus = AccountStatus.FROZEN,
+            reason = null,
+            occurredAt = now,
+            partyId = partyId,
+        )
+
+        val node = objectMapper.readTree(objectMapper.writeValueAsString(event))
+        assertThat(node.get("partyId").asText()).isEqualTo(partyId.toString())
+    }
+
+    @Test
+    fun `SavingsGoalSetEvent serialises party, account, goal amount, currency and occurredAt`() {
+        val accountId = UUID.randomUUID()
+        val partyId = UUID.randomUUID()
+        val event = SavingsGoalSetEvent(
+            aggregateId = accountId,
+            version = 2L,
+            accountId = accountId,
+            partyId = partyId,
+            goalAmount = "40000.00",
+            goalAmountMinorUnits = 4_000_000L,
+            currency = "CZK",
+            targetDate = null,
+            occurredAt = now,
+        )
+
+        val node = objectMapper.readTree(objectMapper.writeValueAsString(event))
+        assertThat(node.get("eventType").asText()).isEqualTo("SavingsGoalSet")
+        assertThat(node.get("accountId").asText()).isEqualTo(accountId.toString())
+        assertThat(node.get("partyId").asText()).isEqualTo(partyId.toString())
+        assertThat(node.get("goalAmount").asText()).isEqualTo("40000.00")
+        assertThat(node.get("currency").asText()).isEqualTo("CZK")
+        assertThat(node.has("occurredAt")).isTrue()
+        assertThat(node.get("sourceService").asText()).isEqualTo("account-service")
+    }
+
+    @Test
+    fun `SavingsGoalReachedEvent serialises the goal and the booked balance that reached it`() {
+        val accountId = UUID.randomUUID()
+        val event = SavingsGoalReachedEvent(
+            aggregateId = accountId,
+            version = 2L,
+            accountId = accountId,
+            partyId = UUID.randomUUID(),
+            goalAmount = "100.00",
+            goalAmountMinorUnits = 10_000L,
+            currency = "EUR",
+            bookedBalance = "120.50",
+            occurredAt = now,
+        )
+
+        val node = objectMapper.readTree(objectMapper.writeValueAsString(event))
+        assertThat(node.get("eventType").asText()).isEqualTo("SavingsGoalReached")
+        assertThat(node.get("bookedBalance").asText()).isEqualTo("120.50")
+        assertThat(node.get("goalAmount").asText()).isEqualTo("100.00")
+        assertThat(node.get("currency").asText()).isEqualTo("EUR")
+    }
 }

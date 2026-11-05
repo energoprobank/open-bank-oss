@@ -11,6 +11,7 @@ import com.openbank.account.application.port.out.AccountRepository
 import com.openbank.account.application.port.out.AccountSanctionsScreeningPort
 import com.openbank.account.application.port.out.AccountScreeningUnavailableException
 import com.openbank.account.application.port.out.BalanceQueryPort
+import com.openbank.account.application.port.out.BalanceView
 import com.openbank.account.application.port.out.CatalogProduct
 import com.openbank.account.application.port.out.CurrencyPocketRepository
 import com.openbank.account.application.port.out.NotificationRequestPort
@@ -18,11 +19,14 @@ import com.openbank.account.application.port.out.ProductCatalogPort
 import com.openbank.account.application.port.out.ProductLookupResult
 import com.openbank.account.application.port.out.SanctionsScreenResult
 import com.openbank.account.domain.event.AccountCreatedEvent
+import com.openbank.account.domain.event.SavingsGoalReachedEvent
+import com.openbank.account.domain.event.SavingsGoalSetEvent
 import com.openbank.account.domain.model.Account
 import com.openbank.account.domain.model.AccountStatus
 import com.openbank.account.domain.model.AccountType
 import com.openbank.libs.api.pagination.CursorEncoder
 import com.openbank.libs.domain.account.Iban
+import com.openbank.libs.domain.event.DomainEvent
 import com.openbank.libs.domain.money.CurrencyCode
 import com.openbank.libs.observability.DomainMetrics
 import io.mockk.coEvery
@@ -38,6 +42,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
+import java.math.BigDecimal
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
@@ -342,7 +347,8 @@ class AccountServiceTest {
         val command = openAccountCommand(legalName = "Clean Customer")
 
         coEvery { accountRepository.findByIdempotencyKey(any()) } returns null
-        coEvery { sanctionsScreening.screen("Clean Customer", any(), any()) } returns SanctionsScreenResult("CLEAR", 0.0, null)
+        coEvery { sanctionsScreening.screen("Clean Customer", any(), any()) } returns
+            SanctionsScreenResult("CLEAR", 0.0, null)
         every { ibanGenerator.generate(command.currency) } returns iban
         coEvery { accountRepository.existsByIban(iban) } returns false
         coEvery { accountRepository.saveNewAccount(any(), any(), any(), any()) } answers { firstArg() }
@@ -362,7 +368,8 @@ class AccountServiceTest {
         val savedSlot = slot<Account>()
 
         coEvery { accountRepository.findByIdempotencyKey(any()) } returns null
-        coEvery { sanctionsScreening.screen("Alice Example", any(), any()) } returns SanctionsScreenResult("CLEAR", 0.05, null)
+        coEvery { sanctionsScreening.screen("Alice Example", any(), any()) } returns
+            SanctionsScreenResult("CLEAR", 0.05, null)
         every { ibanGenerator.generate(command.currency) } returns iban
         coEvery { accountRepository.existsByIban(iban) } returns false
         coEvery { accountRepository.saveNewAccount(capture(savedSlot), any(), any(), any()) } answers { firstArg() }
@@ -507,8 +514,9 @@ class AccountServiceTest {
     fun `updateSavingsGoal persists the goal fields on the account`(): Unit = runBlocking {
         val acc = account(UUID.randomUUID(), UUID.randomUUID())
         coEvery { accountRepository.findById(acc.id) } returns acc
+        coEvery { balancePort.getByAccountAndCurrency(acc.id, "CZK") } returns balance(acc.id, "0.00")
         val captured = slot<Account>()
-        coEvery { accountRepository.update(capture(captured)) } answers { firstArg() }
+        coEvery { accountRepository.updateWithEvents(capture(captured), any()) } answers { firstArg() }
 
         val result = service.updateSavingsGoal(
             com.openbank.account.application.port.`in`.UpdateSavingsGoalCommand(
@@ -545,7 +553,7 @@ class AccountServiceTest {
             }
         }.isInstanceOf(IllegalArgumentException::class.java)
 
-        coVerify(exactly = 0) { accountRepository.update(any()) }
+        coVerify(exactly = 0) { accountRepository.updateWithEvents(any(), any()) }
     }
 
     @Test
@@ -567,8 +575,83 @@ class AccountServiceTest {
             }
         }.isInstanceOf(IllegalArgumentException::class.java)
 
-        coVerify(exactly = 0) { accountRepository.update(any()) }
+        coVerify(exactly = 0) { accountRepository.updateWithEvents(any(), any()) }
     }
+
+    @Test
+    fun `updateSavingsGoal below the balance publishes SavingsGoalSet only, with party, amount and currency`(): Unit =
+        runBlocking {
+            val acc = account(UUID.randomUUID(), UUID.randomUUID())
+            coEvery { accountRepository.findById(acc.id) } returns acc
+            coEvery { balancePort.getByAccountAndCurrency(acc.id, "CZK") } returns balance(acc.id, "39999.99")
+            val events = slot<List<DomainEvent>>()
+            coEvery { accountRepository.updateWithEvents(any(), capture(events)) } answers { firstArg() }
+
+            service.updateSavingsGoal(goalCommand(acc.id, 4_000_000L))
+
+            assertThat(events.captured).hasSize(1)
+            val set = events.captured.single() as SavingsGoalSetEvent
+            assertThat(set.eventType).isEqualTo("SavingsGoalSet")
+            assertThat(set.accountId).isEqualTo(acc.id)
+            assertThat(set.partyId).isEqualTo(acc.partyId)
+            assertThat(set.goalAmount).isEqualTo("40000.00")
+            assertThat(set.goalAmountMinorUnits).isEqualTo(4_000_000L)
+            assertThat(set.currency).isEqualTo("CZK")
+            assertThat(set.occurredAt).isEqualTo(Instant.parse("2024-01-15T12:00:00Z"))
+        }
+
+    @Test
+    fun `updateSavingsGoal at or below the booked balance also publishes SavingsGoalReached`(): Unit = runBlocking {
+        val acc = account(UUID.randomUUID(), UUID.randomUUID())
+        coEvery { accountRepository.findById(acc.id) } returns acc
+        coEvery { balancePort.getByAccountAndCurrency(acc.id, "CZK") } returns balance(acc.id, "40000")
+        val events = slot<List<DomainEvent>>()
+        coEvery { accountRepository.updateWithEvents(any(), capture(events)) } answers { firstArg() }
+
+        service.updateSavingsGoal(goalCommand(acc.id, 4_000_000L))
+
+        assertThat(events.captured.map { it.eventType }).containsExactly("SavingsGoalSet", "SavingsGoalReached")
+        val reached = events.captured[1] as SavingsGoalReachedEvent
+        assertThat(reached.partyId).isEqualTo(acc.partyId)
+        assertThat(reached.accountId).isEqualTo(acc.id)
+        assertThat(reached.goalAmount).isEqualTo("40000.00")
+        assertThat(reached.currency).isEqualTo("CZK")
+        assertThat(reached.bookedBalance).isEqualTo("40000.00")
+    }
+
+    @Test
+    fun `updateSavingsGoal still sets the goal when the balance cannot be read, without Reached`(): Unit = runBlocking {
+        val acc = account(UUID.randomUUID(), UUID.randomUUID())
+        coEvery { accountRepository.findById(acc.id) } returns acc
+        coEvery { balancePort.getByAccountAndCurrency(acc.id, "CZK") } throws IllegalStateException("down")
+        val events = slot<List<DomainEvent>>()
+        coEvery { accountRepository.updateWithEvents(any(), capture(events)) } answers { firstArg() }
+
+        val result = service.updateSavingsGoal(goalCommand(acc.id, 1_000L))
+
+        assertThat(result.goalTargetMinorUnits).isEqualTo(1_000L)
+        assertThat(events.captured.map { it.eventType }).containsExactly("SavingsGoalSet")
+    }
+
+    private fun goalCommand(accountId: UUID, targetMinorUnits: Long) =
+        com.openbank.account.application.port.`in`.UpdateSavingsGoalCommand(
+            accountId = accountId,
+            name = "Cíl",
+            targetMinorUnits = targetMinorUnits,
+            targetDate = null,
+            requestedBy = UUID.randomUUID(),
+        )
+
+    private fun balance(accountId: UUID, booked: String) = BalanceView(
+        accountId = accountId,
+        currency = "CZK",
+        booked = BigDecimal(booked),
+        available = BigDecimal(booked),
+        reserved = BigDecimal.ZERO,
+        pending = BigDecimal.ZERO,
+        arrangedOverdraftLimit = BigDecimal.ZERO,
+        updatedAt = Instant.parse("2024-01-15T12:00:00Z"),
+    )
 
     @Test
     fun `clearSavingsGoal nulls all three goal fields`(): Unit = runBlocking {

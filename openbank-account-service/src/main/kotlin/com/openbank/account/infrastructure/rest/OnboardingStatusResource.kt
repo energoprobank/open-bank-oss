@@ -33,7 +33,11 @@ class OnboardingStatusResource(private val service: OnboardingStatusService) {
         @QueryParam("partyId") partyId: UUID?,
         @QueryParam("legalName") legalName: String?,
     ): OnboardingStatusResponse {
-        if (partyId == null || legalName.isNullOrBlank()) throw BadRequestException("partyId and legalName are required")
+        if (partyId == null ||
+            legalName.isNullOrBlank()
+        ) {
+            throw BadRequestException("partyId and legalName are required")
+        }
         return OnboardingStatusResponse(service.state(partyId, legalName.trim()).name)
     }
 }
