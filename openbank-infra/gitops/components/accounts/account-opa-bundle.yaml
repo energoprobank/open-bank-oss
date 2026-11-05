@@ -9,7 +9,7 @@ metadata:
     app.kubernetes.io/name: account-service
     app.kubernetes.io/part-of: accounts
   annotations:
-    openbank.tech/policy-checksum: "f167b7f2908cb09e"
+    openbank.tech/policy-checksum: "9a53db40897f0899"
 data:
   rest.rego: |
     # SPDX-License-Identifier: Apache-2.0
@@ -919,6 +919,16 @@ data:
     allowed_reasons contains "service-party-account-read" if {
     	input.principal.type == "HUMAN"
     	machine_named("service-account-openbank-party")
+    	input.action == "account.list"
+    }
+
+    # FLUX rewards — openbank-rewards-service's own identity (client `openbank-rewards`, ROLE_API) lists
+    # a party's accounts (GET /accounts?partyId=) to resolve the member's market/currency and the
+    # savings/current accounts its missions and coupons target. account.list only: read-only, no
+    # account.read, no search, no write.
+    allowed_reasons contains "service-rewards-account-read" if {
+    	input.principal.type == "HUMAN"
+    	machine_named("service-account-openbank-rewards")
     	input.action == "account.list"
     }
 

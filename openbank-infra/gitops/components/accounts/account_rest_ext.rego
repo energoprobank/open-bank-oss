@@ -159,6 +159,16 @@ allowed_reasons contains "service-party-account-read" if {
 	input.action == "account.list"
 }
 
+# FLUX rewards — openbank-rewards-service's own identity (client `openbank-rewards`, ROLE_API) lists
+# a party's accounts (GET /accounts?partyId=) to resolve the member's market/currency and the
+# savings/current accounts its missions and coupons target. account.list only: read-only, no
+# account.read, no search, no write.
+allowed_reasons contains "service-rewards-account-read" if {
+	input.principal.type == "HUMAN"
+	machine_named("service-account-openbank-rewards")
+	input.action == "account.list"
+}
+
 # #8481 / ADR-0341 — interest-service's own machine identity (client `openbank-interest`, ROLE_API
 # plus the narrow `catalog:read` scope that product-catalog maps to CATALOG_SCOPE_READ) reads the
 # published catalog: the event stream, a revision by its immutable id, and the offering it belongs

@@ -135,6 +135,8 @@ b5_grants := {
 	"document": {"reason": "service-document-account-read", "actions": {"account.list"}},
 	"lending": {"reason": "service-lending-account-read", "actions": {"account.list"}},
 	"party": {"reason": "service-party-account-read", "actions": {"account.list"}},
+	# FLUX rewards: a party's account list only (market/currency, mission targets).
+	"rewards": {"reason": "service-rewards-account-read", "actions": {"account.list"}},
 	"tax-reporting": {"reason": "service-tax-reporting-account-read", "actions": {"account.list"}},
 	# ADR-0344 D3: reward-credit target checks read one account by id; never the roster.
 	"transaction": {"reason": "service-transaction-account-read", "actions": {"account.read"}},
