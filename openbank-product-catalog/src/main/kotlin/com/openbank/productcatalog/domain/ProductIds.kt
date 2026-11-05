@@ -16,6 +16,9 @@ object ProductIds {
     private val sentinels: Map<String, String> = mapOf(
         "prod-014" to "00000000-0000-0000-0000-0000000000c2",
         "prod-010" to "00000000-0000-0000-0000-0000000000c3",
+        // Bulgaria (experience v2 step 8): the EUR current and savings accounts a BG customer opens with.
+        "prod-030" to "00000000-0000-0000-0000-0000000000c4",
+        "prod-031" to "00000000-0000-0000-0000-0000000000c5",
     )
 
     fun canonicalId(legacyId: String): UUID = sentinels[legacyId]?.let(UUID::fromString)

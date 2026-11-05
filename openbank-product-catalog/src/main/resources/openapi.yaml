@@ -6,7 +6,7 @@ info:
   # API-contract version is independent of version.txt (ADR-0048); newest URL major is /api/v2.
   # 2.4.0 -> 2.5.0 (ADR-0341): additive GET /api/v2/legacy-products/{productId}/published-revision, the
   # revision a contract pins when it still knows a product only by its v1 id.
-  version: 2.5.0
+  version: 2.6.0
   description: >-
     Industry-neutral, schema-governed catalog API with immutable four-eyes publication,
     exact decimal pricing, effective-dated reads and transactional audit/outbox. The
@@ -43,6 +43,61 @@ tags:
 security:
   - bearerAuth: []
 paths:
+  /api/v1/packages:
+    get:
+      summary: Account packages offered in a market (experience v2 step 8)
+      parameters:
+        - { name: market, in: query, required: false, schema: { type: string, enum: [CZ, BG] } }
+        - { name: lang, in: query, required: false, description: "cs, bg or en (Accept-Language style values accepted)", schema: { type: string } }
+      responses:
+        '200':
+          description: The packages, localised
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    code: { type: string, enum: [STANDARD, PLUS, PREMIUM] }
+                    name: { type: string }
+                    monthlyFee: { type: number }
+                    currency: { type: string }
+                    benefits: { type: array, items: { type: string } }
+  /api/v1/products/by-code/{code}/disclosures:
+    get:
+      summary: Pre-contract disclosures — fee information and the deposit guarantee (experience v2 step 8)
+      parameters:
+        - { name: code, in: path, required: true, schema: { type: string } }
+        - { name: lang, in: query, required: false, schema: { type: string } }
+      responses:
+        '200':
+          description: The disclosures, localised
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  productCode: { type: string }
+                  market: { type: string }
+                  fees:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        label: { type: string }
+                        amount: { type: number }
+                        currency: { type: string }
+                        period: { type: string, enum: [MONTH, TRANSACTION, ONCE] }
+                        percentage: { type: boolean }
+                  depositGuarantee:
+                    type: object
+                    properties:
+                      schemeName: { type: string }
+                      limit: { type: number }
+                      currency: { type: string }
+                      summary: { type: string }
+        '404': { description: No product with that code }
   /api/v1/products:
     get:
       tags: [Products]
@@ -53,6 +108,7 @@ paths:
         - { name: type, in: query, required: false, schema: { type: string } }
         - { name: status, in: query, required: false, schema: { type: string } }
         - { name: currency, in: query, required: false, schema: { type: string } }
+        - { name: market, in: query, required: false, description: "CZ or BG — the market the product is sold in (untagged products are CZ)", schema: { type: string, enum: [CZ, BG] } }
       responses:
         '200':
           description: Matching products

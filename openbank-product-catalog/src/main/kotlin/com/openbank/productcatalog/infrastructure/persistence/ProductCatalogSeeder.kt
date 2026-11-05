@@ -62,13 +62,12 @@ class ProductCatalogSeeder(
             }
         }
         if (inserted > 0) log.info("Seeded $inserted canonical products (ADR-0105 P1).")
+        // Products added to the seed later (e.g. the Bulgarian EUR accounts): insert the ones missing.
+        val added = tolerateSeedRace { addLaterAdditions() }
+        if (added > 0) log.info("Added $added product(s) introduced after the first seed.")
         // Heal rows seeded before a fee schedule was added to ProductSeed (the fee-schedule addition
         // never reached an already-seeded catalogue, since seed() only runs on an empty table).
-        val patched = try {
-            backfillFees()
-        } catch (e: RuntimeException) {
-            if (PostgresConflicts.isUniqueViolation(e)) 0 else throw e
-        }
+        val patched = tolerateSeedRace { backfillFees() }
         if (patched > 0) log.info("Backfilled fee schedules for $patched catalogue product(s) from the seed.")
     }
 
@@ -107,6 +106,43 @@ class ProductCatalogSeeder(
         doc.set<JsonNode>("fees", mapper.valueToTree(seedP.fees))
         e.doc = mapper.writeValueAsString(doc)
         return true
+    }
+
+    /** A replica that lost a concurrent seed race (unique violation) did nothing wrong: 0, not a failure. */
+    @Suppress("TooGenericExceptionCaught")
+    private fun tolerateSeedRace(step: () -> Int): Int = try {
+        step()
+    } catch (e: RuntimeException) {
+        if (PostgresConflicts.isUniqueViolation(e)) 0 else throw e
+    }
+
+    /**
+     * Inserts each [ProductSeed.laterAdditions] product whose code is not in the catalogue yet. Only that
+     * explicit list: a seed product an operator removed is never resurrected.
+     */
+    private fun addLaterAdditions(): Int = VertxContextSupport.subscribeAndAwait {
+        sf.withTransaction { s ->
+            s.createQuery("SELECT p.code FROM ProductEntity p", String::class.java).resultList.flatMap { codes ->
+                val missing = ProductSeed.products.filter { it.code in ProductSeed.laterAdditions && it.code !in codes }
+                missing.map { it.toEntity() }
+                    .fold(Uni.createFrom().voidItem() as Uni<Void>) { acc, e -> acc.flatMap { s.persist(e) } }
+                    .replaceWith(missing.size)
+            }
+        }
+    } ?: 0
+
+    private fun Product.toEntity(): ProductEntity {
+        val canonical = ProductIds.canonicalId(id)
+        val product = this
+        return ProductEntity().apply {
+            id = canonical
+            code = product.code
+            legacyCode = product.id
+            type = product.type
+            status = product.status.name
+            currency = product.currency
+            doc = mapper.writeValueAsString(product.copy(id = canonical.toString()))
+        }
     }
 
     private fun seed(): Int = VertxContextSupport.subscribeAndAwait {

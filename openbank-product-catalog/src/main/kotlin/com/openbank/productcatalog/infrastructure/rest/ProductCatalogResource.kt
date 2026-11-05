@@ -8,6 +8,7 @@ import com.openbank.libs.authz.Authorize
 import com.openbank.libs.security.Roles
 import com.openbank.productcatalog.application.ProductCatalogService
 import com.openbank.productcatalog.application.ProductRequest
+import com.openbank.productcatalog.domain.MarketOffers
 import com.openbank.productcatalog.infrastructure.security.CatalogRoles
 import io.quarkus.security.identity.SecurityIdentity
 import jakarta.annotation.security.RolesAllowed
@@ -44,9 +45,12 @@ class ProductCatalogResource(
         @QueryParam("type") type: String?,
         @QueryParam("status") status: String?,
         @QueryParam("currency") currency: String?,
+        @QueryParam("market") market: String?,
     ): Response {
         requireBankCompatibility()
         var results = service.findAll()
+        // Experience v2 step 8: a customer sees their own market's products (untagged = CZ).
+        if (!market.isNullOrBlank()) results = results.filter { MarketOffers.marketOf(it) == market.uppercase() }
         if (!type.isNullOrBlank()) results = results.filter { it.type == type }
         if (!status.isNullOrBlank()) results = results.filter { it.status.name == status }
         if (!currency.isNullOrBlank()) results = results.filter { it.currency == currency }

@@ -15,6 +15,13 @@ import java.time.LocalDate
  * ProductCatalogService.seed() populating an in-memory map.
  */
 object ProductSeed {
+    /**
+     * Products added to the seed after catalogues were already seeded (the first-boot seed only fills an
+     * empty table). [ProductCatalogSeeder] inserts each one whose code is missing — and only these, so a
+     * product an operator retired is never brought back.
+     */
+    val laterAdditions: Set<String> = setOf("CURRENT_EUR_BG", "SAVINGS_EUR_BG")
+
     val products: List<Product> = listOf(
         Product(
             id = "prod-001",
@@ -1319,6 +1326,155 @@ object ProductSeed {
                 "0.5% FX margin, cross-pocket transfers",
             createdAt = Instant.parse("2025-01-01T10:00:00Z"),
             updatedAt = Instant.parse("2025-01-01T10:00:00Z"),
+        ),
+    ) + bulgarianProducts()
+
+    /**
+     * Bulgaria (experience v2 step 8): the retail accounts a BG customer opens with, in EUR. The
+     * numbers are the products' terms (rates, fees, limits), as everywhere else in this seed.
+     */
+    @Suppress("MagicNumber", "LongMethod")
+    private fun bulgarianProducts(): List<Product> = listOf(
+        Product(
+            id = "prod-030",
+            code = "CURRENT_EUR_BG",
+            name = "EUR Current Account (Bulgaria)",
+            shortDescription = "Разплащателна сметка в евро — български IBAN, карта и плащания в приложението",
+            type = "CURRENT",
+            currency = "EUR",
+            status = ProductStatus.ACTIVE,
+            isPublic = true,
+            version = "1.0.0",
+            validFrom = LocalDate.of(2026, 1, 1),
+            baseRate = 0.0,
+            fee = 0.0,
+            tags = listOf("current", "eur", "retail", "market-bg"),
+            eligibilitySegments = listOf(
+                EligibilitySegment.RETAIL,
+                EligibilitySegment.SENIOR,
+                EligibilitySegment.STUDENT,
+            ),
+            cardConfig = CardConfig(
+                enabled = true,
+                minCards = 1,
+                maxCards = 3,
+                networks = listOf(CardNetwork.VISA, CardNetwork.MASTERCARD),
+                tiers = listOf(CardTier.STANDARD, CardTier.GOLD),
+                virtualCardAllowed = true,
+                contactlessEnabled = true,
+                eligibilityMinAge = 14,
+                eligibilitySegments = listOf(
+                    EligibilitySegment.RETAIL,
+                    EligibilitySegment.SENIOR,
+                    EligibilitySegment.STUDENT,
+                ),
+                monthlyFeePerCard = 0.0,
+                cardCurrency = "EUR",
+            ),
+            multiCurrencyConfig = MultiCurrencyConfig(enabled = false, defaultCurrency = "EUR"),
+            fees = listOf(
+                Fee(name = "Monthly Fee", type = "MONTHLY", amount = 0.0, currency = "EUR", frequency = "MONTHLY"),
+                Fee(
+                    name = "SEPA Transfer",
+                    type = "TRANSACTION",
+                    amount = 0.0,
+                    currency = "EUR",
+                    frequency = "PER_TRANSACTION",
+                    description = "SEPA преводи без такса",
+                ),
+                Fee(
+                    name = "SWIFT Transfer",
+                    type = "TRANSACTION",
+                    amount = 15.0,
+                    currency = "EUR",
+                    frequency = "PER_TRANSACTION",
+                    description = "Превод във валута извън SEPA",
+                ),
+                Fee(
+                    name = "FX Conversion",
+                    type = "TRANSACTION",
+                    amount = 1.5,
+                    currency = "EUR",
+                    frequency = "PERCENTAGE",
+                    description = "1,5 % от обменената сума",
+                ),
+            ),
+            termsAndConditions = listOf(
+                TermsAndConditions(
+                    version = "1.0",
+                    url = "https://openbank.example/tac/current-eur-bg/v1.0",
+                    effectiveFrom = LocalDate.of(2026, 1, 1),
+                    language = "bg",
+                    summary = "Разплащателна сметка в евро — общи условия v1.0",
+                ),
+            ),
+            versionHistory = listOf(
+                ProductVersion(
+                    "1.0.0",
+                    LocalDate.of(2026, 1, 1),
+                    isPublic = true,
+                    changeNote = "Първоначална версия",
+                    createdAt = Instant.parse("2026-01-01T00:00:00Z"),
+                ),
+            ),
+            description = "EUR everyday current account for customers in Bulgaria: Bulgarian IBAN, card, SEPA",
+            createdAt = Instant.parse("2026-01-01T10:00:00Z"),
+            updatedAt = Instant.parse("2026-01-01T10:00:00Z"),
+        ),
+        Product(
+            id = "prod-031",
+            code = "SAVINGS_EUR_BG",
+            name = "EUR Savings Account (Bulgaria)",
+            shortDescription = "Спестовна сметка в евро 2,5 % годишно",
+            type = "SAVINGS",
+            currency = "EUR",
+            status = ProductStatus.ACTIVE,
+            isPublic = true,
+            version = "1.0.0",
+            validFrom = LocalDate.of(2026, 1, 1),
+            baseRate = 0.025,
+            fee = 0.0,
+            minBalance = 0.0,
+            maxBalance = 500_000.0,
+            tags = listOf("savings", "eur", "retail", "market-bg"),
+            eligibilitySegments = listOf(EligibilitySegment.ALL),
+            savingsConfig = SavingsConfig(
+                interestTiers = listOf(InterestTier(0.0, 25_000.0, 0.025), InterestTier(25_000.0, null, 0.020)),
+                withdrawalNotice = WithdrawalNotice.NONE,
+                freeWithdrawalsPerMonth = 5,
+                excessWithdrawalFee = 0.0,
+            ),
+            cardConfig = CardConfig(enabled = false),
+            multiCurrencyConfig = MultiCurrencyConfig(enabled = false, defaultCurrency = "EUR"),
+            fees = listOf(
+                Fee(
+                    name = "Account Maintenance",
+                    type = "MONTHLY",
+                    amount = 0.0,
+                    currency = "EUR",
+                    frequency = "MONTHLY",
+                ),
+            ),
+            termsAndConditions = listOf(
+                TermsAndConditions(
+                    version = "1.0",
+                    url = "https://openbank.example/tac/savings-eur-bg/v1.0",
+                    effectiveFrom = LocalDate.of(2026, 1, 1),
+                    language = "bg",
+                ),
+            ),
+            versionHistory = listOf(
+                ProductVersion(
+                    "1.0.0",
+                    LocalDate.of(2026, 1, 1),
+                    isPublic = true,
+                    changeNote = "Първоначална версия",
+                    createdAt = Instant.parse("2026-01-01T00:00:00Z"),
+                ),
+            ),
+            description = "EUR savings account for customers in Bulgaria, 2.5% p.a. (tiered)",
+            createdAt = Instant.parse("2026-01-01T10:00:00Z"),
+            updatedAt = Instant.parse("2026-01-01T10:00:00Z"),
         ),
     )
 }
