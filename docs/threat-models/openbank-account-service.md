@@ -1042,3 +1042,21 @@ The account ownership projection still returns an account identifier only for an
 active account owned by the supplied party. A compromised pension credential can
 invoke its scoped projection; it does not acquire shared operator or compliance
 roles. Realm import and credential delivery must be verified before deployment.
+
+## 2026-11-05 — Bulgarian (EUR) retail accounts (experience v2 step 8)
+
+The party's `market` (party-service `PARTY_CREATED`, `CZ` default) now picks the retail products,
+currency and IBAN country of the onboarding accounts: CZ → CZK products with a Czech mod-11 BBAN;
+BG → EUR products (prod-030/031) with `BGkk EPRO 9661 10 nnnnnnnn` (bank and branch codes are
+placeholders until the BNB assigns them).
+
+- **Tampering:** the market is read from party-service's own event, never from a customer request;
+  an unknown value falls back to CZ (the pre-market behaviour), so a forged or missing field cannot
+  produce an account in a currency the bank does not offer. The IBAN country follows the market,
+  not the currency, so a CZ customer's EUR pocket keeps a Czech IBAN.
+- **Repudiation / integrity of money:** the sandbox welcome bonus is paid in the opened account's
+  own currency (CZK amount for CZK, a separately configured EUR amount for EUR) and skipped for any
+  other currency; previously a single CZK amount was credited whatever the account currency. Still
+  off by default and never enabled in production.
+- **Residual risk:** BG BBANs have no national check digit, so a mistyped BG IBAN is caught only by
+  the mod-97 pair — the same as every IBAN-only country.

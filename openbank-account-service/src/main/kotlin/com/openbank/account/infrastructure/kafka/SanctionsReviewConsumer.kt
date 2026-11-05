@@ -46,6 +46,7 @@ class SanctionsReviewConsumer(
             cleared.partyId,
             party.legalName.ifBlank { cleared.name },
             party.status == "ACTIVE",
+            party.market,
         )
         log.infof("onboarding resumed for party %s after sanctions clearance", cleared.partyId)
     }

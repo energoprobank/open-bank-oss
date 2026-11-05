@@ -81,4 +81,15 @@ class IbanGeneratorTest {
                 .isTrue()
         }
     }
+
+    @Test
+    fun `a Bulgarian customer gets a 22-char BG IBAN with the bank and branch code, whatever the currency`() {
+        repeat(200) {
+            val iban = generator.generate(CurrencyCode.of("EUR"), market = "BG")
+            assertThat(iban.value).hasSize(22).startsWith("BG").matches("BG\\d{2}EPRO966110\\d{8}")
+            assertThat(Iban.isValid(iban.value)).isTrue()
+        }
+        // The currency never picks the country: a Czech customer's EUR account is Czech.
+        assertThat(generator.generate(CurrencyCode.of("EUR")).value).startsWith("CZ")
+    }
 }

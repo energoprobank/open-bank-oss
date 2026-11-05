@@ -54,6 +54,7 @@ data class PartyDirectoryItemDto(
     val partyType: String = "",
     val status: String = "",
     val legalName: String? = null,
+    val market: String? = null,
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -74,7 +75,7 @@ class PartyDirectoryClient(@RestClient private val client: PartyDirectoryRestCli
 
     override suspend fun find(partyId: UUID): DirectoryParty? = try {
         val item = client.get(partyId.toString()).awaitSuspending()
-        DirectoryParty(partyId, item.partyType, item.status, item.legalName.orEmpty().trim())
+        DirectoryParty(partyId, item.partyType, item.status, item.legalName.orEmpty().trim(), item.market ?: "CZ")
     } catch (e: WebApplicationException) {
         if (e.response?.status == NOT_FOUND) null else throw e
     }

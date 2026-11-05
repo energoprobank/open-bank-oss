@@ -14,6 +14,7 @@ import com.openbank.account.application.port.out.WelcomeBonusPort
 import com.openbank.account.domain.model.Account
 import com.openbank.account.domain.model.AccountStatus
 import com.openbank.account.domain.model.AccountType
+import com.openbank.libs.domain.money.CurrencyCode
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -63,11 +64,13 @@ class PartyEventConsumerTest {
         id: UUID,
         type: AccountType = AccountType.CURRENT,
         product: UUID = RETAIL_PRODUCT,
+        ccy: String = "CZK",
     ): Account = mockk {
         every { this@mockk.id } returns id
         every { status } returns AccountStatus.PENDING_ACTIVATION
         every { accountType } returns type
         every { productId } returns product
+        every { currency } returns CurrencyCode.of(ccy)
     }
 
     // Wire contract = the DEPLOYED producer (party-service KafkaPartyEventPublisher): a FLAT
@@ -492,4 +495,58 @@ class PartyEventConsumerTest {
 
     private fun erasedEvent(partyId: UUID) =
         """{"eventType":"PARTY_ERASED","partyId":"$partyId","occurredAt":"2026-06-28T10:00:00Z"}"""
+
+    // ---------------------------------------------------------------- experience v2 step 8: markets
+
+    @Test
+    fun `a Bulgarian party gets EUR current and savings accounts with BG IBANs`(): Unit = runBlocking {
+        val partyId = UUID.randomUUID()
+        coEvery { accountRepository.findByPartyId(partyId, any(), any()) } returns emptyList()
+        val cmds = mutableListOf<OpenAccountCommand>()
+        coEvery { accountUseCase.openAccount(capture(cmds)) } returns mockk(relaxed = true)
+        val bulgarian = createdEvent(
+            partyId,
+            legalName = "Мария Георгиева",
+        ).replace(""""status"""", """"market":"BG","status"""")
+
+        consumer(bonusEnabled = false).consume(bulgarian)
+
+        assertThat(cmds).hasSize(2).allSatisfy {
+            assertThat(it.market).isEqualTo("BG")
+            assertThat(it.currency.code).isEqualTo("EUR")
+        }
+        assertThat(cmds.single { it.accountType == AccountType.CURRENT }.productId)
+            .isEqualTo(UUID.fromString("00000000-0000-0000-0000-0000000000c4"))
+        assertThat(cmds.single { it.accountType == AccountType.SAVINGS }.productId)
+            .isEqualTo(UUID.fromString("00000000-0000-0000-0000-0000000000c5"))
+    }
+
+    @Test
+    fun `an event without a market is Czech, as every party was before markets`(): Unit = runBlocking {
+        val partyId = UUID.randomUUID()
+        coEvery { accountRepository.findByPartyId(partyId, any(), any()) } returns emptyList()
+        val cmds = mutableListOf<OpenAccountCommand>()
+        coEvery { accountUseCase.openAccount(capture(cmds)) } returns mockk(relaxed = true)
+        consumer(bonusEnabled = false).consume(createdEvent(partyId))
+        assertThat(cmds).allSatisfy {
+            assertThat(it.market).isEqualTo("CZ")
+            assertThat(it.currency.code).isEqualTo("CZK")
+        }
+    }
+
+    @Test
+    fun `the welcome bonus is paid in the account's currency`(): Unit = runBlocking {
+        val partyId = UUID.randomUUID()
+        val eurAccount = UUID.randomUUID()
+        coEvery { accountRepository.findByPartyId(partyId, any(), any()) } returns listOf(
+            pendingAccount(
+                eurAccount,
+                AccountType.CURRENT,
+                product = UUID.fromString("00000000-0000-0000-0000-0000000000c4"),
+                ccy = "EUR",
+            ),
+        )
+        consumer(bonusEnabled = true).consume(activeEvent(partyId))
+        coVerify(exactly = 1) { welcomeBonusPort.grantWelcomeBonus(eurAccount, BigDecimal("4000.00"), "EUR") }
+    }
 }

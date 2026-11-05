@@ -334,7 +334,18 @@ openbank:
     # 4-digit ČNB bank code embedded in generated CZ IBANs. 8899 is a PLACEHOLDER (not in the ČNB
     # registry) — see branding/brand.yaml. Same env var as domestic-payment's own-bank code.
     bank-code: ${OPENBANK_BANK_CODE:8899}
+    # Bulgarian IBANs (experience v2 step 8): BG + check + bank code (4 letters, the BIC prefix) +
+    # branch (4 digits) + type + number. EPRO / 9661 are PLACEHOLDERS, not BNB-assigned codes.
+    bg:
+      bank-code: ${OPENBANK_BG_BANK_CODE:EPRO}
+      branch-code: ${OPENBANK_BG_BRANCH_CODE:9661}
     onboarding:
+      # Retail accounts a Bulgarian customer opens with (product-catalog prod-030 / prod-031, EUR).
+      # Czech customers keep default-product-id / savings-product-id / default-currency (code defaults).
+      bg:
+        default-product-id: 00000000-0000-0000-0000-0000000000c4
+        savings-product-id: 00000000-0000-0000-0000-0000000000c5
+        default-currency: EUR
       # Catch-up for ACTIVE business parties with no business current account (created before
       # business accounts were opened, or activated before this code was deployed). Needs
       # open-business-accounts too. OFF unless a deployment turns it on (the sandbox does).

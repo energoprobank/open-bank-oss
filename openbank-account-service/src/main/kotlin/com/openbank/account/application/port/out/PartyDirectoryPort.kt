@@ -7,7 +7,14 @@ package com.openbank.account.application.port.out
 import java.util.UUID
 
 /** A party as the business-account catch-up needs it. `legalName` is the account holder name. */
-data class DirectoryParty(val partyId: UUID, val partyType: String, val status: String, val legalName: String)
+data class DirectoryParty(
+    val partyId: UUID,
+    val partyType: String,
+    val status: String,
+    val legalName: String,
+    /** CZ or BG (experience v2 step 8); absent from older party-service responses = CZ. */
+    val market: String = "CZ",
+)
 
 data class DirectoryPage(val items: List<DirectoryParty>, val hasMore: Boolean)
 

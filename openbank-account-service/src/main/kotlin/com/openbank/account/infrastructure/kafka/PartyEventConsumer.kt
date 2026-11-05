@@ -17,6 +17,7 @@ import com.openbank.account.domain.model.AccountType
 import com.openbank.account.domain.model.PartyMandateProjection
 import com.openbank.libs.domain.money.CurrencyCode
 import jakarta.enterprise.context.ApplicationScoped
+import jakarta.inject.Inject
 import kotlinx.coroutines.delay
 import org.eclipse.microprofile.config.inject.ConfigProperty
 import org.eclipse.microprofile.reactive.messaging.Incoming
@@ -35,6 +36,8 @@ private data class PartyEvent(
     val agentPartyId: UUID?,
     val authority: String?,
     val requiredSignatures: Int?,
+    /** CZ or BG (party-service, experience v2 step 8); absent on older events = CZ. */
+    val market: String = "CZ",
 )
 
 /**
@@ -77,7 +80,7 @@ private data class PartyEvent(
 // config triplet) — a config holder class would only move the noise, not remove it.
 // TooManyFunctions: the onboarding-resume entry point (resumeAfterClearance) took it to 11.
 @Suppress("LongParameterList", "TooManyFunctions")
-class PartyEventConsumer(
+class PartyEventConsumer @Inject constructor(
     private val accountUseCase: AccountUseCase,
     private val accountRepository: AccountRepository,
     private val objectMapper: ObjectMapper,
@@ -107,6 +110,22 @@ class PartyEventConsumer(
     private val welcomeBonusAmount: BigDecimal,
     @ConfigProperty(name = "openbank.welcome-bonus.currency", defaultValue = "CZK")
     private val welcomeBonusCurrency: String,
+    // Bulgaria (experience v2 step 8): EUR products and their own sandbox welcome bonus. The bonus is
+    // paid in the opened account's currency; each market's amount is configured on its own.
+    @ConfigProperty(
+        name = "openbank.account.onboarding.bg.default-product-id",
+        defaultValue = "00000000-0000-0000-0000-0000000000c4",
+    )
+    private val bgDefaultProductId: String = "00000000-0000-0000-0000-0000000000c4",
+    @ConfigProperty(
+        name = "openbank.account.onboarding.bg.savings-product-id",
+        defaultValue = "00000000-0000-0000-0000-0000000000c5",
+    )
+    private val bgSavingsProductId: String = "00000000-0000-0000-0000-0000000000c5",
+    @ConfigProperty(name = "openbank.account.onboarding.bg.default-currency", defaultValue = "EUR")
+    private val bgDefaultCurrency: String = "EUR",
+    @ConfigProperty(name = "openbank.welcome-bonus.bg.amount", defaultValue = "4000.00")
+    private val bgWelcomeBonusAmount: BigDecimal = BigDecimal("4000.00"),
     private val notificationRequestPort: NotificationRequestPort,
     private val partyMandateRepository: PartyMandateProjectionRepository,
     // Digital business onboarding. Default OFF: production keeps operator-opened business accounts.
@@ -168,6 +187,7 @@ class PartyEventConsumer(
                 ?.asText()?.let { runCatching { UUID.fromString(it) }.getOrNull() },
             authority = node.path("authority").takeUnless { it.isMissingNode || it.isNull }?.asText(),
             requiredSignatures = node.path("requiredSignatures").takeUnless { it.isMissingNode || it.isNull }?.asInt(),
+            market = node.path("market").asText("").ifBlank { "CZ" }.uppercase(),
         )
     }
 
@@ -175,7 +195,7 @@ class PartyEventConsumer(
         when (event.type) {
             // party-service PartyType: INDIVIDUAL, SOLE_TRADER, COMPANY, TRUST.
             "PARTY_CREATED" -> when (event.partyType) {
-                "INDIVIDUAL" -> openRetailAccounts(event.partyId, event.legalName)
+                "INDIVIDUAL" -> openRetailAccounts(event.partyId, event.legalName, event.market)
                 in BUSINESS_PARTY_TYPES ->
                     if (openBusinessAccounts) openBusinessAccount(event.partyId, event.legalName)
                 else -> Unit // TRUST and anything unknown: operator-opened, never automatic.
@@ -281,12 +301,21 @@ class PartyEventConsumer(
      * the party already passed KYC + AML while it waited — activate them and grant the welcome bonus
      * the missed ACTIVE transition would have. Idempotent like the event path it completes.
      */
-    suspend fun resumeAfterClearance(partyId: UUID, legalName: String, partyActive: Boolean) {
-        openRetailAccounts(partyId, legalName)
+    suspend fun resumeAfterClearance(partyId: UUID, legalName: String, partyActive: Boolean, market: String = "CZ") {
+        openRetailAccounts(partyId, legalName, market)
         if (partyActive) reconcileToPartyStatus(partyId, "ACTIVE")
     }
 
-    private suspend fun openRetailAccounts(partyId: UUID, legalName: String) {
+    /** The retail products and currency a new customer gets in their market. */
+    private data class RetailOffer(val currentProductId: String, val savingsProductId: String, val currency: String)
+
+    private fun retailOffer(market: String): RetailOffer = when (market) {
+        "BG" -> RetailOffer(bgDefaultProductId, bgSavingsProductId, bgDefaultCurrency)
+        else -> RetailOffer(defaultProductId, savingsProductId, defaultCurrency)
+    }
+
+    private suspend fun openRetailAccounts(partyId: UUID, legalName: String, market: String) {
+        val offer = retailOffer(market)
         // Idempotent per account TYPE: a re-delivered event (or a party predating the savings
         // rollout) only opens whatever is still missing.
         val existingTypes = accountRepository.findByPartyId(partyId, 50, null).map { it.accountType }.toSet()
@@ -296,12 +325,13 @@ class PartyEventConsumer(
                     // Key kept from the single-account era so historic retries stay no-ops.
                     idempotencyKey = "onboarding-account-$partyId",
                     partyId = partyId,
-                    productId = UUID.fromString(defaultProductId),
+                    productId = UUID.fromString(offer.currentProductId),
                     accountType = AccountType.CURRENT,
-                    currency = CurrencyCode.of(defaultCurrency),
+                    currency = CurrencyCode.of(offer.currency),
                     requestedBy = UUID.fromString(systemActorId),
                     legalName = legalName,
                     initialStatus = AccountStatus.PENDING_ACTIVATION,
+                    market = market,
                 ),
             )
             log.infof("Opened PENDING_ACTIVATION onboarding CURRENT account for party %s", partyId)
@@ -311,12 +341,13 @@ class PartyEventConsumer(
                 OpenAccountCommand(
                     idempotencyKey = "onboarding-savings-$partyId",
                     partyId = partyId,
-                    productId = UUID.fromString(savingsProductId),
+                    productId = UUID.fromString(offer.savingsProductId),
                     accountType = AccountType.SAVINGS,
-                    currency = CurrencyCode.of(defaultCurrency),
+                    currency = CurrencyCode.of(offer.currency),
                     requestedBy = UUID.fromString(systemActorId),
                     legalName = legalName,
                     initialStatus = AccountStatus.PENDING_ACTIVATION,
+                    market = market,
                 ),
             )
             log.infof("Opened PENDING_ACTIVATION onboarding SAVINGS account for party %s", partyId)
@@ -335,7 +366,7 @@ class PartyEventConsumer(
                     // A business account never gets it: the incentive is retail-only and its CZK
                     // amount does not match the business product's currency.
                     if (it.accountType == AccountType.CURRENT && it.productId != UUID.fromString(businessProductId)) {
-                        grantWelcomeBonus(it.id, partyId)
+                        grantWelcomeBonus(it.id, partyId, it.currency.toString())
                     }
                 }
         }
@@ -353,8 +384,15 @@ class PartyEventConsumer(
 
     // Fire the one-time welcome bonus as the account goes live. Idempotent downstream (keyed on the
     // account id), so a retry or a redelivery cannot double-credit.
-    private suspend fun grantWelcomeBonus(accountId: UUID, partyId: UUID) {
+    private suspend fun grantWelcomeBonus(accountId: UUID, partyId: UUID, accountCurrency: String) {
         if (!welcomeBonusEnabled) return
+        // The bonus is paid in the account's own currency: a EUR (Bulgarian) account gets the EUR
+        // amount. Any other currency has no configured incentive and gets none.
+        val (welcomeBonusAmount, welcomeBonusCurrency) = when (accountCurrency) {
+            welcomeBonusCurrency -> welcomeBonusAmount to welcomeBonusCurrency
+            bgDefaultCurrency -> bgWelcomeBonusAmount to bgDefaultCurrency
+            else -> return
+        }
         // The old code caught this and logged "will retry on next ACTIVE event". There IS no next
         // ACTIVE event — a party activates once — so the customer simply never got the money, and
         // the only trace was an ERROR line (#5698). It now propagates.

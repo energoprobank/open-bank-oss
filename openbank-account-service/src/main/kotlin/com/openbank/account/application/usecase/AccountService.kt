@@ -137,7 +137,7 @@ class AccountService(
             "termsVersion is required when opening a TERM_DEPOSIT account"
         }
 
-        val iban = ibanGenerator.generate(command.currency)
+        val iban = ibanGenerator.generate(command.currency, command.market)
 
         check(!accountRepository.existsByIban(iban)) {
             "IBAN collision — retry"

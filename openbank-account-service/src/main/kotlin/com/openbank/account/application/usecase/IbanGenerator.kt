@@ -8,10 +8,13 @@ import com.openbank.libs.domain.account.CzechAccountNumber
 import com.openbank.libs.domain.account.Iban
 import com.openbank.libs.domain.money.CurrencyCode
 import jakarta.enterprise.context.ApplicationScoped
+import jakarta.inject.Inject
 import org.eclipse.microprofile.config.inject.ConfigProperty
+import java.security.SecureRandom
 
 /**
- * Generates Czech IBANs with a **nationally valid BBAN** (ČNB 169/2011 Sb.).
+ * Generates IBANs in the customer's market: Czech IBANs with a **nationally valid BBAN** (ČNB 169/2011 Sb.),
+ * or Bulgarian IBANs (see [bulgarian]).
  *
  * The BBAN is `bankCode(4) + prefix(6) + base(10)`, where the base satisfies the Czech mod-11
  * weighted checksum (and the empty prefix trivially does). Only then do we add the ISO 13616
@@ -28,27 +31,45 @@ import org.eclipse.microprofile.config.inject.ConfigProperty
  * deployment MUST set the real assigned code.
  */
 @ApplicationScoped
-class IbanGenerator(
+class IbanGenerator @Inject constructor(
     @ConfigProperty(name = "openbank.account.bank-code", defaultValue = "8899")
     private val bankCode: String,
+    /**
+     * Bulgarian BBAN parts (experience v2 step 8): the 4-letter bank code (the BIC's first four
+     * letters, placeholder `EPRO` = BIC EPROBGSF) and the 4-digit branch (BAE code). Placeholders —
+     * a production deployment MUST set the BNB-assigned values.
+     */
+    @ConfigProperty(name = "openbank.account.bg.bank-code", defaultValue = "EPRO")
+    private val bgBankCode: String = "EPRO",
+    @ConfigProperty(name = "openbank.account.bg.branch-code", defaultValue = "9661")
+    private val bgBranchCode: String = "9661",
 ) {
-    private val countryCode = "CZ"
+    private val random = SecureRandom()
 
-    fun generate(currency: CurrencyCode): Iban {
-        val base = CzechAccountNumber.generateBase()
-        val bban = CzechAccountNumber.composeBban(bankCode = bankCode, base = base)
-        val checkDigits = calculateCheckDigits(countryCode, bban)
-        return Iban.of("$countryCode$checkDigits$bban")
+    /** A new IBAN in the customer's [market] (CZ default); the currency does not choose the country. */
+    fun generate(currency: CurrencyCode, market: String = "CZ"): Iban = when (market.uppercase()) {
+        "BG" -> bulgarian()
+        else -> czech()
     }
 
-    /** ISO 13616 / ISO 7064 mod-97-10: rearrange `bban + country + "00"`, then 98 − (n mod 97). */
-    private fun calculateCheckDigits(countryCode: String, bban: String): String {
-        val rearranged = bban + countryCode + "00"
-        val numeric = rearranged.map { c ->
-            if (c.isDigit()) c.toString() else (c.code - 'A'.code + 10).toString()
-        }.joinToString("")
-        val remainder = numeric.toBigInteger().mod(97.toBigInteger()).toInt()
-        val checkDigits = 98 - remainder
-        return checkDigits.toString().padStart(2, '0')
+    private fun czech(): Iban {
+        val base = CzechAccountNumber.generateBase()
+        return Iban.compose("CZ", CzechAccountNumber.composeBban(bankCode = bankCode, base = base))
+    }
+
+    /**
+     * BG BBAN = bank code (4 letters) + branch (4 digits) + account type (2 digits, `10` = current or
+     * savings account of a person) + account number (8 digits). Bulgaria has no national check digit
+     * inside the BBAN: the IBAN's mod-97 pair is the only checksum.
+     */
+    private fun bulgarian(): Iban {
+        val number = (1..BG_ACCOUNT_DIGITS).joinToString("") { random.nextInt(DECIMAL).toString() }
+        return Iban.compose("BG", "$bgBankCode$bgBranchCode$BG_ACCOUNT_TYPE$number")
+    }
+
+    private companion object {
+        const val BG_ACCOUNT_DIGITS = 8
+        const val BG_ACCOUNT_TYPE = "10"
+        const val DECIMAL = 10
     }
 }

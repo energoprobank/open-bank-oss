@@ -46,6 +46,8 @@ data class OpenAccountCommand(
     val termsVersion: String? = null,
     val termsUrl: String? = null,
     val termsEffectiveFrom: LocalDate? = null,
+    /** The customer's market (CZ / BG): the country of the IBAN. Not the currency — a CZ customer's EUR account has a CZ IBAN. */
+    val market: String = "CZ",
 )
 
 data class CloseAccountCommand(val accountId: UUID, val reason: String?, val requestedBy: UUID)
