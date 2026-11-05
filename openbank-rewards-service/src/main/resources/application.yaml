@@ -47,6 +47,11 @@ mp:
     incoming:
       accounts-in:
         connector: smallrye-kafka
+        # A new or rebalanced group must not skip events: facts dedupe on natural keys,
+        # so replaying the retained history is safe (and is the 7-day backfill).
+        auto:
+          offset:
+            reset: earliest
         topic: openbank.accounts.account.created
         failure-strategy: dead-letter-queue
         dead-letter-queue:
@@ -55,6 +60,11 @@ mp:
           deserializer: org.apache.kafka.common.serialization.StringDeserializer
       transactions-in:
         connector: smallrye-kafka
+        # A new or rebalanced group must not skip events: facts dedupe on natural keys,
+        # so replaying the retained history is safe (and is the 7-day backfill).
+        auto:
+          offset:
+            reset: earliest
         topic: openbank.transactions.transaction.initiated
         failure-strategy: dead-letter-queue
         dead-letter-queue:
@@ -63,6 +73,11 @@ mp:
           deserializer: org.apache.kafka.common.serialization.StringDeserializer
       cards-in:
         connector: smallrye-kafka
+        # A new or rebalanced group must not skip events: facts dedupe on natural keys,
+        # so replaying the retained history is safe (and is the 7-day backfill).
+        auto:
+          offset:
+            reset: earliest
         topic: openbank.cards.events
         failure-strategy: dead-letter-queue
         dead-letter-queue:
@@ -71,6 +86,11 @@ mp:
           deserializer: org.apache.kafka.common.serialization.StringDeserializer
       card-processing-in:
         connector: smallrye-kafka
+        # A new or rebalanced group must not skip events: facts dedupe on natural keys,
+        # so replaying the retained history is safe (and is the 7-day backfill).
+        auto:
+          offset:
+            reset: earliest
         topic: openbank.card.processing.events
         failure-strategy: dead-letter-queue
         dead-letter-queue:
@@ -79,6 +99,11 @@ mp:
           deserializer: org.apache.kafka.common.serialization.StringDeserializer
       domestic-payments-in:
         connector: smallrye-kafka
+        # A new or rebalanced group must not skip events: facts dedupe on natural keys,
+        # so replaying the retained history is safe (and is the 7-day backfill).
+        auto:
+          offset:
+            reset: earliest
         topic: openbank.domestic.payment.events
         failure-strategy: dead-letter-queue
         dead-letter-queue:
@@ -87,6 +112,11 @@ mp:
           deserializer: org.apache.kafka.common.serialization.StringDeserializer
       referral-in:
         connector: smallrye-kafka
+        # A new or rebalanced group must not skip events: facts dedupe on natural keys,
+        # so replaying the retained history is safe (and is the 7-day backfill).
+        auto:
+          offset:
+            reset: earliest
         topic: openbank.referral.qualified.v1
         failure-strategy: dead-letter-queue
         dead-letter-queue:
@@ -95,6 +125,11 @@ mp:
           deserializer: org.apache.kafka.common.serialization.StringDeserializer
       lending-in:
         connector: smallrye-kafka
+        # A new or rebalanced group must not skip events: facts dedupe on natural keys,
+        # so replaying the retained history is safe (and is the 7-day backfill).
+        auto:
+          offset:
+            reset: earliest
         topic: openbank.lending.events
         failure-strategy: dead-letter-queue
         dead-letter-queue:
@@ -103,6 +138,11 @@ mp:
           deserializer: org.apache.kafka.common.serialization.StringDeserializer
       incentive-in:
         connector: smallrye-kafka
+        # A new or rebalanced group must not skip events: facts dedupe on natural keys,
+        # so replaying the retained history is safe (and is the 7-day backfill).
+        auto:
+          offset:
+            reset: earliest
         topic: openbank.incentive.events
         failure-strategy: dead-letter-queue
         dead-letter-queue:
