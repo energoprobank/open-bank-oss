@@ -375,6 +375,9 @@ class RewardsEngineIT {
         given().get("/api/v1/rewards/parties/$party/summary").then().statusCode(200)
             .body("market", equalTo("CZ")).body("level.code", equalTo("SPARK")).body("counts.claimable", equalTo(1))
             .body("fluxValue.amount", equalTo("0.25"))
+        given().get("/api/v1/rewards/parties/$party/catalogue").then().statusCode(200)
+            .body("items.find { it.couponDefId == 'BILL_CASHBACK_5' }.benefit.cap.currency", equalTo("CZK"))
+            .body("items.find { it.couponDefId == 'BILL_CASHBACK_5' }.levelGate", equalTo(1))
         val key = UUID.randomUUID().toString()
         val first = given().header(
             "Idempotency-Key",

@@ -104,12 +104,13 @@ object Views {
         "handoff" to v.def.handoff,
     )
 
-    fun benefit(p: BenefitParams, params: MarketParams?): Map<String, Any?> = mapOf(
+    /** Money inside benefit params is in the coupon's market currency (contract: Money always names it). */
+    fun benefit(p: BenefitParams, currency: String): Map<String, Any?> = mapOf(
         "percent" to p.percent,
-        "cap" to money(p.cap, params?.currency),
+        "cap" to money(p.cap, currency),
         "deltaBps" to p.deltaBps,
         "durationDays" to p.durationDays,
-        "balanceCap" to money(p.balanceCap, params?.currency),
+        "balanceCap" to money(p.balanceCap, currency),
         "theme" to p.theme,
     ).filterValues { it != null }
 
@@ -130,7 +131,7 @@ object Views {
         "expiresAt" to c.expiresAt,
         "usedAt" to c.usedAt,
         "targetKind" to d.benefitType.target,
-        "benefit" to benefit(d.params, params),
+        "benefit" to benefit(d.params, params?.currency ?: d.market.currency),
         "outcome" to RewardsJson.outcome(c.outcome)?.let { o ->
             mapOf(
                 "summary" to o.summary,
@@ -147,7 +148,7 @@ object Views {
         "rarity" to i.def.rarity,
         "capacity" to i.def.capacity, "validityDays" to i.def.validityDays, "levelGate" to i.def.levelGate,
         "locked" to i.locked,
-        "benefit" to benefit(i.def.params, params),
+        "benefit" to benefit(i.def.params, params?.currency ?: i.def.market.currency),
     )
 
     fun entry(e: LedgerEntry): Map<String, Any?> = mapOf(
