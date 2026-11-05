@@ -4,11 +4,18 @@ asyncapi: 3.0.0
 
 info:
   title: OpenBank Incentive Service — events
-  version: 1.1.0
+  version: 1.2.0
   description: |
     Lifecycle evidence emitted from the incentive transactional outbox. This topic does not
     authorize pricing, settlement, account mutation or cash rewards; consumers treat it as an
     at-least-once notification of a transition already committed in incentive-service.
+
+    Party identity: every event type below carries NO party identifier EXCEPT
+    `incentive.reservation.committed_for_party.v1` (added 1.2.0 for the FLUX rewards engine, which
+    issues the offer's reward from it). It is an ADDITIONAL message on the same topic — chosen over a
+    dedicated topic so no new Kafka topic/ACL is needed and the outbox keeps one ordered channel per
+    reservation; the existing `committed.v1` / `committed.v2` messages are unchanged and still emitted.
+    Consumers that do not recognise an eventType must skip it (campaign-service does).
   license:
     name: Apache-2.0
     url: https://www.apache.org/licenses/LICENSE-2.0
@@ -35,6 +42,7 @@ channels:
       attributedReservationCommitted: {$ref: '#/components/messages/attributedReservationCommitted'}
       attributedReservationReleased: {$ref: '#/components/messages/attributedReservationReleased'}
       attributedReservationExpired: {$ref: '#/components/messages/attributedReservationExpired'}
+      reservationCommittedForParty: {$ref: '#/components/messages/reservationCommittedForParty'}
 
 operations:
   publishIncentiveEvidence:
@@ -54,6 +62,7 @@ operations:
       - $ref: '#/channels/incentiveEvents/messages/attributedReservationCommitted'
       - $ref: '#/channels/incentiveEvents/messages/attributedReservationReleased'
       - $ref: '#/channels/incentiveEvents/messages/attributedReservationExpired'
+      - $ref: '#/channels/incentiveEvents/messages/reservationCommittedForParty'
 
 components:
   schemas:
@@ -87,6 +96,7 @@ components:
         - incentive.reservation.committed.v2
         - incentive.reservation.released.v2
         - incentive.reservation.expired.v2
+        - incentive.reservation.committed_for_party.v1
     lifecycleEnvelope:
       type: object
       additionalProperties: false
@@ -136,6 +146,64 @@ components:
           format: uuid
           description: Opaque campaign interaction reference; never a party identifier or promo code.
         status: {type: string, enum: [RESERVED, COMMITTED, RELEASED, EXPIRED]}
+    reservationCommittedForParty:
+      type: object
+      additionalProperties: false
+      required:
+        - eventId
+        - correlationId
+        - aggregateId
+        - eventType
+        - occurredAt
+        - reservationId
+        - offerId
+        - offerRef
+        - partyId
+        - productRef
+        - source
+        - committedAt
+      properties:
+        eventId: {type: string, format: uuid}
+        correlationId: {type: string, format: uuid}
+        aggregateId:
+          type: string
+          format: uuid
+          description: The reservation id (also the Kafka key).
+        eventType: {type: string, const: incentive.reservation.committed_for_party.v1}
+        occurredAt: {type: string, format: date-time}
+        reservationId:
+          type: string
+          format: uuid
+          description: Deduplication key for reward issuance (one committed reservation = one reward).
+        offerId: {type: string, format: uuid}
+        offerRef:
+          type: object
+          additionalProperties: false
+          required: [id, name, version]
+          properties:
+            id: {type: string, format: uuid}
+            name: {type: string, minLength: 1}
+            version: {type: integer, minimum: 1}
+        partyId:
+          type: string
+          minLength: 1
+          description: >-
+            The reservation's party reference. A party UUID for customer-edge and rewards-engine
+            redemptions; an operator-entered reference for staff reservations.
+        productRef:
+          type: string
+          description: Product the code was reserved for, or the redemption context (ONBOARDING, HUB, TERM_DEPOSIT).
+        attributionRef:
+          type: [string, 'null']
+          format: uuid
+        source:
+          type: string
+          enum: [RESERVATION_COMMIT, DIRECT_REDEMPTION]
+          description: DIRECT_REDEMPTION = POST /api/v1/incentives/redemptions (reserve + commit in one step).
+        committedAt:
+          type: string
+          format: date-time
+          description: Business commit time (qualifiedAt for an attributed commit).
 
   messages:
     offerCreated:
@@ -296,3 +364,15 @@ components:
         allOf:
           - $ref: '#/components/schemas/attributedReservationLifecycle'
           - properties: {eventType: {const: incentive.reservation.expired.v2}}
+    reservationCommittedForParty:
+      <<: *lifecycleEvidence
+      name: incentive.reservation.committed_for_party.v1
+      summary: A reservation committed, naming its party (FLUX rewards reward issuance)
+      headers:
+        allOf:
+          - $ref: '#/components/schemas/outboxHeaders'
+          - type: object
+            required: [ce-type]
+            properties: {ce-type: {const: incentive.reservation.committed_for_party.v1}}
+      payload:
+        $ref: '#/components/schemas/reservationCommittedForParty'

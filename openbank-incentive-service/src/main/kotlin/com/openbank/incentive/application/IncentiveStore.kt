@@ -4,6 +4,7 @@ package com.openbank.incentive.application
 import com.openbank.incentive.domain.CodeDigest
 import com.openbank.incentive.domain.IncentiveOffer
 import com.openbank.incentive.domain.PromoReservation
+import com.openbank.incentive.domain.RedemptionContext
 import java.time.Instant
 import java.util.UUID
 
@@ -33,6 +34,9 @@ interface IncentiveStore {
         at: Instant,
     ): PromoReservation
     suspend fun expireDue(at: Instant): Int
+
+    /** Reserve AND commit one code for one party in a single transaction (rewards engine). */
+    suspend fun redeem(command: RedeemIncentive): PromoReservation
 }
 
 data class ReserveIncentive(
@@ -41,6 +45,16 @@ data class ReserveIncentive(
     val partyRef: String,
     val productRef: String,
     val attributionRef: UUID?,
+    val idempotencyKey: String,
+    val actor: String,
+    val now: Instant,
+    val expiresAt: Instant,
+)
+
+data class RedeemIncentive(
+    val digest: CodeDigest,
+    val partyRef: String,
+    val context: RedemptionContext,
     val idempotencyKey: String,
     val actor: String,
     val now: Instant,

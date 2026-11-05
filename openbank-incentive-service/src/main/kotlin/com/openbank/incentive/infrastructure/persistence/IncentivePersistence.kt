@@ -3,6 +3,7 @@ package com.openbank.incentive.infrastructure.persistence
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.openbank.incentive.application.IncentiveStore
+import com.openbank.incentive.application.RedeemIncentive
 import com.openbank.incentive.application.ReserveIncentive
 import com.openbank.incentive.domain.CodeDigest
 import com.openbank.incentive.domain.IncentiveConflict
@@ -11,6 +12,7 @@ import com.openbank.incentive.domain.IncentiveOffer
 import com.openbank.incentive.domain.OfferRef
 import com.openbank.incentive.domain.OfferStatus
 import com.openbank.incentive.domain.PromoReservation
+import com.openbank.incentive.domain.RedemptionErrorCodes
 import com.openbank.incentive.domain.ReservationStatus
 import com.openbank.incentive.domain.StackingPolicy
 import com.openbank.libs.domain.identifiers.Ids
@@ -55,6 +57,7 @@ class OfferEntity : PanacheEntityBase() {
     var checker: String? = null
     lateinit var createdAt: Instant
     var publishedAt: Instant? = null
+    var claimableInHub: Boolean = false
 }
 
 @Entity
@@ -486,7 +489,9 @@ class PanacheIncentiveStore(
                 requireNotNull(code)
                 code.status = if (target == ReservationStatus.COMMITTED) "REDEEMED" else "AVAILABLE"
                 when (target) {
-                    ReservationStatus.COMMITTED -> reservationEvidence(updated, target, actor)
+                    ReservationStatus.COMMITTED -> reservationEvidence(updated, target, actor).flatMap {
+                        partyCommitEvidence(updated, actor, PartyCommitSource.RESERVATION_COMMIT, at)
+                    }
                     ReservationStatus.RELEASED -> reservationEvidence(updated, target, actor)
                     else -> error("unsupported transition")
                 }
@@ -494,6 +499,177 @@ class PanacheIncentiveStore(
             }
         }
     }.awaitSuspending()
+
+    override suspend fun redeem(command: RedeemIncentive): PromoReservation = Panache.withTransaction {
+        // Same lock order as [reserve] (offer, then code): the unlocked read only finds the offer.
+        codes.find("digest", command.digest.value).firstResult<CodeEntity>().flatMap { unlocked ->
+            if (unlocked == null) throw IncentiveNotFound("code is unknown", RedemptionErrorCodes.CODE_UNKNOWN)
+            lockedOffer(unlocked.offerId)
+        }.flatMap { offerEntity ->
+            val offer = offerEntity?.toDomain()
+            // An unpublished offer's inventory is not discoverable: its codes are unknown.
+            if (offer == null || offer.status == OfferStatus.DRAFT || offer.status == OfferStatus.PENDING_APPROVAL) {
+                throw IncentiveNotFound("code is unknown", RedemptionErrorCodes.CODE_UNKNOWN)
+            }
+            reservations.find("offerId = ?1 and idempotencyKey = ?2", offer.ref.id, command.idempotencyKey)
+                .firstResult<ReservationEntity>().flatMap { replay ->
+                    if (replay != null) {
+                        Uni.createFrom().item(replayRedemption(replay, command))
+                    } else {
+                        redeemFresh(offer, command)
+                    }
+                }
+        }
+    }.awaitSuspending()
+
+    private fun replayRedemption(replay: ReservationEntity, command: RedeemIncentive): PromoReservation {
+        val same = replay.codeDigest == command.digest.value &&
+            replay.partyRef == command.partyRef &&
+            replay.productRef == command.context.name &&
+            replay.status == ReservationStatus.COMMITTED.name
+        if (!same) {
+            throw IncentiveConflict(
+                "idempotency key was already used for a different request",
+                RedemptionErrorCodes.IDEMPOTENCY_CONFLICT,
+            )
+        }
+        return replay.toDomain()
+    }
+
+    @Suppress("ThrowsCount") // One guard per redemption error code, in the order the contract documents.
+    private fun redeemFresh(offer: IncentiveOffer, command: RedeemIncentive): Uni<PromoReservation> {
+        if (!offer.claimableIn(command.context, command.now)) {
+            throw IncentiveConflict(
+                "offer is not claimable in ${command.context}",
+                RedemptionErrorCodes.CODE_NOT_CLAIMABLE,
+            )
+        }
+        val offerId = offer.ref.id
+        return lockedCode(command.digest.value).flatMap { code ->
+            if (code == null || code.status != "AVAILABLE") {
+                throw IncentiveConflict("code was already used", RedemptionErrorCodes.CODE_USED)
+            }
+            reservations.count("offerId = ?1 and status in (?2, ?3)", offerId, "RESERVED", "COMMITTED")
+                .flatMap { total ->
+                    if (total >= offer.totalLimit) {
+                        throw IncentiveConflict("offer total limit reached", RedemptionErrorCodes.LIMIT_REACHED)
+                    }
+                    reservations.count(
+                        "offerId = ?1 and partyRef = ?2 and status in (?3, ?4)",
+                        offerId,
+                        command.partyRef,
+                        "RESERVED",
+                        "COMMITTED",
+                    )
+                }.flatMap { partyCount ->
+                    if (partyCount >= offer.perPartyLimit) {
+                        throw IncentiveConflict("party limit reached", RedemptionErrorCodes.LIMIT_REACHED)
+                    }
+                    liveCommittedOffers(command, offerId)
+                }.flatMap { others ->
+                    if (!offer.stacksWith(others)) {
+                        throw IncentiveConflict(
+                            "offer does not stack with the party's committed offers",
+                            RedemptionErrorCodes.NOT_STACKABLE,
+                        )
+                    }
+                    code.status = "REDEEMED"
+                    commitRedemption(offer, command)
+                }
+        }
+    }
+
+    private fun commitRedemption(offer: IncentiveOffer, command: RedeemIncentive): Uni<PromoReservation> {
+        val reserved = PromoReservation(
+            Ids.newId(),
+            offer.ref,
+            command.digest,
+            command.partyRef,
+            command.context.name,
+            command.idempotencyKey,
+            command.now,
+            command.expiresAt,
+        )
+        val committed = reserved.commit(command.now)
+        val entity = committed.toEntity().also { it.committedAt = command.now }
+        return reservations.persist(entity)
+            .flatMap { reservationEvidence(reserved, ReservationStatus.RESERVED, command.actor) }
+            .flatMap { reservationEvidence(committed, ReservationStatus.COMMITTED, command.actor) }
+            .flatMap {
+                partyCommitEvidence(committed, command.actor, PartyCommitSource.DIRECT_REDEMPTION, command.now)
+            }
+            .replaceWith(committed)
+    }
+
+    /**
+     * Stacking is judged against the party's COMMITTED benefits in the SAME context (productRef)
+     * from other offers that are still live; an expired offer no longer competes.
+     */
+    private fun liveCommittedOffers(command: RedeemIncentive, offerId: UUID): Uni<List<IncentiveOffer>> =
+        reservations.list(
+            "partyRef = ?1 and productRef = ?2 and status = ?3 and offerId <> ?4",
+            command.partyRef,
+            command.context.name,
+            ReservationStatus.COMMITTED.name,
+            offerId,
+        ).flatMap { rows ->
+            val ids = rows.map { it.offerId }.distinct()
+            if (ids.isEmpty()) {
+                Uni.createFrom().item(emptyList())
+            } else {
+                offers.list("id in ?1", ids).map { entities ->
+                    entities.map { it.toDomain() }.filter { command.now.isBefore(it.expiresAt) }
+                }
+            }
+        }
+
+    /**
+     * `incentive.reservation.committed_for_party.v1` (FLUX rewards): the ONLY incentive event that
+     * names the party, so the rewards engine can issue the offer's reward. Same topic and key
+     * (reservation id) as the rest of the lifecycle; existing event types are unchanged and still
+     * carry no party identifier. Written beside an audit row, like every other outbox entry.
+     */
+    private fun partyCommitEvidence(
+        reservation: PromoReservation,
+        actor: String,
+        source: PartyCommitSource,
+        committedAt: Instant,
+    ): Uni<Void> {
+        val at = Instant.now()
+        val audit = AuditEntity().apply {
+            id = Ids.newId()
+            aggregateId = reservation.id
+            eventType = ReservationCommittedForPartyV1.EVENT_TYPE
+            this.actor = actor
+            occurredAt = at
+            details = "{}"
+        }
+        val eventId = Ids.newId()
+        val payload = ReservationCommittedForPartyV1(
+            eventId = eventId,
+            correlationId = reservation.id,
+            aggregateId = reservation.id,
+            occurredAt = at,
+            reservationId = reservation.id,
+            offerId = reservation.offerRef.id,
+            offerRef = reservation.offerRef,
+            partyId = reservation.partyRef,
+            productRef = reservation.productRef,
+            attributionRef = reservation.attributionRef,
+            source = source,
+            committedAt = committedAt,
+        )
+        val event = OutboxEntity().apply {
+            id = eventId
+            aggregateId = reservation.id
+            eventType = ReservationCommittedForPartyV1.EVENT_TYPE
+            this.payload = objectMapper.writeValueAsString(payload)
+            occurredAt = at
+            status = OutboxStatus.PENDING.name
+            updatedAt = at
+        }
+        return audits.persist(audit).flatMap { outbox.persist(event) }.replaceWithVoid()
+    }
 
     private fun requireAttributedOwner(
         reservation: PromoReservation,
@@ -612,11 +788,13 @@ private fun IncentiveOffer.toEntity() = OfferEntity().also { entity ->
     entity.maker = maker
     entity.checker = checker
     entity.createdAt = Instant.now()
+    entity.claimableInHub = claimableInHub
 }
 
 private fun OfferEntity.toDomain() = IncentiveOffer(
-    OfferRef(id, name, version), productScope.split("\u001f").toSet(), effectiveFrom, expiresAt,
-    totalLimit, perPartyLimit, StackingPolicy.valueOf(stackingPolicy), OfferStatus.valueOf(status), maker, checker,
+    OfferRef(id, name, version), productScope.split("\u001f").filter { it.isNotEmpty() }.toSet(), effectiveFrom,
+    expiresAt, totalLimit, perPartyLimit, StackingPolicy.valueOf(stackingPolicy), OfferStatus.valueOf(status), maker,
+    checker, claimableInHub,
 )
 
 private fun PromoReservation.toEntity() = ReservationEntity().also { entity ->
@@ -822,5 +1000,28 @@ internal data class ReservationExpiredV1(
 ) {
     companion object {
         const val EVENT_TYPE = "incentive.reservation.expired.v1"
+    }
+}
+
+/** Which path committed the reservation; the rewards engine deduplicates by `reservationId`. */
+internal enum class PartyCommitSource { RESERVATION_COMMIT, DIRECT_REDEMPTION }
+
+internal data class ReservationCommittedForPartyV1(
+    val eventId: UUID,
+    val correlationId: UUID,
+    val aggregateId: UUID,
+    val occurredAt: Instant,
+    val reservationId: UUID,
+    val offerId: UUID,
+    val offerRef: OfferRef,
+    val partyId: String,
+    val productRef: String,
+    val attributionRef: UUID?,
+    val source: PartyCommitSource,
+    val committedAt: Instant,
+    val eventType: String = EVENT_TYPE,
+) {
+    companion object {
+        const val EVENT_TYPE = "incentive.reservation.committed_for_party.v1"
     }
 }

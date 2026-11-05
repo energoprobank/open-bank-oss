@@ -61,16 +61,55 @@ class IncentiveDomainTest {
         assertThatThrownBy { CodeDigest("SAVE20") }.isInstanceOf(IllegalArgumentException::class.java)
     }
 
-    private fun offer() = IncentiveOffer(
+    @Test
+    fun `one-step redemption needs a live offer that is hub-claimable, unscoped or scoped to the context`() {
+        val productBound = offer().submit("maker").publish("checker")
+        assertThat(productBound.claimableIn(RedemptionContext.HUB, now)).isFalse()
+
+        val hub = offer(claimableInHub = true).submit("maker").publish("checker")
+        RedemptionContext.entries.forEach { assertThat(hub.claimableIn(it, now)).describedAs(it.name).isTrue() }
+        assertThat(hub.claimableIn(RedemptionContext.HUB, now.plus(31, ChronoUnit.DAYS))).isFalse()
+        assertThat(offer(claimableInHub = true).claimableIn(RedemptionContext.HUB, now)).isFalse()
+
+        val unscoped = offer(scope = emptySet(), claimableInHub = true).submit("maker").publish("checker")
+        assertThat(unscoped.productScope).isEmpty()
+        assertThat(unscoped.claimableIn(RedemptionContext.ONBOARDING, now)).isTrue()
+
+        val termDeposit = offer(scope = setOf("TERM_DEPOSIT")).submit("maker").publish("checker")
+        assertThat(termDeposit.claimableIn(RedemptionContext.TERM_DEPOSIT, now)).isTrue()
+        assertThat(termDeposit.claimableIn(RedemptionContext.HUB, now)).isFalse()
+    }
+
+    @Test
+    fun `an empty product scope is refused unless the offer is hub-claimable`() {
+        assertThatThrownBy { offer(scope = emptySet()) }.isInstanceOf(IllegalArgumentException::class.java)
+    }
+
+    @Test
+    fun `an exclusive offer on either side refuses stacking`() {
+        val stackable = offer(policy = StackingPolicy.STACKABLE)
+        val exclusive = offer(policy = StackingPolicy.EXCLUSIVE)
+        assertThat(exclusive.stacksWith(emptyList())).isTrue()
+        assertThat(stackable.stacksWith(listOf(stackable))).isTrue()
+        assertThat(stackable.stacksWith(listOf(exclusive))).isFalse()
+        assertThat(exclusive.stacksWith(listOf(stackable))).isFalse()
+    }
+
+    private fun offer(
+        scope: Set<String> = setOf("current-account"),
+        claimableInHub: Boolean = false,
+        policy: StackingPolicy = StackingPolicy.EXCLUSIVE,
+    ) = IncentiveOffer(
         ref = ref,
-        productScope = setOf("current-account"),
+        productScope = scope,
         effectiveFrom = now.minusSeconds(60),
         expiresAt = now.plus(30, ChronoUnit.DAYS),
         totalLimit = 1_000,
         perPartyLimit = 1,
-        stackingPolicy = StackingPolicy.EXCLUSIVE,
+        stackingPolicy = policy,
         status = OfferStatus.DRAFT,
         maker = "maker",
+        claimableInHub = claimableInHub,
     )
 
     private fun reservation() = PromoReservation(

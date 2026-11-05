@@ -56,7 +56,19 @@ mp:
         key:
           serializer: org.apache.kafka.common.serialization.StringSerializer
 
+opa:
+  url: "${OPA_URL:http://localhost:8181}"
+  path: "${OPA_PATH:/v1/data/openbank/rest/allow}"
+  timeout-ms: "${OPA_TIMEOUT_MS:500}"
+
 openbank:
+  # Opt in to the libs-runtime OPA sidecar PolicyDecisionPoint producer (BUILD-TIME switch,
+  # @IfBuildProperty, off when missing). The only @Authorize route is the rewards engine's
+  # one-step redemption (incentive.redemption.redeem, incentive_rest_ext.rego); without the
+  # producer it would fail closed with 503 "policy decision point not configured".
+  authz:
+    opa-pdp-producer:
+      enabled: true
   outbox:
     dispatch-enabled: true
     poll-interval: 5s
@@ -68,6 +80,15 @@ openbank:
     customer-caller-principal: ${INCENTIVE_CUSTOMER_CALLER_PRINCIPAL:}
 
 "%test":
+  # No OPA in a test JVM: advisory HERE ONLY, so the HTTP contract tests reach the handler. The
+  # redemption route stays closed to every other principal by its in-code guard
+  # (requireRewardsRedeemer), which the tests exercise; the rego is covered by its own opa tests.
+  authz:
+    enforce: false
+  # Never ask a developer's running OPA (the local stack binds 8181): a closed port keeps the test
+  # JVM's decision "PDP unavailable", the same in CI and on a laptop.
+  opa:
+    url: http://127.0.0.1:1
   openbank:
     outbox:
       dispatch-enabled: false

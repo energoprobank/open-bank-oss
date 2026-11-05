@@ -2,10 +2,13 @@
 package com.openbank.incentive.application
 
 import com.openbank.incentive.domain.CodeDigest
+import com.openbank.incentive.domain.IncentiveNotFound
 import com.openbank.incentive.domain.IncentiveOffer
 import com.openbank.incentive.domain.OfferRef
 import com.openbank.incentive.domain.OfferStatus
 import com.openbank.incentive.domain.PromoReservation
+import com.openbank.incentive.domain.RedemptionContext
+import com.openbank.incentive.domain.RedemptionErrorCodes
 import com.openbank.incentive.domain.StackingPolicy
 import com.openbank.libs.domain.identifiers.Ids
 import io.quarkus.runtime.Startup
@@ -41,6 +44,7 @@ class IncentiveApplication(
                 stackingPolicy = command.stackingPolicy,
                 status = OfferStatus.DRAFT,
                 maker = actor,
+                claimableInHub = command.claimableInHub,
             ),
         )
 
@@ -102,6 +106,28 @@ class IncentiveApplication(
     ) = store.releaseAttributed(id, partyRef, productRef, actor, now)
     suspend fun expireDue(now: Instant = Instant.now()) = store.expireDue(now)
 
+    /**
+     * One-step redemption for the rewards engine: reserve and commit [code] for [partyId] in
+     * [context]. Without an [idempotencyKey] a retry is not replayed (it answers CODE_USED); with
+     * one, the same key replays the committed reservation.
+     */
+    suspend fun redeem(
+        partyId: UUID,
+        code: String,
+        context: RedemptionContext,
+        idempotencyKey: String?,
+        actor: String,
+        now: Instant = Instant.now(),
+    ): PromoReservation {
+        // A code outside the inventory's length bounds cannot exist: it is unknown, not malformed.
+        val codeDigest = runCatching { digest(code) }.getOrNull()
+            ?: throw IncentiveNotFound("code is unknown", RedemptionErrorCodes.CODE_UNKNOWN)
+        val key = idempotencyKey?.takeIf { it.isNotBlank() } ?: "redeem:${Ids.newId()}"
+        return store.redeem(
+            RedeemIncentive(codeDigest, partyId.toString(), context, key, actor, now, now.plus(reservationTtl)),
+        )
+    }
+
     private fun digest(code: String): CodeDigest {
         val normalized = code.trim().uppercase()
         require(normalized.length in MIN_CODE_LENGTH..MAX_CODE_LENGTH) { "code length is invalid" }
@@ -127,4 +153,5 @@ data class CreateOffer(
     val totalLimit: Int,
     val perPartyLimit: Int,
     val stackingPolicy: StackingPolicy,
+    val claimableInHub: Boolean = false,
 )

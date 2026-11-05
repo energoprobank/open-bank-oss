@@ -630,6 +630,7 @@ class IncentiveRestContractIT {
                 "incentive.reservation.committed.v2",
                 "incentive.reservation.released.v2",
                 "incentive.reservation.expired.v2",
+                "incentive.reservation.committed_for_party.v1",
             )
     }
 

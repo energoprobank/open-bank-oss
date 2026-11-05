@@ -30,6 +30,8 @@ data class CreateOfferRequest(
     val totalLimit: Int,
     val perPartyLimit: Int,
     val stackingPolicy: StackingPolicy,
+    /** FLUX rewards: redeemable in one step in any context; may then carry an empty product scope. */
+    val claimableInHub: Boolean = false,
 )
 
 data class ImportCodesRequest(
@@ -101,6 +103,7 @@ class IncentiveResource(private val application: IncentiveApplication, private v
                 request.totalLimit,
                 request.perPartyLimit,
                 request.stackingPolicy,
+                request.claimableInHub,
             ),
             actor(),
         ),
