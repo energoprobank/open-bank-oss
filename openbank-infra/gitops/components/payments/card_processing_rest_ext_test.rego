@@ -76,3 +76,12 @@ test_money_path_reason_does_not_cover_lifecycle_actions if {
 	not "operator-cardprocessing-write" in rest.allowed_reasons with input as {"principal": operator, "action": "cardprocessing.token"}
 	not "operator-cardprocessing-write" in rest.allowed_reasons with input as {"principal": operator, "action": "cardprocessing.dispute"}
 }
+
+# Experience v2 step 8: customer-edge may provision a wallet token, nothing else; no other machine may.
+test_edge_may_provision_a_wallet_token_only if {
+	edge := {"type": "HUMAN", "id": "service-account-openbank-edge", "roles": ["ROLE_API"]}
+	"edge-wallet-provisioning" in rest.allowed_reasons with input as {"principal": edge, "action": "cardprocessing.token"}
+	not "edge-wallet-provisioning" in rest.allowed_reasons with input as {"principal": edge, "action": "cardprocessing.dispute"}
+	other := {"type": "HUMAN", "id": "service-account-openbank-services", "roles": ["ROLE_API"]}
+	not "edge-wallet-provisioning" in rest.allowed_reasons with input as {"principal": other, "action": "cardprocessing.token"}
+}

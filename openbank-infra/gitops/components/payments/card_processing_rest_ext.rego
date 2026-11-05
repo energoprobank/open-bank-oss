@@ -91,3 +91,12 @@ allowed_reasons contains "operator-card-lifecycle-write" if {
     role in input.principal.roles
     input.action in {"cardprocessing.token", "cardprocessing.dispute"}
 }
+
+# Experience v2 step 8 — Apple Wallet provisioning for the customer app. customer-edge has already
+# checked that the card is the customer's own (ownsCard) and asks for a network token on their
+# behalf. ONLY that principal and ONLY the token action: no other machine principal can
+# provision tokens, and the edge cannot reach disputes or token status changes through this rule.
+allowed_reasons contains "edge-wallet-provisioning" if {
+    input.principal.id == "service-account-openbank-edge"
+    input.action == "cardprocessing.token"
+}

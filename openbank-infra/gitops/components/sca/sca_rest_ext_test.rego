@@ -248,3 +248,11 @@ test_pension_denied_when_not_declared if {
 	rest.allow == false with input as {"principal": pension, "action": "scaChallenge.consume"}
 		with data.rules as object.union(rules_mock, {"scoped_sca_consumers": []})
 }
+
+# Experience v2 step 8: only customer-edge sets an app PIN, and only that.
+test_edge_may_set_an_app_pin_only if {
+	"service-sca-edge-app-pin" in rest.allowed_reasons with input as {"principal": edge, "action": "device.app-pin"}
+	not "service-sca-edge-app-pin" in rest.allowed_reasons with input as {"principal": edge, "action": "device.revoke"}
+	other := {"service_account": true, "client_id": "openbank-services", "type": "HUMAN", "id": "service-account-openbank-services", "roles": ["ROLE_API"]}
+	not "service-sca-edge-app-pin" in rest.allowed_reasons with input as {"principal": other, "action": "device.app-pin"}
+}

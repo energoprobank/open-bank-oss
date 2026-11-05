@@ -128,3 +128,11 @@ prohibited if {
 	machine_grant_ok
 	input.action in {"scaChallenge.approval.read", "scaChallenge.approval.decide"}
 }
+
+# Experience v2 step 8: the app PIN of a device (PUT /parties/{id}/devices/{credentialId}/app-pin).
+# customer-edge has checked the path party is the customer's own; only its identity, only this action.
+allowed_reasons contains "service-sca-edge-app-pin" if {
+	input.principal.type == "HUMAN"
+	machine_named("service-account-openbank-edge")
+	input.action == "device.app-pin"
+}

@@ -9,7 +9,7 @@ metadata:
     app.kubernetes.io/name: sca-service
     app.kubernetes.io/part-of: sca
   annotations:
-    openbank.tech/policy-checksum: "c9dda31f0db52b20"
+    openbank.tech/policy-checksum: "e0accfece0614e08"
 data:
   rest.rego: |
     # SPDX-License-Identifier: Apache-2.0
@@ -890,6 +890,14 @@ data:
     prohibited if {
     	machine_grant_ok
     	input.action in {"scaChallenge.approval.read", "scaChallenge.approval.decide"}
+    }
+
+    # Experience v2 step 8: the app PIN of a device (PUT /parties/{id}/devices/{credentialId}/app-pin).
+    # customer-edge has checked the path party is the customer's own; only its identity, only this action.
+    allowed_reasons contains "service-sca-edge-app-pin" if {
+    	input.principal.type == "HUMAN"
+    	machine_named("service-account-openbank-edge")
+    	input.action == "device.app-pin"
     }
   agents.rego: |
     # SPDX-License-Identifier: Apache-2.0

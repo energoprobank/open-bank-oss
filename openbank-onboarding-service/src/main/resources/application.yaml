@@ -54,9 +54,12 @@ quarkus:
   # Enforced by .github/scripts/check-oidc-client-configured.py.
   oidc-client:
     auth-server-url: ${QUARKUS_OIDC_AUTH_SERVER_URL:http://localhost:8080/realms/openbank}
-    client-id: openbank-services
+    # Experience v2 step 8: onboarding-service writes account-opening details to party-service, which
+    # admits only a NAMED principal for that (never the shared openbank-services). A deployment sets
+    # its own client (openbank-onboarding); unset keeps the shared one, as before.
+    client-id: ${ONBOARDING_OIDC_CLIENT_ID:openbank-services}
     credentials:
-      secret: ${OIDC_CLIENT_SECRET:CHANGE_ME_LOCAL_DEV_ONLY}
+      secret: ${ONBOARDING_OIDC_CLIENT_SECRET:${OIDC_CLIENT_SECRET:CHANGE_ME_LOCAL_DEV_ONLY}}
 
   rest-client:
     # Local-dev default ONLY — the in-cluster URL comes from PARTY_SERVICE_URL on the Deployment

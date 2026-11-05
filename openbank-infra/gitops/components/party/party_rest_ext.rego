@@ -137,3 +137,18 @@ allowed_reasons contains "service-delegation-mandate-read" if {
 	machine_named("service-account-openbank-delegation")
 	input.action in {"party.mandate.read"}
 }
+
+# Experience v2 step 8 — self-service account opening. onboarding-service's OWN machine principal
+# (client `openbank-onboarding`, ROLE_API only) records what the applicant typed, after customer-edge
+# has taken the party from the customer's token:
+#   party.onboarding-details      — PUT /{id}/onboarding-details (only while PENDING_KYC; set-once national number)
+#   party.tax-self-certification  — PUT /{id}/tax-self-certification
+# Identity-gated, never a role; the shared `service-account-openbank-services` is deliberately absent.
+allowed_reasons contains "service-onboarding-party-m2m" if {
+	input.principal.type == "HUMAN"
+	machine_named("service-account-openbank-onboarding")
+	input.action in {
+		"party.onboarding-details",
+		"party.tax-self-certification",
+	}
+}

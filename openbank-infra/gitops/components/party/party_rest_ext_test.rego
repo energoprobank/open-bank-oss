@@ -161,3 +161,13 @@ test_tax_reporting_false_or_bad_client_binding_denied if {
 		not allow.allow with input as {"principal": object.union(tax_reporting_guard_identity, changed), "action": "party.reporting.taxFacts"}
 	}
 }
+
+# Experience v2 step 8: only onboarding-service's own principal writes account-opening details.
+onboarding_sa := {"service_account": true, "client_id": "openbank-onboarding", "type": "HUMAN", "id": "service-account-openbank-onboarding", "roles": ["ROLE_API"]}
+
+test_onboarding_may_write_account_opening_details_only if {
+	"service-onboarding-party-m2m" in allowed_reasons with input as {"principal": onboarding_sa, "action": "party.onboarding-details"}
+	"service-onboarding-party-m2m" in allowed_reasons with input as {"principal": onboarding_sa, "action": "party.tax-self-certification"}
+	not "service-onboarding-party-m2m" in allowed_reasons with input as {"principal": onboarding_sa, "action": "party.merge"}
+	not "service-onboarding-party-m2m" in allowed_reasons with input as {"principal": shared_api_only, "action": "party.onboarding-details"}
+}
