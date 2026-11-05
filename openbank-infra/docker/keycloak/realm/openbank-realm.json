@@ -1252,6 +1252,23 @@
       "attributes": {}
     },
     {
+      "clientId": "openbank-rewards",
+      "name": "OpenBank Rewards Service (FLUX)",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "CHANGE_ME_LOCAL_DEV_ONLY",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "protocol": "openid-connect",
+      "defaultClientScopes": [
+        "openid",
+        "profile",
+        "roles"
+      ],
+      "attributes": {}
+    },
+    {
       "clientId": "openbank-agent",
       "name": "OpenBank Agent Service",
       "enabled": true,
@@ -1647,6 +1664,14 @@
       "username": "service-account-openbank-card-processing",
       "enabled": true,
       "serviceAccountClientId": "openbank-card-processing",
+      "realmRoles": [
+        "ROLE_API"
+      ]
+    },
+    {
+      "username": "service-account-openbank-rewards",
+      "enabled": true,
+      "serviceAccountClientId": "openbank-rewards",
       "realmRoles": [
         "ROLE_API"
       ]
