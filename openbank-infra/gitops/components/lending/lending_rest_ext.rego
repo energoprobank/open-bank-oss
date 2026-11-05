@@ -23,6 +23,9 @@
 #                                 handler + four_eyes.verbs, issue #621; PENDING until decided)
 #   lending.collateralDecide    — approve/reject a pending collateral registration (checker; must
 #                                 differ from the registrant)
+#   lending.rateAdjustment.preview — FLUX rewards CR-1: preview a loan rate coupon (LoanRateAdjustmentResource)
+#   lending.rateAdjustment.create  — apply a reward rate adjustment (rewards service-account ONLY)
+#   lending.rateAdjustment.cancel  — cancel one (compensation; rewards service-account ONLY)
 #   lending.ledgerBackfill.*    — one-off four-eyes ledger backfill (#10746): read (dry-run),
 #                                 propose (maker), decide (checker, must differ — enforced in
 #                                 LedgerBackfillService), execute. ROLE_FINANCE / ROLE_ADMIN humans
@@ -185,6 +188,43 @@ allowed_reasons contains "service-risk-loan-book-read" if {
 	input.principal.type == "HUMAN"
 	machine_named("service-account-openbank-services")
 	input.action == "lending.book.read"
+}
+
+# FLUX rewards CR-1 (loan rate coupon): the rewards engine lowers a loan's rate for 12 months after
+# the customer has redeemed a coupon with SCA at the edge. Identified by the VERIFIED machine name,
+# never by role: the rewards client's realm role is ROLE_API, which other clients carry too, and a
+# role-only grant would hand every one of them the power to reprice any loan. Create and cancel are
+# the rewards engine's alone; it previews before it offers the coupon.
+allowed_reasons contains "rewards-rate-adjustment" if {
+	machine_named("service-account-openbank-rewards")
+	input.action in {
+		"lending.rateAdjustment.preview",
+		"lending.rateAdjustment.create",
+		"lending.rateAdjustment.cancel",
+	}
+}
+
+# customer-edge shows the customer the before/after terms of a loan coupon before they redeem it
+# (G-CR-07). Read-only: the preview never writes.
+allowed_reasons contains "edge-rate-adjustment-preview" if {
+	machine_named("service-account-openbank-edge")
+	input.action == "lending.rateAdjustment.preview"
+}
+
+# Nobody else, whatever their roles. `operator-lending-write` admits any non-machine
+# ROLE_OPERATOR/ROLE_ADMIN to every `lending.*` action and matrix-allows can re-admit a role, so
+# without this veto a desk operator could grant or withdraw a customer's reward rate. The veto is
+# keyed on the action and spares only the two named machines above (edge for preview only) —
+# LoanRateAdjustmentResource enforces the same list in Kotlin from the verified token.
+prohibited if {
+	input.action in {"lending.rateAdjustment.create", "lending.rateAdjustment.cancel"}
+	not machine_named("service-account-openbank-rewards")
+}
+
+prohibited if {
+	input.action == "lending.rateAdjustment.preview"
+	not machine_named("service-account-openbank-rewards")
+	not machine_named("service-account-openbank-edge")
 }
 
 # NO BLANKET SERVICE (M2M) rule on purpose: in-repo M2M callers are the ones named above (the

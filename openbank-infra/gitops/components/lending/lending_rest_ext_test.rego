@@ -298,3 +298,72 @@ test_treasury_roles_denied_backfill if {
 			with data.rules as rules_mock
 	}
 }
+
+# --- FLUX rewards CR-1: rate adjustments are the rewards service-account's alone ---
+
+rewards := {"service_account": true, "client_id": "openbank-rewards", "type": "HUMAN", "id": "service-account-openbank-rewards", "roles": ["ROLE_API"]}
+
+# A machine whose id CLAIMS to be rewards but whose verified client id is another client.
+rewards_impostor := {"service_account": true, "client_id": "openbank-services", "type": "HUMAN", "id": "service-account-openbank-rewards", "roles": ["ROLE_API"]}
+
+admin := {"service_account": false, "type": "HUMAN", "id": "u-admin", "roles": ["ROLE_ADMIN"]}
+
+test_rewards_may_create_rate_adjustment if {
+	rest.allow with input as {"principal": rewards, "action": "lending.rateAdjustment.create"}
+		with data.rules as rules_mock
+}
+
+test_rewards_may_cancel_rate_adjustment if {
+	rest.allow with input as {"principal": rewards, "action": "lending.rateAdjustment.cancel"}
+		with data.rules as rules_mock
+}
+
+test_rewards_may_preview_rate_adjustment if {
+	rest.allow with input as {"principal": rewards, "action": "lending.rateAdjustment.preview"}
+		with data.rules as rules_mock
+}
+
+test_rewards_still_denied_other_lending_writes if {
+	not rest.allow with input as {"principal": rewards, "action": "lending.disburse"}
+		with data.rules as rules_mock
+}
+
+test_edge_may_preview_rate_adjustment if {
+	rest.allow with input as {"principal": edge, "action": "lending.rateAdjustment.preview"}
+		with data.rules as rules_mock
+}
+
+test_edge_denied_rate_adjustment_create if {
+	not rest.allow with input as {"principal": edge, "action": "lending.rateAdjustment.create"}
+		with data.rules as rules_mock
+}
+
+test_edge_denied_rate_adjustment_cancel if {
+	not rest.allow with input as {"principal": edge, "action": "lending.rateAdjustment.cancel"}
+		with data.rules as rules_mock
+}
+
+test_shared_client_denied_rate_adjustment if {
+	not rest.allow with input as {"principal": shared, "action": "lending.rateAdjustment.create"}
+		with data.rules as rules_mock
+	not rest.allow with input as {"principal": shared, "action": "lending.rateAdjustment.preview"}
+		with data.rules as rules_mock
+}
+
+test_rewards_impostor_denied_rate_adjustment if {
+	not rest.allow with input as {"principal": rewards_impostor, "action": "lending.rateAdjustment.create"}
+		with data.rules as rules_mock
+}
+
+test_human_operator_denied_rate_adjustment if {
+	not rest.allow with input as {"principal": operator, "action": "lending.rateAdjustment.create"}
+		with data.rules as rules_mock
+	not rest.allow with input as {"principal": operator, "action": "lending.rateAdjustment.preview"}
+		with data.rules as rules_mock
+}
+
+test_human_admin_denied_rate_adjustment if {
+	not rest.allow with input as {"principal": admin, "action": "lending.rateAdjustment.cancel"}
+		with data.rules as rules_mock
+}
+
