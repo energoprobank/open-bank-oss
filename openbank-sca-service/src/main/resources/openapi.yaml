@@ -16,7 +16,7 @@ info:
   # 1.15 -> 1.16 (#11588): additive verified makerActorKind on approval responses.
   # ADR-0227 D1: additive projection fields (summary, domain, amount, currency, riskClass,
   # payloadRef — all optional) on ApprovalResponse; no breaking change.
-  version: 1.17.0
+  version: 1.18.0
   description: >-
     Strong Customer Authentication — initiate and verify SCA challenges (OTP, TOTP, push,
     biometric). Decoupled device approval per ADR-0021: enrol a device credential and record a
@@ -240,6 +240,26 @@ paths:
         '409':
           description: Revocation transaction conflicted; reconcile before retrying
 
+  /api/v1/sca/parties/{partyId}/devices/{credentialId}/app-pin:
+    put:
+      summary: Set or change the app PIN of one of the party's enrolled devices (machine callers; verifier only)
+      parameters:
+        - { name: partyId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: credentialId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [pin_verifier]
+              properties:
+                pin_verifier: { type: string, pattern: '^[0-9a-f]{64}$', description: "SHA-256 hex over credentialId:PIN, computed on the device" }
+      responses:
+        '204': { description: Stored (salted PBKDF2 of the verifier) }
+        '400': { description: Not a verifier }
+        '404': { description: No such device for this party }
+        '409': { description: The device has been removed }
   /api/v1/sca/parties/{partyId}/devices:
     get:
       tags: [SCA]
