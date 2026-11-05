@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: Apache-2.0
+# Per-service governance manifest (ADR-0071). Declarative, curatorial facts only.
+#
+# openbank-provider-simulator is a NON-PRODUCTION stand-in for third-party providers (experience v2
+# step 8): Energo-Pro's customer system, the e-mail/SMS gateway, Czech Bank iD and an identity-
+# verification vendor (document, chip, liveness, face match). No datastore; sessions in memory.
+dataDomain: onboarding
+primaryDatastore: none
+ownsNoDatabase: true
+dataLineageRole: internal
+dataClassification: internal
+retentionPolicy: none (in-memory sessions, 2 hours)
+evidenceExported: false
+lineage:
+  upstream:
+    - serviceName: onboarding
+      relationType: api
+      description: customer lookup (prefill), OTP delivery, Bank iD and identity verification sessions
+    - serviceName: sca
+      relationType: api
+      description: liveness checks for payments above the customer's face-check limit

@@ -1,0 +1,131 @@
+openapi: 3.0.3
+info:
+  title: OpenBank Provider Simulator API
+  version: 1.0.0
+  description: >-
+    NON-PRODUCTION stand-in for third-party providers (Energo-Pro customer system, e-mail/SMS gateway,
+    Czech Bank iD, identity verification and liveness). Machine callers only (M2M token).
+servers:
+  - url: /api/v1
+security:
+  - bearer: []
+paths:
+  /energo-pro/customers/{customerNumber}:
+    get:
+      summary: An Energo-Pro electricity customer by customer number
+      parameters:
+        - {name: customerNumber, in: path, required: true, schema: {type: string, maxLength: 32}}
+      responses:
+        "200": {description: The customer, content: {application/json: {schema: {$ref: "#/components/schemas/EnergoProCustomer"}}}}
+        "404": {description: Energo-Pro has no such customer}
+  /otp/messages:
+    post:
+      summary: Deliver one e-mail or SMS
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: "#/components/schemas/SendMessage"}}}
+      responses:
+        "202": {description: Accepted for delivery, content: {application/json: {schema: {$ref: "#/components/schemas/Message"}}}}
+        "400": {description: Invalid request}
+  /otp/outbox:
+    get:
+      summary: Sandbox — what was delivered to one recipient (newest first)
+      parameters:
+        - {name: recipient, in: query, required: true, schema: {type: string}}
+      responses:
+        "200": {description: Messages, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/Message"}}}}}
+  /bankid/sessions:
+    post:
+      summary: Start a Bank iD identification
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: "#/components/schemas/VerificationRequest"}}}
+      responses:
+        "201": {description: Started, content: {application/json: {schema: {$ref: "#/components/schemas/Verification"}}}}
+  /bankid/sessions/{id}:
+    get:
+      summary: A Bank iD session
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      responses:
+        "200": {description: The session, content: {application/json: {schema: {$ref: "#/components/schemas/Verification"}}}}
+        "404": {description: Unknown or expired}
+  /idv/verifications:
+    post:
+      summary: Start a document scan (DOCUMENT_SCAN) or a liveness check (LIVENESS)
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: "#/components/schemas/VerificationRequest"}}}
+      responses:
+        "201": {description: Started, content: {application/json: {schema: {$ref: "#/components/schemas/Verification"}}}}
+  /idv/verifications/{id}:
+    get:
+      summary: A verification's checks and result
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      responses:
+        "200": {description: The verification, content: {application/json: {schema: {$ref: "#/components/schemas/Verification"}}}}
+        "404": {description: Unknown or expired}
+components:
+  securitySchemes:
+    bearer: {type: http, scheme: bearer, bearerFormat: JWT}
+  schemas:
+    EnergoProCustomer:
+      type: object
+      properties:
+        customer_number: {type: string, example: EP-1000001}
+        market: {type: string, enum: [CZ, BG]}
+        first_name: {type: string}
+        last_name: {type: string}
+        street: {type: string}
+        city: {type: string}
+        postal_code: {type: string}
+        email: {type: string}
+        phone: {type: string}
+    SendMessage:
+      type: object
+      required: [channel, recipient, text]
+      properties:
+        channel: {type: string, enum: [EMAIL, SMS]}
+        recipient: {type: string, maxLength: 254}
+        text: {type: string, maxLength: 480}
+    Message:
+      type: object
+      properties:
+        id: {type: string}
+        channel: {type: string, enum: [EMAIL, SMS]}
+        recipient: {type: string}
+        text: {type: string}
+        sent_at: {type: string, format: date-time}
+    Applicant:
+      type: object
+      properties:
+        given_name: {type: string}
+        family_name: {type: string}
+        date_of_birth: {type: string, format: date}
+        national_id: {type: string}
+    VerificationRequest:
+      type: object
+      required: [reference, applicant]
+      properties:
+        kind: {type: string, enum: [DOCUMENT_SCAN, LIVENESS]}
+        reference: {type: string, maxLength: 128}
+        applicant: {$ref: "#/components/schemas/Applicant"}
+        document_type: {type: string, enum: [ID_CARD, PASSPORT, RESIDENCE_PERMIT]}
+    Verification:
+      type: object
+      properties:
+        id: {type: string}
+        kind: {type: string, enum: [DOCUMENT_SCAN, BANK_ID, LIVENESS]}
+        reference: {type: string}
+        status: {type: string, enum: [IN_PROGRESS, VERIFIED, FAILED]}
+        checks:
+          type: array
+          items:
+            type: object
+            properties:
+              type: {type: string, enum: [DOCUMENT, CHIP, LIVENESS, FACE_MATCH, BANK_ID]}
+              status: {type: string, enum: [PENDING, PASSED, FAILED]}
+        identity:
+          allOf: [{$ref: "#/components/schemas/Applicant"}]
+          nullable: true

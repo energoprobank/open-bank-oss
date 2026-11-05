@@ -1,0 +1,96 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) OpenBank contributors. Licensed under the Apache License, Version 2.0.
+#
+# openbank-provider-simulator — NON-PRODUCTION third-party providers (experience v2 step 8):
+# Energo-Pro customer system, e-mail/SMS gateway, Czech Bank iD, identity verification + liveness.
+# No datasource: deterministic behaviour, sessions in memory. Each provider has its own path, and the
+# bank reaches each through its own adapter port and base-URL setting.
+quarkus:
+  application:
+    name: openbank-provider-simulator
+  http:
+    port: 8163
+    header:
+      X-Content-Type-Options:
+        value: nosniff
+      X-Frame-Options:
+        value: DENY
+      Referrer-Policy:
+        value: strict-origin-when-cross-origin
+      Content-Security-Policy:
+        value: "default-src 'self'"
+      Strict-Transport-Security:
+        value: "max-age=31536000; includeSubDomains"
+  oidc:
+    auth-server-url: http://localhost:8080/realms/openbank
+    client-id: openbank-services
+    credentials:
+      secret: ${OIDC_CLIENT_SECRET:CHANGE_ME_LOCAL_DEV_ONLY}
+  shutdown:
+    timeout: 30S
+  log:
+    level: INFO
+    console:
+      json: true
+  otel:
+    exporter:
+      otlp:
+        endpoint: http://localhost:4317
+    resource:
+      attributes:
+        service.name: openbank-provider-simulator
+  swagger-ui:
+    always-include: true
+    path: /api/docs
+  management:
+    enabled: true
+    port: 8085
+    host: 0.0.0.0
+    root-path: /q
+  dev-ui:
+    enabled: false
+
+"%dev":
+  quarkus:
+    log:
+      level: DEBUG
+      console:
+        json: false
+    oidc:
+      enabled: false
+
+"%test":
+  quarkus:
+    management:
+      enabled: false
+    oidc:
+      enabled: false
+  openbank:
+    provider-simulator:
+      step-seconds: 0
+      energo-pro:
+        generated-customers: 50
+
+openbank:
+  api:
+    version: "1"
+  build:
+    time: "${BUILD_TIME:unknown}"
+  git:
+    commit: "${GIT_COMMIT:unknown}"
+  provider-simulator:
+    # Seconds between two checks of a verification passing (a vendor answers asynchronously).
+    step-seconds: ${PROVIDER_SIMULATOR_STEP_SECONDS:1}
+    energo-pro:
+      # Energo-Pro-only customers generated deterministically (most never bank with the bank).
+      generated-customers: 400
+      # Records added locally (demo personas who are also Energo-Pro customers). Absent = none.
+      # seed-file: /seed/energo-pro-customers.json   (env OPENBANK_PROVIDER_SIMULATOR_ENERGO_PRO_SEED_FILE)
+
+# OPA sidecar (ADR-0034). Advisory by default.
+opa:
+  url: "${OPA_URL:http://localhost:8181}"
+  path: "${OPA_PATH:/v1/data/openbank/rest/allow}"
+  timeout-ms: "${OPA_TIMEOUT_MS:500}"
+authz:
+  enforce: "${AUTHZ_ENFORCE:false}"

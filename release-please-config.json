@@ -131,6 +131,12 @@
         "openbank-incentive-service/src/test"
       ]
     },
+    "openbank-provider-simulator": {
+      "component": "provider-simulator",
+      "exclude-paths": [
+        "openbank-provider-simulator/src/test"
+      ]
+    },
     "openbank-referral-service": {
       "component": "referral-service",
       "exclude-paths": [
