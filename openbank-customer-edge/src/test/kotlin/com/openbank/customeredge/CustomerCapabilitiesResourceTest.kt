@@ -25,11 +25,15 @@ class CustomerCapabilitiesResourceTest {
         loyaltyUrl: String? = null,
         referralsOn: Boolean = false,
         referralUrl: String? = "https://referral-service.referral.svc:8443",
+        rewardsOn: Boolean = false,
+        rewardsUrl: String? = "http://rewards-service.rewards.svc:8161",
     ) = CustomerCapabilitiesResource(
         loyaltyOn,
         referralsOn,
         Optional.ofNullable(loyaltyUrl),
         Optional.ofNullable(referralUrl),
+        rewardsOn,
+        Optional.ofNullable(rewardsUrl),
     )
 
     private fun body(r: CustomerCapabilitiesResource) = mapper.readTree(r.capabilities().entity as String)
@@ -51,6 +55,7 @@ class CustomerCapabilitiesResourceTest {
                 {"schemaVersion":1,"capabilities":[
                   {"id":"loyalty","state":"unavailable","reason":"NOT_DEPLOYED"},
                   {"id":"referrals","state":"unavailable","reason":"DISABLED"},
+                  {"id":"rewards.flux","state":"unavailable","reason":"DISABLED"},
                   {"id":"offers","state":"unavailable","reason":"NOT_BUILT"},
                   {"id":"accept.settlement","state":"unavailable","reason":"NOT_BUILT"},
                   {"id":"allmoney.linked","state":"unavailable","reason":"NOT_BUILT"},
@@ -89,6 +94,14 @@ class CustomerCapabilitiesResourceTest {
     fun `switching one capability does not move another`() {
         assertThat(stateOf(resource(loyaltyOn = true, loyaltyUrl = "https://loyalty"), "referrals"))
             .isEqualTo("unavailable" to "DISABLED")
+    }
+
+    @Test
+    fun `rewards flux is live only when switched on with an engine URL`() {
+        assertThat(stateOf(resource(rewardsOn = true), "rewards.flux")).isEqualTo("live" to null)
+        assertThat(stateOf(resource(rewardsOn = true, rewardsUrl = " "), "rewards.flux"))
+            .isEqualTo("unavailable" to "NOT_DEPLOYED")
+        assertThat(stateOf(resource(rewardsOn = true), "loyalty")).isEqualTo("unavailable" to "NOT_DEPLOYED")
     }
 
     /** The spec's closed enum and the catalogue must name the same ids, in both directions. */

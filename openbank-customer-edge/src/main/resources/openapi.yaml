@@ -52,7 +52,9 @@ info:
   # 1.81.0 -> 1.82.0 (#12259): additive company-scoped business payment batch draft routes.
   # 1.82.0 -> 1.83.0: additive configured pension provider and explicit unconfigured-provider 503 responses.
   # 1.83.0 -> 1.84.0: additive low-balance-alert endpoint and schemas (ADR-0333).
-  version: 1.85.0
+  # 1.85.0 -> 1.86.0: additive — /rewards/* (FLUX rewards, openbank-rewards-service Customer API),
+  # capability id rewards.flux; the /loyalty routes are marked deprecated (the app moves to /rewards).
+  version: 1.86.0
   description: >-
     Customer-facing edge proxy (ADR-0065). Single internet-facing entry point for the
     retail customer app. Validates JWTs from the openbank-customers Keycloak realm,
@@ -6567,6 +6569,7 @@ paths:
         Party-scoped from the token. A projection of loyalty-service's summary: lot-level
         remainingLeaves, ruleVersion and the party id are not exposed.
       operationId: getLoyaltySummary
+      deprecated: true
       security:
         - customerOidc: [loyalty:read]
       responses:
@@ -6587,6 +6590,7 @@ paths:
       tags: [Loyalty]
       summary: The reviewed benefit catalogue (prices in Lístky, never in a currency)
       operationId: listLoyaltyBenefits
+      deprecated: true
       security:
         - customerOidc: [loyalty:read]
       responses:
@@ -6610,6 +6614,7 @@ paths:
       summary: The reviewed earn catalogue
       description: A listed source is not a claim that anything awards it yet.
       operationId: listLoyaltyEarnSources
+      deprecated: true
       security:
         - customerOidc: [loyalty:read]
       responses:
@@ -6636,6 +6641,7 @@ paths:
         ALREADY_GRANTED with the original grant and burns nothing. grantStatus GRANTED means the
         benefit is owed and published for its delivering engine, never that it has been applied.
       operationId: redeemLoyaltyBenefit
+      deprecated: true
       security:
         - customerOidc: [loyalty:write]
       parameters:
@@ -6680,6 +6686,7 @@ paths:
         grantStatus is reported as stored. There is no active/applied state: GRANTED means owed,
         not delivered.
       operationId: listLoyaltyGrants
+      deprecated: true
       security:
         - customerOidc: [loyalty:read]
       responses:
@@ -6826,6 +6833,432 @@ paths:
         '410': {description: Invite has expired}
         '429': {description: Too many redemption attempts}
         '502': {description: Referral service unavailable}
+
+  /rewards/summary:
+    get:
+      tags: [Rewards]
+      summary: The caller's FLUX balance, level, charging coupon, counts and membership
+      description: >-
+        FLUX rewards (Energo-Pro). Every /rewards route is party-scoped from the token and proxies
+        openbank-rewards-service's Customer API; 2xx bodies are the engine's, verbatim. Gated by
+        capability `rewards.flux`: switched off, every /rewards route answers 404. 503
+        REWARDS_UNAVAILABLE means the engine cannot answer; the app hides rewards content.
+      operationId: getRewardsSummary
+      security:
+        - customerOidc: [rewards:read]
+      parameters:
+        - {$ref: '#/components/parameters/RewardsAcceptLanguage'}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RewardsSummary'}
+        '401': {description: Unauthenticated}
+        '404': {$ref: '#/components/responses/RewardsNotFound'}
+        '503': {$ref: '#/components/responses/RewardsUnavailable'}
+
+  /rewards/missions:
+    get:
+      tags: [Rewards]
+      summary: Active, claimable and past missions
+      operationId: listRewardsMissions
+      security:
+        - customerOidc: [rewards:read]
+      parameters:
+        - {$ref: '#/components/parameters/RewardsAcceptLanguage'}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RewardsMissions'}
+        '401': {description: Unauthenticated}
+        '404': {$ref: '#/components/responses/RewardsNotFound'}
+        '503': {$ref: '#/components/responses/RewardsUnavailable'}
+
+  /rewards/missions/{missionId}/claim:
+    post:
+      tags: [Rewards]
+      summary: Claim a completed mission's reward
+      operationId: claimRewardsMission
+      security:
+        - customerOidc: [rewards:write]
+      parameters:
+        - {name: missionId, in: path, required: true, schema: {type: string, pattern: '^[A-Za-z0-9_-]{1,128}$'}, description: 'Mission id, e.g. M-CARD-3'}
+        - {$ref: '#/components/parameters/RewardsIdempotencyKey'}
+        - {$ref: '#/components/parameters/RewardsAcceptLanguage'}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RewardsMissionClaim'}
+        '400': {$ref: '#/components/responses/RewardsBadRequest'}
+        '401': {description: Unauthenticated}
+        '404': {$ref: '#/components/responses/RewardsNotFound'}
+        '409': {$ref: '#/components/responses/RewardsConflict'}
+        '503': {$ref: '#/components/responses/RewardsUnavailable'}
+
+  /rewards/coupons:
+    get:
+      tags: [Rewards]
+      summary: The caller's coupon wallet (incl. USED/EXPIRED of the last 90 days)
+      operationId: listRewardsCoupons
+      security:
+        - customerOidc: [rewards:read]
+      parameters:
+        - {$ref: '#/components/parameters/RewardsAcceptLanguage'}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RewardsCouponList'}
+        '401': {description: Unauthenticated}
+        '404': {$ref: '#/components/responses/RewardsNotFound'}
+        '503': {$ref: '#/components/responses/RewardsUnavailable'}
+    post:
+      tags: [Rewards]
+      summary: Take a coupon from the catalogue
+      operationId: issueRewardsCoupon
+      security:
+        - customerOidc: [rewards:write]
+      parameters:
+        - {$ref: '#/components/parameters/RewardsIdempotencyKey'}
+        - {$ref: '#/components/parameters/RewardsAcceptLanguage'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [couponDefId]
+              properties:
+                couponDefId: {type: string}
+      responses:
+        '201':
+          description: Issued
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RewardsCoupon'}
+        '400': {$ref: '#/components/responses/RewardsBadRequest'}
+        '401': {description: Unauthenticated}
+        '404': {$ref: '#/components/responses/RewardsNotFound'}
+        '409': {$ref: '#/components/responses/RewardsConflict'}
+        '503': {$ref: '#/components/responses/RewardsUnavailable'}
+
+  /rewards/catalogue:
+    get:
+      tags: [Rewards]
+      summary: Coupons the caller can take, with level gates
+      operationId: listRewardsCatalogue
+      security:
+        - customerOidc: [rewards:read]
+      parameters:
+        - {$ref: '#/components/parameters/RewardsAcceptLanguage'}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RewardsCatalogue'}
+        '401': {description: Unauthenticated}
+        '404': {$ref: '#/components/responses/RewardsNotFound'}
+        '503': {$ref: '#/components/responses/RewardsUnavailable'}
+
+  /rewards/coupons/{couponId}/activate:
+    post:
+      tags: [Rewards]
+      summary: Make this the one CHARGING coupon
+      operationId: activateRewardsCoupon
+      security:
+        - customerOidc: [rewards:write]
+      parameters:
+        - {name: couponId, in: path, required: true, schema: {type: string, pattern: '^[A-Za-z0-9_-]{1,128}$'}, description: Coupon id}
+        - {$ref: '#/components/parameters/RewardsIdempotencyKey'}
+        - {$ref: '#/components/parameters/RewardsAcceptLanguage'}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RewardsCoupon'}
+        '400': {$ref: '#/components/responses/RewardsBadRequest'}
+        '401': {description: Unauthenticated}
+        '404': {$ref: '#/components/responses/RewardsNotFound'}
+        '409': {$ref: '#/components/responses/RewardsConflict'}
+        '503': {$ref: '#/components/responses/RewardsUnavailable'}
+
+  /rewards/coupons/{couponId}/charge:
+    post:
+      tags: [Rewards]
+      summary: Charge FLUX into a coupon
+      operationId: chargeRewardsCoupon
+      security:
+        - customerOidc: [rewards:write]
+      parameters:
+        - {name: couponId, in: path, required: true, schema: {type: string, pattern: '^[A-Za-z0-9_-]{1,128}$'}, description: Coupon id}
+        - {$ref: '#/components/parameters/RewardsIdempotencyKey'}
+        - {$ref: '#/components/parameters/RewardsAcceptLanguage'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [flux]
+              properties:
+                flux: {type: integer, minimum: 1}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RewardsCharge'}
+        '400': {$ref: '#/components/responses/RewardsBadRequest'}
+        '401': {description: Unauthenticated}
+        '404': {$ref: '#/components/responses/RewardsNotFound'}
+        '409': {$ref: '#/components/responses/RewardsConflict'}
+        '503': {$ref: '#/components/responses/RewardsUnavailable'}
+
+  /rewards/coupons/{couponId}/preview:
+    get:
+      tags: [Rewards]
+      summary: Terms before and after using the coupon on a target
+      operationId: previewRewardsCoupon
+      security:
+        - customerOidc: [rewards:read]
+      parameters:
+        - {name: couponId, in: path, required: true, schema: {type: string, pattern: '^[A-Za-z0-9_-]{1,128}$'}, description: Coupon id}
+        - {name: targetKind, in: query, required: true, schema: {type: string, enum: [LOAN, SAVINGS_ACCOUNT, BILL_PAYMENT]}}
+        - {name: targetId, in: query, required: true, schema: {type: string, pattern: '^[A-Za-z0-9_-]{1,128}$'}}
+        - {$ref: '#/components/parameters/RewardsAcceptLanguage'}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RewardsPreview'}
+        '401': {description: Unauthenticated}
+        '400': {$ref: '#/components/responses/RewardsBadRequest'}
+        '404': {$ref: '#/components/responses/RewardsNotFound'}
+        '503': {$ref: '#/components/responses/RewardsUnavailable'}
+
+  /rewards/coupons/{couponId}/use:
+    post:
+      tags: [Rewards]
+      summary: Use a READY coupon on a target
+      description: >-
+        Credit coupons (category LOANS, benefit LOAN_RATE_REDUCTION / INSTALMENT_RELIEF, or any
+        LOAN target) require SCA. The edge reads the wallet first; a coupon it does not list is 404
+        COUPON_NOT_FOUND. Without X-SCA-Challenge-Id the answer is 403 SCA_REQUIRED whose body carries
+        scaLinking {purpose: APPROVAL, approvalRequestId: rewards.coupon.use:<couponId>, payloadSha256}.
+        Raise that challenge with POST /sca/challenges (purpose APPROVAL, dynamicLinkingData =
+        {approvalRequestId, payloadSha256} copied from scaLinking), approve it on the device, then
+        retry with X-SCA-Challenge-Id and the same Idempotency-Key and body. The edge spends the
+        challenge (single use) and forwards its id to the engine as the approval reference. A
+        challenge not approved, spent, or signed for another coupon/target is 403 SCA_REJECTED.
+      operationId: useRewardsCoupon
+      security:
+        - customerOidc: [rewards:write]
+      parameters:
+        - {name: couponId, in: path, required: true, schema: {type: string, pattern: '^[A-Za-z0-9_-]{1,128}$'}, description: Coupon id}
+        - {name: X-SCA-Challenge-Id, in: header, required: false, schema: {type: string, format: uuid}, description: 'An approved APPROVAL challenge raised with the scaLinking of the 403 SCA_REQUIRED answer; required for credit coupons, spent by the edge'}
+        - {$ref: '#/components/parameters/RewardsIdempotencyKey'}
+        - {$ref: '#/components/parameters/RewardsAcceptLanguage'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [targetKind]
+              properties:
+                targetKind: {type: string, enum: [BILL_PAYMENT, SAVINGS_ACCOUNT, LOAN, NONE]}
+                targetId: {type: string, pattern: '^[A-Za-z0-9_-]{1,128}$', description: Required unless targetKind is NONE}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RewardsCouponUse'}
+        '400': {$ref: '#/components/responses/RewardsBadRequest'}
+        '401': {description: Unauthenticated}
+        '403': {$ref: '#/components/responses/RewardsScaRequired'}
+        '404': {$ref: '#/components/responses/RewardsNotFound'}
+        '409': {$ref: '#/components/responses/RewardsConflict'}
+        '503': {$ref: '#/components/responses/RewardsUnavailable'}
+
+  /rewards/ledger:
+    get:
+      tags: [Rewards]
+      summary: The caller's FLUX ledger, newest first
+      operationId: listRewardsLedger
+      security:
+        - customerOidc: [rewards:read]
+      parameters:
+        - {name: page, in: query, required: false, schema: {type: integer, minimum: 0, default: 0}}
+        - {name: size, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
+        - {$ref: '#/components/parameters/RewardsAcceptLanguage'}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RewardsLedgerPage'}
+        '401': {description: Unauthenticated}
+        '400': {$ref: '#/components/responses/RewardsBadRequest'}
+        '404': {$ref: '#/components/responses/RewardsNotFound'}
+        '503': {$ref: '#/components/responses/RewardsUnavailable'}
+
+  /rewards/settings:
+    get:
+      tags: [Rewards]
+      summary: Participation, quiet mode and notification settings
+      operationId: getRewardsSettings
+      security:
+        - customerOidc: [rewards:read]
+      parameters:
+        - {$ref: '#/components/parameters/RewardsAcceptLanguage'}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RewardsSettings'}
+        '401': {description: Unauthenticated}
+        '404': {$ref: '#/components/responses/RewardsNotFound'}
+        '503': {$ref: '#/components/responses/RewardsUnavailable'}
+    put:
+      tags: [Rewards]
+      summary: Replace the caller's rewards settings
+      operationId: updateRewardsSettings
+      security:
+        - customerOidc: [rewards:write]
+      parameters:
+        - {$ref: '#/components/parameters/RewardsIdempotencyKey'}
+        - {$ref: '#/components/parameters/RewardsAcceptLanguage'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RewardsSettings'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RewardsSettings'}
+        '400': {$ref: '#/components/responses/RewardsBadRequest'}
+        '401': {description: Unauthenticated}
+        '404': {$ref: '#/components/responses/RewardsNotFound'}
+        '409': {$ref: '#/components/responses/RewardsConflict'}
+        '503': {$ref: '#/components/responses/RewardsUnavailable'}
+
+  /rewards/codes/claim:
+    post:
+      tags: [Rewards]
+      summary: Redeem a promo code
+      description: >-
+        404 CODE_UNKNOWN for an unknown code, 409 CODE_USED for one already redeemed.
+      operationId: claimRewardsCode
+      security:
+        - customerOidc: [rewards:write]
+      parameters:
+        - {$ref: '#/components/parameters/RewardsIdempotencyKey'}
+        - {$ref: '#/components/parameters/RewardsAcceptLanguage'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code: {type: string}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RewardsCodeClaim'}
+        '400': {$ref: '#/components/responses/RewardsBadRequest'}
+        '401': {description: Unauthenticated}
+        '404': {$ref: '#/components/responses/RewardsNotFound'}
+        '409': {$ref: '#/components/responses/RewardsConflict'}
+        '503': {$ref: '#/components/responses/RewardsUnavailable'}
+
+  /rewards/lessons:
+    get:
+      tags: [Rewards]
+      summary: Lessons with their quiz questions (cs/en/bg by Accept-Language)
+      operationId: listRewardsLessons
+      security:
+        - customerOidc: [rewards:read]
+      parameters:
+        - {$ref: '#/components/parameters/RewardsAcceptLanguage'}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RewardsLessonList'}
+        '401': {description: Unauthenticated}
+        '404': {$ref: '#/components/responses/RewardsNotFound'}
+        '503': {$ref: '#/components/responses/RewardsUnavailable'}
+
+  /rewards/lessons/{lessonId}/quiz:
+    post:
+      tags: [Rewards]
+      summary: Submit quiz answers for a lesson
+      operationId: submitRewardsQuiz
+      security:
+        - customerOidc: [rewards:write]
+      parameters:
+        - {name: lessonId, in: path, required: true, schema: {type: string, pattern: '^[A-Za-z0-9_-]{1,128}$'}, description: Lesson id}
+        - {$ref: '#/components/parameters/RewardsIdempotencyKey'}
+        - {$ref: '#/components/parameters/RewardsAcceptLanguage'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [answers]
+              properties:
+                answers: {type: array, items: {type: integer}}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RewardsQuizResult'}
+        '400': {$ref: '#/components/responses/RewardsBadRequest'}
+        '401': {description: Unauthenticated}
+        '404': {$ref: '#/components/responses/RewardsNotFound'}
+        '409': {$ref: '#/components/responses/RewardsConflict'}
+        '503': {$ref: '#/components/responses/RewardsUnavailable'}
+
+  /rewards/referrals:
+    get:
+      tags: [Rewards]
+      summary: FLUX rewards earned through referrals
+      operationId: listRewardsReferrals
+      security:
+        - customerOidc: [rewards:read]
+      parameters:
+        - {$ref: '#/components/parameters/RewardsAcceptLanguage'}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RewardsReferralList'}
+        '401': {description: Unauthenticated}
+        '404': {$ref: '#/components/responses/RewardsNotFound'}
+        '503': {$ref: '#/components/responses/RewardsUnavailable'}
 
   /business/payment-batches:
     get:
@@ -6987,12 +7420,67 @@ components:
       openIdConnectUrl: https://kc.open-bank.tech/realms/openbank-customers/.well-known/openid-configuration
 
   parameters:
+    RewardsIdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Forwarded unchanged to the rewards engine, which keys the write on (party, key).
+      schema: {type: string, minLength: 1, maxLength: 255}
+    RewardsAcceptLanguage:
+      name: Accept-Language
+      in: header
+      required: false
+      description: Forwarded to the rewards engine (lesson and mission texts in cs, en or bg).
+      schema: {type: string, maxLength: 128}
     PensionContractId:
       name: contractId
       in: path
       required: true
       schema: {type: string, format: uuid}
   responses:
+    RewardsBadRequest:
+      description: INVALID_REQUEST, IDEMPOTENCY_KEY_REQUIRED or IDEMPOTENCY_KEY_INVALID; or the engine's own 400 code
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/RewardsError'}
+    RewardsNotFound:
+      description: 'NOT_FOUND (also every /rewards route while capability rewards.flux is off), COUPON_NOT_FOUND, CODE_UNKNOWN'
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/RewardsError'}
+    RewardsConflict:
+      description: INSUFFICIENT_FLUX, COUPON_NOT_READY, LEVEL_LOCKED, PROGRAMME_PAUSED, NOT_A_MEMBER, CREDIT_COUPON_BLOCKED, CODE_USED
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/RewardsError'}
+    RewardsUnavailable:
+      description: REWARDS_UNAVAILABLE — the engine is not configured, down or misbehaving; the app hides rewards content
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/RewardsError'}
+    RewardsScaRequired:
+      description: SCA_REQUIRED (body carries scaLinking to raise an APPROVAL challenge for) or SCA_REJECTED
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [code]
+            properties:
+              code: {type: string, enum: [SCA_REQUIRED, SCA_REJECTED]}
+              message: {type: string}
+              error: {type: string}
+              scaLinking:
+                type: object
+                required: [purpose, approvalRequestId, payloadSha256]
+                properties:
+                  purpose: {type: string, enum: [APPROVAL]}
+                  approvalRequestId: {type: string, description: 'rewards.coupon.use:<couponId>'}
+                  payloadSha256:
+                    type: string
+                    pattern: '^[0-9a-f]{64}$'
+                    description: >-
+                      SHA-256 of the canonical JSON (keys sorted, no whitespace) of
+                      {"couponId", "operation": "rewards.coupon.use", "payload": {"targetId", "targetKind"}}
     PensionContract:
       description: The contract after the change
       content:
@@ -7290,7 +7778,7 @@ components:
       description: >-
         Closed set of capability ids (ADR-0310 D5). Adding an id is a MINOR change; a client ignores
         an id it does not know.
-      enum: [loyalty, referrals, offers, accept.settlement, allmoney.linked, business.tax, approvals.multisig, rewards.points]
+      enum: [loyalty, referrals, rewards.flux, offers, accept.settlement, allmoney.linked, business.tax, approvals.multisig, rewards.points]
     Capability:
       type: object
       required: [id, state]
@@ -7738,6 +8226,291 @@ components:
           nullable: true
           description: Null only for a grant that never reached GRANTED.
         validUntil: {type: string, format: date-time, nullable: true}
+    RewardsError:
+      type: object
+      required: [code, message]
+      properties:
+        code: {type: string, description: Stable machine code (e.g. INSUFFICIENT_FLUX, REWARDS_UNAVAILABLE)}
+        message: {type: string}
+        error: {type: string, description: Same as message; the edge-wide error field}
+    RewardsMoney:
+      type: object
+      required: [amount, currency]
+      properties:
+        amount: {type: string, example: '12.50'}
+        currency: {type: string, example: CZK}
+    RewardsSummary:
+      type: object
+      required: [partyId, market, currency, fluxValue, balance, chargedUnused, level, counts, membership]
+      properties:
+        partyId: {type: string, format: uuid}
+        market: {type: string, enum: [CZ, BG]}
+        currency: {type: string}
+        fluxValue: {allOf: [{$ref: '#/components/schemas/RewardsMoney'}], description: Value of 1 FLUX}
+        balance: {type: integer}
+        chargedUnused: {type: integer}
+        level: {$ref: '#/components/schemas/RewardsLevel'}
+        chargingCoupon:
+          oneOf:
+            - {$ref: '#/components/schemas/RewardsCoupon'}
+            - {type: 'null'}
+        counts:
+          type: object
+          required: [claimable, ready]
+          properties:
+            claimable: {type: integer}
+            ready: {type: integer}
+        membership:
+          type: object
+          required: [status]
+          properties:
+            status: {type: string, enum: [ACTIVE, OPTED_OUT, QUIET]}
+            termsVersion: {type: string}
+            joinedAt: {type: string, format: date-time}
+        promotion:
+          type: [object, 'null']
+          properties:
+            promotionId: {type: string}
+            multiplier: {type: number}
+            endsAt: {type: string, format: date-time}
+        nextExpiry:
+          type: [object, 'null']
+          properties:
+            flux: {type: integer}
+            at: {type: string, format: date-time}
+    RewardsLevel:
+      type: object
+      required: [code, index, lifetimeCharged]
+      properties:
+        code: {type: string, enum: [SPARK, CELL, BATTERY, TURBINE, REACTOR, POWER_PLANT]}
+        index: {type: integer, minimum: 1, maximum: 6}
+        lifetimeCharged: {type: integer}
+        nextCode: {type: [string, 'null']}
+        nextAt: {type: [integer, 'null']}
+    RewardsReward:
+      type: object
+      required: [type]
+      properties:
+        type: {type: string, enum: [FLUX, COUPON]}
+        flux: {type: integer}
+        couponDefId: {type: string}
+        preChargePct: {type: integer}
+    RewardsMission:
+      type: object
+      required: [missionId, kind, cadence, state, progress, reward]
+      properties:
+        missionId: {type: string, example: M-CARD-3}
+        version: {type: integer}
+        kind: {type: string, enum: [ONE_TIME, RECURRING]}
+        cadence: {type: string, enum: [ONCE, WEEKLY, MONTHLY, YEARLY, ROLLING]}
+        cycle: {type: string, example: 2026-W45}
+        state: {type: string, enum: [NOT_STARTED, IN_PROGRESS, CLAIM_PENDING, CLAIMED, LAPSED]}
+        progress:
+          type: object
+          required: [current, target]
+          properties:
+            current: {type: integer}
+            target: {type: integer}
+        reward: {$ref: '#/components/schemas/RewardsReward'}
+        windowEndsAt: {type: string, format: date-time}
+        completedAt: {type: string, format: date-time}
+        claimedAt: {type: string, format: date-time}
+        autoClaimAt: {type: string, format: date-time}
+        handoff:
+          type: string
+          enum: [cards, payments.transfer, payments.bill, savings.goal, savings.topup, lessons, referral, loans]
+    RewardsMissions:
+      type: object
+      required: [active, claimable, history]
+      properties:
+        active: {type: array, items: {$ref: '#/components/schemas/RewardsMission'}}
+        claimable: {type: array, items: {$ref: '#/components/schemas/RewardsMission'}}
+        history: {type: array, items: {$ref: '#/components/schemas/RewardsMission'}}
+    RewardsLedgerEntry:
+      type: object
+      required: [entryId, type, source, flux, couponFlux, sourceRef, occurredAt]
+      properties:
+        entryId: {type: string}
+        type: {type: string, enum: [EARN, CHARGE, RETURN, BURN, EXPIRE, REVERSE, MIGRATION]}
+        source:
+          type: string
+          enum: [mission, referral, promoCode, migratedLoyalty, promotionBonus, expiryReturn, redemption, manualGrant]
+        flux: {type: integer, description: Signed change of the balance}
+        couponFlux: {type: integer, description: Signed change of coupon holdings}
+        couponId: {type: string}
+        sourceRef: {type: string}
+        occurredAt: {type: string, format: date-time}
+    RewardsMissionClaim:
+      type: object
+      required: [mission, entries, balance]
+      properties:
+        mission: {$ref: '#/components/schemas/RewardsMission'}
+        entries: {type: array, items: {$ref: '#/components/schemas/RewardsLedgerEntry'}}
+        coupon: {$ref: '#/components/schemas/RewardsCoupon'}
+        balance: {type: integer}
+    RewardsBenefitParams:
+      type: object
+      properties:
+        percent: {type: number}
+        cap: {$ref: '#/components/schemas/RewardsMoney'}
+        deltaBps: {type: integer}
+        durationDays: {type: integer}
+        balanceCap: {$ref: '#/components/schemas/RewardsMoney'}
+        theme: {type: string}
+    RewardsCatalogueItem:
+      type: object
+      required: [couponDefId, benefitType, category, rarity, capacity, validityDays, levelGate, locked, benefit]
+      properties:
+        couponDefId: {type: string}
+        benefitType: {type: string, example: LOAN_RATE_REDUCTION}
+        category: {type: string, enum: [BILLS, SAVINGS, LOANS, STYLE]}
+        rarity: {type: string, enum: [STANDARD, GOLD, SIGNATURE]}
+        capacity: {type: integer}
+        validityDays: {type: integer}
+        levelGate: {type: string}
+        locked: {type: boolean}
+        benefit: {$ref: '#/components/schemas/RewardsBenefitParams'}
+    RewardsCatalogue:
+      type: object
+      required: [items]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/RewardsCatalogueItem'}}
+    RewardsCoupon:
+      type: object
+      required: [couponId, couponDefId, benefitType, category, rarity, capacity, charged, percent, state, issuedAt, targetKind, benefit]
+      properties:
+        couponId: {type: string}
+        couponDefId: {type: string}
+        benefitType: {type: string}
+        category: {type: string, enum: [BILLS, SAVINGS, LOANS, STYLE]}
+        rarity: {type: string, enum: [STANDARD, GOLD, SIGNATURE]}
+        capacity: {type: integer}
+        chargedOwn: {type: integer}
+        chargedBonus: {type: integer}
+        preCharge: {type: integer}
+        charged: {type: integer}
+        percent: {type: integer}
+        state: {type: string, enum: [ISSUED, CHARGING, READY, USING, USED, EXPIRED, WITHDRAWN]}
+        issuedAt: {type: string, format: date-time}
+        expiresAt: {type: [string, 'null'], format: date-time}
+        usedAt: {type: [string, 'null'], format: date-time}
+        targetKind: {type: string, enum: [BILL_PAYMENT, SAVINGS_ACCOUNT, LOAN, NONE]}
+        benefit: {$ref: '#/components/schemas/RewardsBenefitParams'}
+        outcome:
+          type: object
+          properties:
+            summary: {type: string}
+            amount: {$ref: '#/components/schemas/RewardsMoney'}
+            rateDeltaBps: {type: integer}
+            until: {type: string}
+    RewardsCouponList:
+      type: object
+      required: [items]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/RewardsCoupon'}}
+    RewardsCharge:
+      type: object
+      required: [coupon, chargedOwn, chargedBonus, balance]
+      properties:
+        coupon: {$ref: '#/components/schemas/RewardsCoupon'}
+        chargedOwn: {type: integer}
+        chargedBonus: {type: integer}
+        balance: {type: integer}
+        levelReached: {$ref: '#/components/schemas/RewardsLevel'}
+    RewardsTerms:
+      type: object
+      properties:
+        nominalRatePct: {type: number}
+        aprcPct: {type: number}
+        instalment: {$ref: '#/components/schemas/RewardsMoney'}
+        amount: {$ref: '#/components/schemas/RewardsMoney'}
+        until: {type: string}
+    RewardsPreview:
+      type: object
+      required: [before, after, notes]
+      properties:
+        before: {$ref: '#/components/schemas/RewardsTerms'}
+        after: {$ref: '#/components/schemas/RewardsTerms'}
+        notes: {type: array, items: {type: string}}
+    RewardsFulfilment:
+      type: object
+      required: [fulfilmentId, state]
+      properties:
+        fulfilmentId: {type: string}
+        state: {type: string, enum: [PENDING, APPLIED, FAILED]}
+        outcome: {type: object}
+    RewardsCouponUse:
+      type: object
+      required: [coupon, fulfilment]
+      properties:
+        coupon: {$ref: '#/components/schemas/RewardsCoupon'}
+        fulfilment: {$ref: '#/components/schemas/RewardsFulfilment'}
+    RewardsLedgerPage:
+      type: object
+      required: [items, page, size, total]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/RewardsLedgerEntry'}}
+        page: {type: integer}
+        size: {type: integer}
+        total: {type: integer}
+    RewardsSettings:
+      type: object
+      required: [participating, quietMode, notifications]
+      properties:
+        participating: {type: boolean}
+        quietMode: {type: boolean}
+        notifications:
+          type: object
+          properties:
+            missions: {type: boolean}
+            coupons: {type: boolean}
+            expiry: {type: boolean}
+    RewardsCodeClaim:
+      type: object
+      required: [status, reward]
+      properties:
+        status: {type: string, enum: [REDEEMED]}
+        reward: {$ref: '#/components/schemas/RewardsReward'}
+    RewardsLesson:
+      type: object
+      required: [lessonId, missionId, questions]
+      properties:
+        lessonId: {type: string}
+        missionId: {type: string}
+        questions:
+          type: array
+          items:
+            type: object
+            required: [question, options]
+            properties:
+              question: {type: string}
+              options: {type: array, items: {type: string}}
+    RewardsLessonList:
+      type: object
+      required: [items]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/RewardsLesson'}}
+    RewardsQuizResult:
+      type: object
+      required: [passed, score]
+      properties:
+        passed: {type: boolean}
+        score: {type: integer}
+        mission: {$ref: '#/components/schemas/RewardsMission'}
+    RewardsReferralReward:
+      type: object
+      required: [inviteId, side, state, flux]
+      properties:
+        inviteId: {type: string}
+        side: {type: string, enum: [REFERRER, REFEREE]}
+        state: {type: string, enum: [VESTED, RELEASED, LAPSED]}
+        flux: {type: integer}
+        releaseBy: {type: string, format: date-time}
+    RewardsReferralList:
+      type: object
+      required: [items]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/RewardsReferralReward'}}
     ReferralProgramSummary:
       type: object
       required: [id, rewardAmount, currency, qualifyingEvent, attributionWindowEndsAt]

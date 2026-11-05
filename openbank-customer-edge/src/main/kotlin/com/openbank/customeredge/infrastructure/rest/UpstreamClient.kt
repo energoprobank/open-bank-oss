@@ -308,6 +308,23 @@ class UpstreamClient {
             .type(MediaType.APPLICATION_JSON).build()
     }
 
+    /** GET with the M2M token + party header + extra headers (e.g. a forwarded `Accept-Language`). */
+    fun getWithHeaders(url: String, partyId: String, extraHeaders: Map<String, String>): Response = try {
+        val builder = upstreamRequest()
+            .uri(validatedUri(url))
+            .header("Authorization", "Bearer ${serviceToken()}")
+            .header(PARTY_HEADER, partyId)
+            .header("Accept", "application/json")
+            .timeout(Duration.ofMillis(requestTimeoutMs))
+        extraHeaders.forEach { (k, v) -> builder.header(k, v) }
+        val r = http.send(builder.GET().build(), HttpResponse.BodyHandlers.ofString())
+        Response.status(r.statusCode()).entity(r.body()).type(MediaType.APPLICATION_JSON).build()
+    } catch (e: Exception) {
+        Log.error("upstream GET to $url failed: ${e::class.qualifiedName}: ${e.message}", e)
+        Response.status(502).entity("""{"error":"upstream unavailable"}""")
+            .type(MediaType.APPLICATION_JSON).build()
+    }
+
     /**
      * GET that preserves the upstream's Content-Type instead of forcing JSON — for non-JSON bodies
      * such as rendered statement documents (camt.053 `application/xml`, MT940/PDF `text/plain`). The

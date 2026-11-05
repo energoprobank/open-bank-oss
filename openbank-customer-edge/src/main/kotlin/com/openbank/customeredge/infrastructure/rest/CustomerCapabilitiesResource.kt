@@ -48,6 +48,9 @@ object CapabilityCatalog {
     const val LOYALTY = "loyalty"
     const val REFERRALS = "referrals"
 
+    /** FLUX rewards (Energo-Pro), served by openbank-rewards-service. Successor of [LOYALTY] in the app. */
+    const val REWARDS_FLUX = "rewards.flux"
+
     /** Demo-only features in the app with no backend anywhere in this repository. */
     val NOT_BUILT: List<String> = listOf(
         "offers",
@@ -59,16 +62,19 @@ object CapabilityCatalog {
     )
 
     /** Every id this edge publishes, in the order it publishes them — the spec's closed enum. */
-    val IDS: List<String> = listOf(LOYALTY, REFERRALS) + NOT_BUILT
+    val IDS: List<String> = listOf(LOYALTY, REFERRALS, REWARDS_FLUX) + NOT_BUILT
 
     fun evaluate(
         loyaltyEnabled: Boolean,
         loyaltyServiceUrl: String?,
         referralsEnabled: Boolean,
         referralServiceUrl: String?,
+        rewardsFluxEnabled: Boolean = false,
+        rewardsServiceUrl: String? = null,
     ): List<Capability> = listOf(
         backed(LOYALTY, loyaltyEnabled, loyaltyServiceUrl),
         backed(REFERRALS, referralsEnabled, referralServiceUrl),
+        backed(REWARDS_FLUX, rewardsFluxEnabled, rewardsServiceUrl),
     ) + NOT_BUILT.map { Capability(it, CapabilityState.UNAVAILABLE, CapabilityUnavailableReason.NOT_BUILT) }
 
     /**
@@ -100,6 +106,10 @@ class CustomerCapabilitiesResource(
     private val loyaltyServiceUrl: Optional<String>,
     @ConfigProperty(name = "openbank.edge.referral-service-url")
     private val referralServiceUrl: Optional<String>,
+    @ConfigProperty(name = "openbank.edge.capabilities.rewards-flux.enabled", defaultValue = "false")
+    private val rewardsFluxEnabled: Boolean,
+    @ConfigProperty(name = "openbank.edge.rewards-service-url")
+    private val rewardsServiceUrl: Optional<String>,
 ) {
     @GET
     @Authorize(action = "customer.capabilities.read")
@@ -110,6 +120,8 @@ class CustomerCapabilitiesResource(
             loyaltyServiceUrl = loyaltyServiceUrl.orElse(null),
             referralsEnabled = referralsEnabled,
             referralServiceUrl = referralServiceUrl.orElse(null),
+            rewardsFluxEnabled = rewardsFluxEnabled,
+            rewardsServiceUrl = rewardsServiceUrl.orElse(null),
         )
         val body = mapOf(
             "schemaVersion" to SCHEMA_VERSION,
