@@ -210,6 +210,11 @@ mp:
         value.deserializer: org.apache.kafka.common.serialization.StringDeserializer
 
 openbank:
+  # Experience v2 step 8 added @Authorize routes: opt in to the libs-runtime OPA sidecar decision
+  # point (without it every @Authorize call fails closed: "no PolicyDecisionPoint bean").
+  authz:
+    opa-pdp-producer:
+      enabled: true
   rate-limit:
     enabled: true
     max-concurrent-requests: 100
@@ -257,3 +262,12 @@ openbank:
       enabled: false
     scheduler:
       enabled: false
+
+# OPA sidecar (ADR-0034). Advisory, like the deployment (gitops AUTHZ_ENFORCE=false): the interceptor
+# records every decision and blocks only once enforcement is switched on.
+opa:
+  url: "${OPA_URL:http://localhost:8181}"
+  path: "${OPA_PATH:/v1/data/openbank/rest/allow}"
+  timeout-ms: "${OPA_TIMEOUT_MS:500}"
+authz:
+  enforce: "${AUTHZ_ENFORCE:false}"
