@@ -234,6 +234,7 @@ class ConsentTest {
             ConsentScope.CREDIT_OFFERS,
             ConsentScope.CREDIT_PROFILE_USE,
             ConsentScope.CREDIT_AI_AGENT,
+            ConsentScope.ENERGO_PRO_DATA_SHARING,
         )
     }
 

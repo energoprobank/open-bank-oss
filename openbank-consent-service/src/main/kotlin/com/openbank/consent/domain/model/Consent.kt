@@ -76,6 +76,15 @@ enum class ConsentScope {
      * no level may submit, accept, raise a limit or draw funds.
      */
     CREDIT_AI_AGENT,
+
+    /**
+     * Experience v2 step 8: the customer lets the bank share their banking relationship with the
+     * Energo-Pro group's energy companies for tailored energy offers. Energo-Pro (the distributor)
+     * is an independent company: without this consent the bank shares nothing about the customer
+     * with it, even when the customer is also an Energo-Pro electricity customer. A GDPR opt-in,
+     * revocable at any time, no SCA.
+     */
+    ENERGO_PRO_DATA_SHARING,
 }
 
 enum class GranteeType {
@@ -209,6 +218,7 @@ data class Consent(
             ConsentScope.CREDIT_OFFERS,
             ConsentScope.CREDIT_PROFILE_USE,
             ConsentScope.CREDIT_AI_AGENT,
+            ConsentScope.ENERGO_PRO_DATA_SHARING,
         )
 
         /** PSD2 RTS Art. 10(2)(b): max AISP accesses per day without fresh SCA. */

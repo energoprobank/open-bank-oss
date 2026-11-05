@@ -7,7 +7,7 @@ info:
   # endpoint only (PATCH /approvals/{id}, ADR-0155 four-eyes) — no breaking change.
   # ADR-0227 D1: additive projection fields (summary, domain, amount, currency, riskClass,
   # payloadRef — all optional) on ApprovalResponse; no breaking change.
-  version: 1.15.0
+  version: 1.16.0
   description: >-
     Data sharing consent lifecycle — create, activate, reject, revoke, validate. GET /approvals
     lists pending four-eyes work for checkers; PATCH /approvals/{id} decides an approval paused by
@@ -138,7 +138,7 @@ paths:
                    AGENT_QUERY, AGENT_INITIATE, AGENT_NOTIFY, AGENT_ANALYZE,
                    TELEMETRY_RUM,
                    MARKETING_COMMS_EMAIL, MARKETING_COMMS_PUSH, MARKETING_COMMS_INAPP,
-                   CREDIT_OFFERS, CREDIT_PROFILE_USE, CREDIT_AI_AGENT]
+                   CREDIT_OFFERS, CREDIT_PROFILE_USE, CREDIT_AI_AGENT, ENERGO_PRO_DATA_SHARING]
       responses:
         '200':
           description: Whether the consent exists, is active now, and covers the scope
