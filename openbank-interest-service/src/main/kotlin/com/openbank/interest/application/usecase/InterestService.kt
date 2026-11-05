@@ -16,6 +16,7 @@ import com.openbank.interest.application.port.out.InterestCapitalizationReposito
 import com.openbank.interest.application.port.out.InterestRateConfigRepository
 import com.openbank.interest.application.port.out.LedgerPostingPort
 import com.openbank.interest.application.port.out.LedgerPostingRejectedException
+import com.openbank.interest.application.port.out.RateAdjustmentRepository
 import com.openbank.interest.application.port.out.TaxProfilePort
 import com.openbank.interest.domain.event.InterestRateChanged
 import com.openbank.interest.domain.model.AccrualRequest
@@ -25,6 +26,8 @@ import com.openbank.interest.domain.model.InterestAccrual
 import com.openbank.interest.domain.model.InterestCapitalization
 import com.openbank.interest.domain.model.InterestRateConfig
 import com.openbank.interest.domain.model.InterestRateType
+import com.openbank.interest.domain.model.RateAdjustment
+import com.openbank.interest.domain.model.RateAdjustmentPolicy
 import com.openbank.interest.domain.model.RateConfigNotFoundException
 import com.openbank.interest.domain.tax.TaxProfile
 import com.openbank.interest.domain.tax.WithholdingTax
@@ -57,6 +60,7 @@ class InterestService(
     private val taxProfilePort: TaxProfilePort,
     private val ledgerPostingPort: LedgerPostingPort,
     private val accountDirectoryPort: AccountDirectoryPort,
+    private val rateAdjustmentRepo: RateAdjustmentRepository,
     @ConfigProperty(name = "openbank.interest.day-count-convention", defaultValue = "ACT_365")
     private val defaultDayCount: String,
     @ConfigProperty(name = "openbank.interest.accruable-account-types", defaultValue = "CURRENT,SAVINGS")
@@ -75,6 +79,7 @@ class InterestService(
         taxProfilePort: TaxProfilePort,
         ledgerPostingPort: LedgerPostingPort,
         accountDirectoryPort: AccountDirectoryPort,
+        rateAdjustmentRepo: RateAdjustmentRepository,
         @ConfigProperty(name = "openbank.interest.day-count-convention", defaultValue = "ACT_365")
         defaultDayCount: String,
         @ConfigProperty(name = "openbank.interest.accruable-account-types", defaultValue = "CURRENT,SAVINGS")
@@ -86,6 +91,7 @@ class InterestService(
         taxProfilePort,
         ledgerPostingPort,
         accountDirectoryPort,
+        rateAdjustmentRepo,
         defaultDayCount,
         accruableAccountTypes,
         Clock.systemUTC(),
@@ -93,9 +99,9 @@ class InterestService(
 
     /**
      * FIELD injection, not a constructor parameter, for two reasons that both bite here. The primary
-     * constructor already carries nine parameters and `config/detekt/detekt.yml` sets
-     * `constructorThreshold: 9`, which fires AT the threshold — a tenth would fail the gate
-     * (CLAUDE.md). And this class is constructed by hand in two unit tests, so a `lateinit` would
+     * constructor already carries ten parameters and `config/detekt/detekt.yml` sets
+     * `constructorThreshold: 9`, which fires AT the threshold (CLAUDE.md) — the class-level
+     * suppression covers the ports, not an optional metrics hook. And this class is constructed by hand in two unit tests, so a `lateinit` would
      * throw the moment the recovery path ran under them.
      *
      * Nullable on purpose: CDI supplies it in the running service, a hand-constructed instance
@@ -130,38 +136,54 @@ class InterestService(
                         RateConfigNotFoundException(request.productId, request.currency),
                     )
                 } else {
-                    val dailyRate = config.dayCount.dailyRate(config.annualRate, request.accrualDate)
-                    val accruedAmount = request.balance.multiply(dailyRate).setScale(6, RoundingMode.HALF_UP)
-                    val accrual = InterestAccrual(
-                        accountId = request.accountId,
-                        productId = request.productId,
-                        configId = config.id,
-                        accrualDate = request.accrualDate,
-                        balance = request.balance,
-                        dailyRate = dailyRate,
-                        accruedAmount = accruedAmount,
-                        currency = request.currency,
-                        createdAt = OffsetDateTime.now(clock),
-                    )
-                    accrualRepo.save(accrual).onFailure().recoverWithUni { e ->
-                        // Lost the race against a concurrent first attempt with the same natural
-                        // key: the V12 constraint rejected our insert, so the winner's row IS the
-                        // correct replay answer. Anything else propagates unchanged.
-                        if (!e.isAccrualConflict()) {
-                            Uni.createFrom().failure(e)
-                        } else {
-                            accrualRepo.findByNaturalKey(
-                                request.accountId,
-                                request.accrualDate,
-                                request.productId,
-                                request.currency,
-                            ).flatMap { winner ->
-                                if (winner != null) Uni.createFrom().item(winner) else Uni.createFrom().failure(e)
-                            }
-                        }
-                    }
+                    rateAdjustmentRepo.findActiveCovering(request.accountId, request.accrualDate)
+                        .flatMap { adjustments -> accrueAt(request, config, adjustments) }
                 }
             }
+
+    /**
+     * Books one day at the config's rate PLUS the account's ACTIVE rate adjustments covering the
+     * accrual date (FLUX "Deposit Rate Boost"), clamped at 0. With no adjustment the rate is the
+     * config's own, byte-for-byte — an override or product default is never altered by this path.
+     */
+    private fun accrueAt(
+        request: AccrualRequest,
+        config: InterestRateConfig,
+        adjustments: List<RateAdjustment>,
+    ): Uni<InterestAccrual> {
+        val annualRate =
+            RateAdjustmentPolicy.effectiveAnnualRate(config.annualRate, adjustments, request.accrualDate)
+        val dailyRate = config.dayCount.dailyRate(annualRate, request.accrualDate)
+        val accruedAmount = request.balance.multiply(dailyRate).setScale(6, RoundingMode.HALF_UP)
+        val accrual = InterestAccrual(
+            accountId = request.accountId,
+            productId = request.productId,
+            configId = config.id,
+            accrualDate = request.accrualDate,
+            balance = request.balance,
+            dailyRate = dailyRate,
+            accruedAmount = accruedAmount,
+            currency = request.currency,
+            createdAt = OffsetDateTime.now(clock),
+        )
+        return accrualRepo.save(accrual).onFailure().recoverWithUni { e ->
+            // Lost the race against a concurrent first attempt with the same natural
+            // key: the V12 constraint rejected our insert, so the winner's row IS the
+            // correct replay answer. Anything else propagates unchanged.
+            if (!e.isAccrualConflict()) {
+                Uni.createFrom().failure(e)
+            } else {
+                accrualRepo.findByNaturalKey(
+                    request.accountId,
+                    request.accrualDate,
+                    request.productId,
+                    request.currency,
+                ).flatMap { winner ->
+                    if (winner != null) Uni.createFrom().item(winner) else Uni.createFrom().failure(e)
+                }
+            }
+        }
+    }
 
     /**
      * The daily accrual run: discover every ACTIVE interest-bearing account fleet-wide (paged via

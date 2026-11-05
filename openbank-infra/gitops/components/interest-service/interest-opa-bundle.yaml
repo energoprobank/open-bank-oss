@@ -9,7 +9,7 @@ metadata:
     app.kubernetes.io/name: interest-service
     app.kubernetes.io/part-of: interest
   annotations:
-    openbank.tech/policy-checksum: "5dea20c6976d81d8"
+    openbank.tech/policy-checksum: "234e56b0add0e058"
 data:
   rest.rego: |
     # SPDX-License-Identifier: Apache-2.0
@@ -772,6 +772,10 @@ data:
     #   interest.delete  — deactivateRateConfig (#id)
     #   interest.list    — listAllAccruals, listRateConfigs, list (withholding)
     #   interest.read    — getAccruals/getSummary/getCapitalizations/getRateConfig (#id), get (withholding)
+    #   interest.adjust       — RateAdjustmentResource.create (#accountId)   — FLUX rewards rate boost
+    #   interest.adjustCancel — RateAdjustmentResource.cancel (#accountId)   — its compensation
+    #   interest.adjustList   — RateAdjustmentResource.list (#accountId)
+    #   (see rewards-rate-adjustment below: the ONE carve-out from the M2M prohibition)
     #
     # Base rest.rego grants operator-read-any (ROLE_OPERATOR/ROLE_ADMIN) for interest.list/.read, and
     # compliance-read-any for interest.read ONLY (that rule matches actions ending in ".read", so it
@@ -856,6 +860,53 @@ data:
     	machine_grant_ok
     	input.action in {"interest.create", "interest.trigger", "interest.delete"}
     }
+
+    # --- Additive rate adjustments: the FLUX rewards "Deposit Rate Boost" (rewards-api-contract) ---
+    #
+    # The ONE deliberate exception to "no M2M writer" above, and it is kept narrow on every axis:
+    #
+    #   * a DIFFERENT action family. The adjustment endpoints are gated by interest.adjust /
+    #     interest.adjustCancel / interest.adjustList, not interest.create/.delete/.list. So the
+    #     prohibition above (and operator-interest-write) keep their exact meaning for every existing
+    #     write: the rewards client gains NO accrue, capitalize, rate-config or remittance power.
+    #     The suffixes are chosen so no generic base reason can match: operator-read-any and
+    #     party-self-service key on ".list"/".read", compliance-read-any on ".read", four-eyes verbs on
+    #     their own suffixes, and rules.yaml role_action_matrix carries none of these actions — so a
+    #     ROLE_OPERATOR service account (edge, services) cannot reach them through the base policy.
+    #   * ONE principal. machine_named binds the fixed id service-account-openbank-rewards to the
+    #     verified client_id (openbank-rewards), the rewards engine's own Keycloak client. The shared
+    #     backend client and the customer edge are NOT admitted.
+    #   * the same two layers as the writes above: (1) this allow reason names the one principal, and
+    #     (2) the prohibition below vetoes the adjustment actions at the allow head for EVERY other
+    #     service account, so a future reason (or a matrix line) cannot widen it to another machine.
+    #
+    # Why an M2M writer is acceptable HERE when it is not for interest.create: an adjustment is a
+    # bounded delta (|deltaBps| <= 300, <= 400 days, enforced in the domain and by a DB CHECK) on top
+    # of a rate an operator configured, carries a sourceRef + approvalRef, and is cancellable; it posts
+    # no journal itself. The accrual that applies it still runs in-process under the existing controls.
+    allowed_reasons contains "rewards-rate-adjustment" if {
+    	input.principal.type == "HUMAN"
+    	machine_named("service-account-openbank-rewards")
+    	input.action in interest_rate_adjustment_actions
+    }
+
+    # Human operators/admins may LIST adjustments (support desk: "why is this account's rate higher?").
+    # Staff-only: not principal_is_machine, so the ROLE_OPERATOR service accounts get nothing here.
+    allowed_reasons contains "operator-rate-adjustment-list" if {
+    	input.principal.type == "HUMAN"
+    	not principal_is_machine
+    	some role in {"ROLE_OPERATOR", "ROLE_ADMIN"}
+    	role in input.principal.roles
+    	input.action == "interest.adjustList"
+    }
+
+    prohibited if {
+    	machine_grant_ok
+    	not machine_named("service-account-openbank-rewards")
+    	input.action in interest_rate_adjustment_actions
+    }
+
+    interest_rate_adjustment_actions := {"interest.adjust", "interest.adjustCancel", "interest.adjustList"}
   agents.rego: |
     # SPDX-License-Identifier: Apache-2.0
     # Copyright (c) OpenBank contributors. Licensed under the Apache License, Version 2.0.

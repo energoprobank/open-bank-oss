@@ -6,6 +6,7 @@ package com.openbank.interest.application.port.`in`
 
 import com.openbank.interest.domain.model.*
 import io.smallrye.mutiny.Uni
+import java.math.BigDecimal
 import java.time.LocalDate
 import java.util.UUID
 
@@ -49,3 +50,38 @@ interface ManageRateConfigUseCase {
     fun effectiveRate(accountId: UUID, productId: String, date: LocalDate): Uni<InterestRateConfig?>
     fun deactivateConfig(id: UUID): Uni<InterestRateConfig>
 }
+
+/**
+ * Additive, time-boxed rate adjustments (FLUX rewards "Deposit Rate Boost"). Separate from the
+ * per-account override managed by [ManageRateConfigUseCase]: an override replaces the rate, an
+ * adjustment adds a signed delta on top of it.
+ */
+interface ManageRateAdjustmentUseCase {
+    /**
+     * Records [adjustment] (validated by `RateAdjustmentPolicy`). Idempotent on `sourceRef`: a
+     * replay with the same terms returns the existing row with `changed = false`; reusing the key
+     * with different terms fails with `RateAdjustmentSourceRefConflictException`.
+     */
+    fun create(adjustment: RateAdjustment): Uni<RateAdjustmentResult>
+
+    fun list(accountId: UUID): Uni<List<RateAdjustment>>
+
+    /**
+     * Cancels the adjustment (the compensation of [create]). Idempotent: cancelling an already
+     * CANCELLED adjustment returns it unchanged. Forward-looking only — accruals already booked are
+     * not recomputed.
+     */
+    fun cancel(accountId: UUID, adjustmentId: UUID, cancelledBy: String): Uni<RateAdjustmentResult>
+}
+
+/**
+ * [changed] is true when this call created (create) or cancelled (cancel) the adjustment, false on
+ * an idempotent replay. [effectiveAnnualRate] is the account's rate after every ACTIVE adjustment, as a decimal fraction,
+ * on the date the use case resolved it for; null when no base rate resolves for the account (no
+ * override and no accrual history from which to learn its product).
+ */
+data class RateAdjustmentResult(
+    val adjustment: RateAdjustment,
+    val changed: Boolean,
+    val effectiveAnnualRate: BigDecimal?,
+)

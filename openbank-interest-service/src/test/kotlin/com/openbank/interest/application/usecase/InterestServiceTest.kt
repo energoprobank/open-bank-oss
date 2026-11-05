@@ -14,6 +14,7 @@ import com.openbank.interest.application.port.out.InterestAccrualRepository
 import com.openbank.interest.application.port.out.InterestCapitalizationRepository
 import com.openbank.interest.application.port.out.InterestRateConfigRepository
 import com.openbank.interest.application.port.out.LedgerPostingPort
+import com.openbank.interest.application.port.out.RateAdjustmentRepository
 import com.openbank.interest.application.port.out.TaxProfilePort
 import com.openbank.interest.domain.model.AccrualRequest
 import com.openbank.interest.domain.model.AccrualStatus
@@ -23,6 +24,7 @@ import com.openbank.interest.domain.model.InterestAccrual
 import com.openbank.interest.domain.model.InterestCapitalization
 import com.openbank.interest.domain.model.InterestRateConfig
 import com.openbank.interest.domain.model.InterestRateType
+import com.openbank.interest.domain.model.RateAdjustment
 import com.openbank.interest.domain.model.RateConfigNotFoundException
 import com.openbank.interest.domain.model.RateIndex
 import com.openbank.interest.domain.tax.TaxProfile
@@ -59,6 +61,11 @@ class InterestServiceTest {
     private val taxProfilePort = mockk<TaxProfilePort>()
     private val ledgerPostingPort = mockk<LedgerPostingPort>()
     private val accountDirectoryPort = mockk<AccountDirectoryPort>()
+
+    // No account carries a rate adjustment unless a test says so: accrual math stays the config's own.
+    private val rateAdjustmentRepo = mockk<RateAdjustmentRepository> {
+        every { findActiveCovering(any(), any()) } returns Uni.createFrom().item(emptyList())
+    }
     private val service = InterestService(
         configRepo,
         accrualRepo,
@@ -66,6 +73,7 @@ class InterestServiceTest {
         taxProfilePort,
         ledgerPostingPort,
         accountDirectoryPort,
+        rateAdjustmentRepo,
         "ACT_365",
         "SAVINGS",
         clock,
@@ -160,6 +168,71 @@ class InterestServiceTest {
         }
         verify(exactly = 1) { accrualRepo.save(any()) }
     }
+
+    @Test
+    fun `accrue adds the account's active rate adjustments to the configured rate`() {
+        val request = AccrualRequest(
+            accountId = UUID.fromString("11111111-1111-1111-1111-111111111111"),
+            productId = "SAVINGS",
+            balance = BigDecimal("1000.00"),
+            currency = "EUR",
+            accrualDate = LocalDate.of(2026, 1, 20),
+        )
+        // 36.5 % + 50 bps boost + 25 bps boost = 37.25 % -> /365 = 0.0010205479 per day.
+        val config = sampleConfig(annualRate = BigDecimal("0.365"), dayCount = DayCount.ACT_365)
+        val accrualSlot: CapturingSlot<InterestAccrual> = slot()
+        stubNoExistingAccrual()
+        every {
+            configRepo.findEffectiveRate(request.accountId, request.productId, request.accrualDate, request.currency)
+        } returns Uni.createFrom().item(config)
+        every { rateAdjustmentRepo.findActiveCovering(request.accountId, request.accrualDate) } returns
+            Uni.createFrom().item(listOf(boost(request.accountId, 50), boost(request.accountId, 25)))
+        every { accrualRepo.save(capture(accrualSlot)) } answers { Uni.createFrom().item(firstArg<InterestAccrual>()) }
+
+        service.accrue(request).await().indefinitely()
+
+        assertThat(accrualSlot.captured.dailyRate).isEqualByComparingTo(BigDecimal("0.0010205479"))
+        assertThat(accrualSlot.captured.accruedAmount).isEqualByComparingTo(BigDecimal("1.020548"))
+        // The base config is still the one recorded: the adjustment adds, it does not replace.
+        assertThat(accrualSlot.captured.configId).isEqualTo(config.id)
+    }
+
+    @Test
+    fun `accrue clamps a negative adjusted rate at zero`() {
+        val request = AccrualRequest(
+            accountId = UUID.fromString("11111111-1111-1111-1111-111111111111"),
+            productId = "SAVINGS",
+            balance = BigDecimal("1000.00"),
+            currency = "EUR",
+            accrualDate = LocalDate.of(2026, 1, 20),
+        )
+        val config = sampleConfig(annualRate = BigDecimal("0.01"), dayCount = DayCount.ACT_365)
+        val accrualSlot: CapturingSlot<InterestAccrual> = slot()
+        stubNoExistingAccrual()
+        every {
+            configRepo.findEffectiveRate(request.accountId, request.productId, request.accrualDate, request.currency)
+        } returns Uni.createFrom().item(config)
+        every { rateAdjustmentRepo.findActiveCovering(request.accountId, request.accrualDate) } returns
+            Uni.createFrom().item(listOf(boost(request.accountId, -300)))
+        every { accrualRepo.save(capture(accrualSlot)) } answers { Uni.createFrom().item(firstArg<InterestAccrual>()) }
+
+        service.accrue(request).await().indefinitely()
+
+        assertThat(accrualSlot.captured.dailyRate).isEqualByComparingTo(BigDecimal.ZERO)
+        assertThat(accrualSlot.captured.accruedAmount).isEqualByComparingTo(BigDecimal.ZERO)
+    }
+
+    private fun boost(accountId: UUID, bps: Int) = RateAdjustment(
+        accountId = accountId,
+        deltaBps = bps,
+        validFrom = LocalDate.of(2026, 1, 1),
+        validTo = LocalDate.of(2026, 4, 1),
+        source = "REWARDS",
+        sourceRef = "coupon-$bps",
+        approvalRef = "approval-1",
+        createdBy = "service-account-openbank-rewards",
+        createdAt = OffsetDateTime.now(clock),
+    )
 
     @Test
     fun `accrue throws when no config found`() {

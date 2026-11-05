@@ -3,7 +3,7 @@
 openapi: 3.1.0
 info:
   title: Interest Service API
-  version: 1.8.0
+  version: 1.9.0
   description: >-
     Interest accrual, capitalization, and rate configuration. Capitalization withholds Czech
     final tax on credit interest (§36/§38d ZDP, ADR-0033): CZK interest credited to a resident
@@ -20,6 +20,7 @@ servers:
 tags:
   - name: Interest
   - name: Withholding remittance
+  - name: Rate adjustments
 
 paths:
   /api/v1/interest/accrue:
@@ -334,6 +335,99 @@ paths:
         '200':
           description: Deactivated
 
+  /api/v1/interest/accounts/{accountId}/rate-adjustments:
+    parameters:
+      - name: accountId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      tags: [Rate adjustments]
+      summary: Add an additive, time-boxed rate adjustment to an account
+      description: >-
+        Records a signed delta in basis points that the daily accrual ADDS to the account's rate
+        (its per-account override, else its product default) on every date in [validFrom, validTo).
+        Any number of adjustments may be active; they sum, and the result is clamped at 0. The
+        existing per-account override is untouched. Guard: 0 < |deltaBps| <= 300, validTo after
+        validFrom, at most 400 days. Idempotent on sourceRef: the same body again answers 200 with
+        the existing adjustment; the same sourceRef with different terms answers 409
+        SOURCE_REF_CONFLICT. Authorize action `interest.adjust` — granted only to the rewards
+        engine's service account.
+      operationId: createRateAdjustment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRateAdjustmentRequest'
+      responses:
+        '201':
+          description: Adjustment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RateAdjustment'
+        '200':
+          description: Replay of an earlier create with the same sourceRef and identical terms
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RateAdjustment'
+        '400':
+          description: A guard failed or a required field is missing
+        '409':
+          description: sourceRef already used with different terms (SOURCE_REF_CONFLICT)
+    get:
+      tags: [Rate adjustments]
+      summary: List an account's rate adjustments (every status, newest first)
+      description: >-
+        Authorize action `interest.adjustList` — the rewards engine's service account and human
+        operators/admins. `effectiveRatePct` is not populated on list items.
+      operationId: listRateAdjustments
+      responses:
+        '200':
+          description: The account's adjustments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RateAdjustment'
+
+  /api/v1/interest/accounts/{accountId}/rate-adjustments/{adjustmentId}:
+    delete:
+      tags: [Rate adjustments]
+      summary: Cancel a rate adjustment (compensation)
+      description: >-
+        Flips the adjustment to CANCELLED; idempotent (cancelling a cancelled adjustment answers 200
+        with it unchanged). Forward-looking: accruals already booked are not recomputed. Authorize
+        action `interest.adjustCancel` — granted only to the rewards engine's service account.
+      operationId: cancelRateAdjustment
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: adjustmentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The cancelled adjustment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RateAdjustment'
+        '404':
+          description: No such adjustment on this account (RATE_ADJUSTMENT_NOT_FOUND)
+
 components:
   schemas:
     AccrualRequest:
@@ -498,3 +592,79 @@ components:
         updatedAt:
           type: string
           format: date-time
+
+    CreateRateAdjustmentRequest:
+      type: object
+      required: [deltaBps, validFrom, validTo, source, sourceRef, approvalRef]
+      properties:
+        deltaBps:
+          type: integer
+          minimum: -300
+          maximum: 300
+          description: Signed change in basis points (100 = 1 percentage point); 0 is rejected.
+        validFrom:
+          type: string
+          format: date
+          description: First accrual date the adjustment applies to (inclusive).
+        validTo:
+          type: string
+          format: date
+          description: End of the window (exclusive); after validFrom, at most 400 days later.
+        source:
+          type: string
+          pattern: '^[A-Z][A-Z0-9_]*$'
+          maxLength: 32
+          example: REWARDS
+        sourceRef:
+          type: string
+          maxLength: 128
+          description: Caller's idempotency key, unique across all adjustments.
+        approvalRef:
+          type: string
+          maxLength: 128
+          description: Reference to the approval/decision that authorised the adjustment.
+
+    RateAdjustment:
+      type: object
+      required: [adjustmentId, accountId, deltaBps, validFrom, validTo, status]
+      properties:
+        adjustmentId:
+          type: string
+          format: uuid
+        accountId:
+          type: string
+          format: uuid
+        deltaBps:
+          type: integer
+        validFrom:
+          type: string
+          format: date
+        validTo:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [ACTIVE, CANCELLED]
+        source:
+          type: string
+        sourceRef:
+          type: string
+        approvalRef:
+          type: string
+        createdBy:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        cancelledAt:
+          type: string
+          format: date-time
+          nullable: true
+        effectiveRatePct:
+          type: number
+          nullable: true
+          description: >-
+            The account's resulting annual rate in percent (4.5 = 4.5 % p.a.) after every ACTIVE
+            adjustment — as of today while the window runs, else as of validFrom. Null when no base
+            rate resolves for the account (no override and no accrual history yet). Set on create
+            and cancel responses only.

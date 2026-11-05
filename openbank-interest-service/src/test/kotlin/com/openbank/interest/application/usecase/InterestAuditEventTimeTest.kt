@@ -10,6 +10,7 @@ import com.openbank.interest.application.port.out.InterestAccrualRepository
 import com.openbank.interest.application.port.out.InterestCapitalizationRepository
 import com.openbank.interest.application.port.out.InterestRateConfigRepository
 import com.openbank.interest.application.port.out.LedgerPostingPort
+import com.openbank.interest.application.port.out.RateAdjustmentRepository
 import com.openbank.interest.application.port.out.TaxProfilePort
 import com.openbank.interest.domain.model.AccrualStatus
 import com.openbank.interest.domain.model.InterestAccrual
@@ -49,6 +50,11 @@ class InterestAuditEventTimeTest {
     private val taxProfilePort = mockk<TaxProfilePort>()
     private val ledgerPostingPort = mockk<LedgerPostingPort>()
     private val accountDirectoryPort = mockk<AccountDirectoryPort>()
+
+    // No account carries a rate adjustment unless a test says so: accrual math stays the config's own.
+    private val rateAdjustmentRepo = mockk<RateAdjustmentRepository> {
+        every { findActiveCovering(any(), any()) } returns Uni.createFrom().item(emptyList())
+    }
     private val service = InterestService(
         configRepo,
         accrualRepo,
@@ -56,6 +62,7 @@ class InterestAuditEventTimeTest {
         taxProfilePort,
         ledgerPostingPort,
         accountDirectoryPort,
+        rateAdjustmentRepo,
         "ACT_365",
         "SAVINGS",
         clock,

@@ -7,6 +7,7 @@ package com.openbank.interest.application.port.out
 import com.openbank.interest.domain.model.InterestAccrual
 import com.openbank.interest.domain.model.InterestCapitalization
 import com.openbank.interest.domain.model.InterestRateConfig
+import com.openbank.interest.domain.model.RateAdjustment
 import com.openbank.interest.domain.tax.TaxProfile
 import com.openbank.interest.domain.tax.WithholdingTax
 import com.openbank.libs.persistence.outbox.OutboxMessage
@@ -179,4 +180,29 @@ interface InterestCapitalizationRepository {
         accrualIds: List<UUID>,
         capitalizedAt: OffsetDateTime,
     ): Uni<InterestCapitalization>
+}
+
+/** Outbound persistence port for additive rate adjustments (reactive, Mutiny). */
+interface RateAdjustmentRepository {
+    fun save(adjustment: RateAdjustment): Uni<RateAdjustment>
+    fun update(adjustment: RateAdjustment): Uni<RateAdjustment>
+    fun findById(adjustmentId: UUID): Uni<RateAdjustment?>
+
+    /** The adjustment carrying [sourceRef] (unique, `ux_rate_adjustment_source_ref`), or null. */
+    fun findBySourceRef(sourceRef: String): Uni<RateAdjustment?>
+
+    /** Every adjustment of [accountId], any status, newest first. */
+    fun findByAccountId(accountId: UUID): Uni<List<RateAdjustment>>
+
+    /** The ACTIVE adjustments of [accountId] whose `[validFrom, validTo)` window contains [date]. */
+    fun findActiveCovering(accountId: UUID, date: LocalDate): Uni<List<RateAdjustment>>
+}
+
+/**
+ * The most recent accrual of an account (by accrual date), or null. Used only to learn which product
+ * and currency an account accrues under, so a rate adjustment response can show the account's
+ * resulting rate without a call to account-service.
+ */
+fun interface LatestAccrualLookup {
+    fun latestFor(accountId: UUID): Uni<InterestAccrual?>
 }

@@ -163,3 +163,88 @@ test_extension_is_loaded if {
 	"operator-interest-write" in rest.allowed_reasons with input as {"principal": operator, "action": "interest.trigger"}
 		with data.rules as rules_mock
 }
+
+# --- rewards-rate-adjustment (FLUX Deposit Rate Boost) ---
+#
+# The matrix mock above does NOT carry the adjustment actions (nor does the real rules.yaml), so
+# every allow below comes from the extension alone — falsifiable by deleting the rule.
+
+adj_rewards := {"service_account": true, "client_id": "openbank-rewards", "type": "HUMAN", "id": "service-account-openbank-rewards", "roles": ["ROLE_API"]}
+
+# Phase-1 PEP (no service_account marker): the legacy name-based machine_named body.
+adj_rewards_legacy := {"type": "HUMAN", "id": "service-account-openbank-rewards", "roles": ["ROLE_API"]}
+
+# Same NAME, wrong verified client: a renamed machine must not borrow the rewards grant.
+adj_rewards_impostor := {"service_account": true, "client_id": "openbank-services", "type": "HUMAN", "id": "service-account-openbank-rewards", "roles": ["ROLE_API", "ROLE_OPERATOR"]}
+
+adj_admin := {"service_account": false, "type": "HUMAN", "id": "u-admin", "roles": ["ROLE_ADMIN"]}
+
+test_rewards_may_create_cancel_list_adjustments if {
+	every action in {"interest.adjust", "interest.adjustCancel", "interest.adjustList"} {
+		decision := rest.allow with input as {"principal": adj_rewards, "action": action}
+			with data.rules as rules_mock
+		decision.allow == true
+		decision.reason == "rewards-rate-adjustment"
+	}
+}
+
+test_rewards_legacy_pep_may_adjust if {
+	decision := rest.allow with input as {"principal": adj_rewards_legacy, "action": "interest.adjust"}
+		with data.rules as rules_mock
+	decision.allow == true
+}
+
+test_rewards_impostor_denied if {
+	rest.allow == false with input as {"principal": adj_rewards_impostor, "action": "interest.adjust"}
+		with data.rules as rules_mock
+	rest.allow == false with input as {"principal": adj_rewards_impostor, "action": "interest.adjustList"}
+		with data.rules as rules_mock
+}
+
+# The carve-out is for the adjustment actions ONLY: the rewards client still cannot accrue,
+# capitalize, create rate configs or trigger the batch, even holding ROLE_OPERATOR.
+test_rewards_gains_no_existing_interest_write if {
+	adj_rewards_op := object.union(adj_rewards, {"roles": ["ROLE_API", "ROLE_OPERATOR"]})
+	every action in {"interest.create", "interest.trigger", "interest.delete"} {
+		rest.allow == false with input as {"principal": adj_rewards_op, "action": action}
+			with data.rules as rules_mock
+	}
+}
+
+test_other_service_accounts_denied_adjustments if {
+	every p in [edge, services_m2m] {
+		every action in {"interest.adjust", "interest.adjustCancel", "interest.adjustList"} {
+			rest.allow == false with input as {"principal": p, "action": action}
+				with data.rules as rules_mock
+		}
+	}
+}
+
+# Second layer: even a reason that WOULD admit another machine is vetoed at the allow head.
+test_adjustment_prohibition_beats_a_matrix_grant if {
+	widened := {"authz": {"role_action_matrix": {"ROLE_OPERATOR": {"grant": ["interest.adjust", "interest.adjustList"]}}}}
+	mock := object.union(rules_mock, widened)
+	rest.prohibited with input as {"principal": edge, "action": "interest.adjust"}
+		with data.rules as mock
+	rest.allow == false with input as {"principal": edge, "action": "interest.adjust"}
+		with data.rules as mock
+	not rest.prohibited with input as {"principal": adj_rewards, "action": "interest.adjust"}
+		with data.rules as mock
+}
+
+test_operators_may_list_adjustments_only if {
+	every p in [operator, adj_admin] {
+		decision := rest.allow with input as {"principal": p, "action": "interest.adjustList"}
+			with data.rules as rules_mock
+		decision.allow == true
+		rest.allow == false with input as {"principal": p, "action": "interest.adjust"}
+			with data.rules as rules_mock
+		rest.allow == false with input as {"principal": p, "action": "interest.adjustCancel"}
+			with data.rules as rules_mock
+	}
+}
+
+test_viewer_may_not_list_adjustments if {
+	rest.allow == false with input as {"principal": viewer, "action": "interest.adjustList"}
+		with data.rules as rules_mock
+}
