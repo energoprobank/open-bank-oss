@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: OpenBank Provider Simulator API
-  version: 1.2.0
+  version: 1.3.0
   description: >-
     NON-PRODUCTION stand-in for third-party providers (Energo-Pro customer system, e-mail/SMS gateway,
     Czech Bank iD, identity verification and liveness). Machine callers only (M2M token).
@@ -61,6 +61,21 @@ paths:
       summary: A checkout (CREATED, AUTHORISED, DECLINED, EXPIRED)
       parameters: [{name: id, in: path, required: true, schema: {type: string}}]
       responses: {"200": {description: The checkout}, "404": {description: Unknown}}
+  /card-factory/orders:
+    post:
+      summary: Order a plastic card (the same reference twice answers the first order)
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [reference, name_on_card], properties: {reference: {type: string}, design: {type: string}, name_on_card: {type: string, maxLength: 26}, city: {type: string}, country: {type: string, enum: [CZ, BG]}}}}}}
+      responses: {"201": {description: "{id, reference, status, carrier, tracking_number, expected_on, events}"}, "400": {description: Invalid}}
+  /card-factory/orders/{id}:
+    get:
+      summary: "An order: ORDERED, IN_PRODUCTION, SHIPPED or DELIVERED"
+      parameters: [{name: id, in: path, required: true, schema: {type: string}}]
+      responses: {"200": {description: The order}, "404": {description: Unknown}}
+  /wallet/apple/provisioning:
+    post:
+      summary: Apple Pay in-app provisioning data (simulator keys)
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [card_reference, certificates, nonce, nonce_signature], properties: {card_reference: {type: string}, certificates: {type: array, items: {type: string}}, nonce: {type: string}, nonce_signature: {type: string}}}}}}
+      responses: {"200": {description: "{activation_data, encrypted_pass_data, ephemeral_public_key, token_reference, token_last4}"}, "400": {description: Invalid}}
   /otp/messages:
     post:
       summary: Deliver one e-mail or SMS

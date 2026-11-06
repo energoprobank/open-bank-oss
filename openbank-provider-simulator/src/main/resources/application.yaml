@@ -68,6 +68,8 @@ quarkus:
   openbank:
     provider-simulator:
       step-seconds: 0
+      card-factory:
+        stage-seconds: 0
       energo-pro:
         generated-customers: 50
 
@@ -81,6 +83,9 @@ openbank:
   provider-simulator:
     # Seconds between two checks of a verification passing (a vendor answers asynchronously).
     step-seconds: ${PROVIDER_SIMULATOR_STEP_SECONDS:1}
+    card-factory:
+      # Seconds per stage of a plastic card (ORDERED -> IN_PRODUCTION -> SHIPPED -> DELIVERED).
+      stage-seconds: ${CARD_FACTORY_STAGE_SECONDS:120}
     energo-pro:
       # Energo-Pro-only customers generated deterministically (most never bank with the bank).
       generated-customers: 400

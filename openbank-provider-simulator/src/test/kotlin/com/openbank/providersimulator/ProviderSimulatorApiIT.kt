@@ -17,6 +17,33 @@ import org.junit.jupiter.api.Test
 class ProviderSimulatorApiIT {
 
     @Test
+    @TestSecurity(user = "service-account-openbank-card-issuance", roles = ["ROLE_API"])
+    fun `a plastic card is produced, shipped and delivered, and wallet provisioning answers in PassKit's shape`() {
+        val body = """{"reference":"order-1","design":"midnight","name_on_card":"JANA NOVAKOVA",""" +
+            """"city":"Praha","country":"CZ"}"""
+        val id: String = given().contentType(ContentType.JSON).body(body).post("/api/v1/card-factory/orders")
+            .then().statusCode(201).body("carrier", equalTo("Česká pošta")).extract().path("id")
+        // stage-seconds = 0 in the test profile: every stage is reached at once
+        given().get("/api/v1/card-factory/orders/$id").then().statusCode(200)
+            .body("status", equalTo("DELIVERED")).body("events", hasSize<Any>(4))
+        given().contentType(
+            ContentType.JSON,
+        ).body(body).post("/api/v1/card-factory/orders").then().body("id", equalTo(id))
+        given().contentType(
+            ContentType.JSON,
+        ).body(body.replace("CZ", "DE")).post("/api/v1/card-factory/orders").then().statusCode(400)
+        given().contentType(ContentType.JSON)
+            .body(
+                """{"card_reference":"card-1","certificates":["Y2VydA=="],"nonce":"bm9uY2U=","nonce_signature":"c2ln"}""",
+            )
+            .post("/api/v1/wallet/apple/provisioning").then().statusCode(200)
+            .body("activation_data", org.hamcrest.Matchers.notNullValue())
+            .body("ephemeral_public_key", org.hamcrest.Matchers.notNullValue())
+        given().contentType(ContentType.JSON).body("""{"card_reference":"card-1"}""")
+            .post("/api/v1/wallet/apple/provisioning").then().statusCode(400)
+    }
+
+    @Test
     @TestSecurity(user = "service-account-openbank-everyday", roles = ["ROLE_API"])
     fun `a card checkout is paid on the acquirer's page - a declined card stays declined`() {
         val open = { ref: String ->
