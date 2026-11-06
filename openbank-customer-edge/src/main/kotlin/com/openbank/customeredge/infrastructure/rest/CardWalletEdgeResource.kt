@@ -35,7 +35,8 @@ class CardWalletEdgeResource(private val s: CardEdgeSupport, parties: CustomerPa
         val url = s.processing("/api/v1/card-tokens/card/$id")
             ?: return EdgeJson.ok(mapOf("in_wallet" to false, "device_name" to null, "token_last4" to null))
         val tokens = EdgeJson.parse(edge.upstream.get(url, party.toString()))
-        val active = tokens?.let { if (it.isArray) it else it.path("data") }?.firstOrNull {
+        // card-processing answers {tokens, source, degradedReason, count}.
+        val active = tokens?.path("tokens")?.firstOrNull {
             it.text("status") ==
                 "ACTIVE"
         }

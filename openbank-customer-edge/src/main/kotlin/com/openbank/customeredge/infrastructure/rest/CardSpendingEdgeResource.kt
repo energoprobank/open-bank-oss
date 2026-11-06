@@ -40,15 +40,16 @@ class CardSpendingEdgeResource(private val s: CardEdgeSupport, parties: Customer
 
     /** One authorisation as the app shows a card payment: negative for a payment, positive for a refund. */
     private fun row(a: JsonNode): Map<String, Any?> {
-        val minor = a.path("amountMinorUnits").asLong()
+        // A cleared payment is what was booked (it can differ from the authorised amount).
+        val minor = a.path("clearedAmountMinorUnits").asLong().takeIf { it > 0 } ?: a.path("amountMinorUnits").asLong()
         val refund = a.text("status") == "REVERSED"
         return mapOf(
             "id" to a.text("id"),
             "merchant" to (a.text("merchantName") ?: "Card payment"),
             "category" to (a.text("category") ?: "OTHER"),
             "amount" to BigDecimal.valueOf(if (refund) minor else -minor, 2),
-            "currency" to (a.text("currency") ?: "CZK"),
-            "booked_at" to (a.text("clearedAt") ?: a.text("authorizedAt")),
+            "currency" to (a.text("currencyCode") ?: "CZK"),
+            "booked_at" to a.text("authorizedAt"),
             "state" to STATES[a.text("status")].orEmpty().ifEmpty { "HELD" },
         )
     }
