@@ -25,6 +25,31 @@ class ProviderSimulatorApiIT {
     }
 
     @Test
+    @TestSecurity(user = "service-account-openbank-bills", roles = ["ROLE_API"])
+    fun `a bill is DUE until the bank's payment notice, then PAID, and a short or unknown payment is refused`() {
+        given().get("/api/v1/energo-pro/customers/EP-1000001/supply-points").then().statusCode(200)
+            .body("[0].customer_number", equalTo("EP-1000001"))
+        val bills = given().get("/api/v1/energo-pro/customers/EP-1000001/bills").then().statusCode(200)
+            .body("", hasSize<Any>(12)).body("[1].status", equalTo("PAID"))
+            .extract().jsonPath()
+        val reference = bills.getString("[0].reference")
+        val amount = bills.getString("[0].amount")
+        val currency = bills.getString("[0].currency")
+        val notice = { amt: String -> """{"reference":"$reference","amount":$amt,"currency":"$currency"}""" }
+
+        given().contentType(ContentType.JSON).body(notice("1.00"))
+            .post("/api/v1/energo-pro/payments").then().statusCode(409).body("code", equalTo("AMOUNT_MISMATCH"))
+        given().contentType(ContentType.JSON).body(notice(amount))
+            .post("/api/v1/energo-pro/payments").then().statusCode(200).body("status", equalTo("PAID"))
+        given().contentType(ContentType.JSON).body(notice(amount)) // the same notice again: the same answer
+            .post("/api/v1/energo-pro/payments").then().statusCode(200).body("status", equalTo("PAID"))
+        given().get("/api/v1/energo-pro/customers/EP-1000001/bills").then().body("[0].status", equalTo("PAID"))
+        given().contentType(ContentType.JSON).body("""{"reference":"0000000001","amount":10,"currency":"CZK"}""")
+            .post("/api/v1/energo-pro/payments").then().statusCode(404)
+        given().get("/api/v1/energo-pro/collection-accounts").then().statusCode(200).body("", hasSize<Any>(2))
+    }
+
+    @Test
     @TestSecurity(user = "service-account-openbank-onboarding", roles = ["ROLE_API"])
     fun `a document scan is verified and returns the identity`() {
         val id: String = given().contentType(ContentType.JSON)

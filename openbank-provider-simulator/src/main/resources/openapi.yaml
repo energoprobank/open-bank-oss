@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: OpenBank Provider Simulator API
-  version: 1.0.0
+  version: 1.1.0
   description: >-
     NON-PRODUCTION stand-in for third-party providers (Energo-Pro customer system, e-mail/SMS gateway,
     Czech Bank iD, identity verification and liveness). Machine callers only (M2M token).
@@ -18,6 +18,37 @@ paths:
       responses:
         "200": {description: The customer, content: {application/json: {schema: {$ref: "#/components/schemas/EnergoProCustomer"}}}}
         "404": {description: Energo-Pro has no such customer}
+  /energo-pro/customers/{customerNumber}/supply-points:
+    get:
+      summary: The customer's supply points (electricity meter points)
+      parameters:
+        - {name: customerNumber, in: path, required: true, schema: {type: string, maxLength: 32}}
+      responses:
+        "200": {description: Supply points, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/SupplyPoint"}}}}}
+        "404": {description: Energo-Pro has no such customer}
+  /energo-pro/customers/{customerNumber}/bills:
+    get:
+      summary: The customer's bills of the last twelve months, newest first
+      parameters:
+        - {name: customerNumber, in: path, required: true, schema: {type: string, maxLength: 32}}
+      responses:
+        "200": {description: Bills, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/Bill"}}}}}
+        "404": {description: Energo-Pro has no such customer}
+  /energo-pro/collection-accounts:
+    get:
+      summary: Energo-Pro's collection account per market (for a bank's biller registry)
+      responses:
+        "200": {description: Collection accounts, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/CollectionAccount"}}}}}
+  /energo-pro/payments:
+    post:
+      summary: A bank's notice that a bill was paid (matched by reference)
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: "#/components/schemas/PaymentNotice"}}}
+      responses:
+        "200": {description: The bill, now PAID (the same notice twice answers the same), content: {application/json: {schema: {$ref: "#/components/schemas/Bill"}}}}
+        "404": {description: No bill with this reference}
+        "409": {description: AMOUNT_MISMATCH — currency differs or amount below the bill}
   /otp/messages:
     post:
       summary: Deliver one e-mail or SMS
@@ -70,6 +101,49 @@ components:
   securitySchemes:
     bearer: {type: http, scheme: bearer, bearerFormat: JWT}
   schemas:
+    SupplyPoint:
+      type: object
+      properties:
+        id: {type: string, description: EAN of the meter point}
+        customer_number: {type: string}
+        street: {type: string}
+        city: {type: string}
+        postal_code: {type: string}
+        tariff: {type: string}
+        currency: {type: string}
+        monthly_advance: {type: number}
+    Bill:
+      type: object
+      properties:
+        id: {type: string}
+        customer_number: {type: string}
+        supply_point_id: {type: string}
+        period: {type: string, description: "yyyy-MM"}
+        amount: {type: number}
+        currency: {type: string}
+        issued_on: {type: string, format: date}
+        due_date: {type: string, format: date}
+        status: {type: string, enum: [DUE, PAID, OVERDUE]}
+        collection_iban: {type: string}
+        reference: {type: string}
+        consumption_kwh: {type: integer}
+    CollectionAccount:
+      type: object
+      properties:
+        market: {type: string, enum: [CZ, BG]}
+        name: {type: string}
+        iban: {type: string}
+        bic: {type: string}
+        currency: {type: string}
+    PaymentNotice:
+      type: object
+      required: [reference, amount, currency]
+      properties:
+        reference: {type: string, maxLength: 35}
+        amount: {type: number}
+        currency: {type: string}
+        payer_iban: {type: string}
+        bank_reference: {type: string}
     EnergoProCustomer:
       type: object
       properties:

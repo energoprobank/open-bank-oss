@@ -5,7 +5,9 @@
 package com.openbank.providersimulator
 
 import com.openbank.providersimulator.domain.Applicant
+import com.openbank.providersimulator.domain.BillStatus
 import com.openbank.providersimulator.domain.CheckStatus
+import com.openbank.providersimulator.domain.EnergoProBilling
 import com.openbank.providersimulator.domain.EnergoProCustomer
 import com.openbank.providersimulator.domain.EnergoProDirectory
 import com.openbank.providersimulator.domain.EnergoProMarket
@@ -15,6 +17,7 @@ import com.openbank.providersimulator.domain.VerificationStatus
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import java.time.Instant
+import java.time.LocalDate
 
 class ProviderDomainTest {
     private val t0 = Instant.parse("2026-11-05T10:00:00Z")
@@ -108,5 +111,26 @@ class ProviderDomainTest {
         assertThat(c.hasContact("maria@example.bg", null)).isTrue()
         assertThat(c.hasContact(null, "+359871234567")).isTrue()
         assertThat(c.hasContact("other@example.bg", "+359870000000")).isFalse()
+    }
+
+    @Test
+    fun `bills follow the calendar - a year of history, the newest DUE until the 20th, then OVERDUE`() {
+        val c = EnergoProDirectory.generate(8).first { it.market == EnergoProMarket.CZ }
+        val nov6 = EnergoProBilling.bills(c, LocalDate.of(2026, 11, 6), emptySet())
+        assertThat(nov6).hasSize(12)
+        assertThat(nov6[0].period).isEqualTo("2026-10")
+        assertThat(nov6[0].status).isEqualTo(BillStatus.DUE)
+        assertThat(nov6[0].dueDate).isEqualTo(LocalDate.of(2026, 11, 20))
+        assertThat(nov6[0].reference).hasSize(10).startsWith(c.customerNumber.filter(Char::isDigit))
+        assertThat(nov6.drop(1)).allMatch { it.status == BillStatus.PAID }
+        // before the 5th, October's bill is not issued yet
+        assertThat(EnergoProBilling.bills(c, LocalDate.of(2026, 11, 4), emptySet())[0].period).isEqualTo("2026-09")
+        val nov21 = LocalDate.of(2026, 11, 21)
+        assertThat(EnergoProBilling.bills(c, nov21, emptySet())[0].status).isEqualTo(BillStatus.OVERDUE)
+        assertThat(EnergoProBilling.bills(c, nov21, setOf(nov6[0].reference))[0].status).isEqualTo(BillStatus.PAID)
+        // winter uses more electricity than summer for the same household
+        val january = nov6.first { it.period == "2026-01" }.consumptionKwh
+        val july = nov6.first { it.period == "2026-07" }.consumptionKwh
+        assertThat(january).isGreaterThan(july)
     }
 }

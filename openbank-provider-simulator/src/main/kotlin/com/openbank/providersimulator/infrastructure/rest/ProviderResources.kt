@@ -5,10 +5,17 @@
 package com.openbank.providersimulator.infrastructure.rest
 
 import com.fasterxml.jackson.annotation.JsonProperty
+import com.openbank.providersimulator.application.EnergoProBillingDesk
 import com.openbank.providersimulator.application.ProviderSimulator
 import com.openbank.providersimulator.domain.Applicant
+import com.openbank.providersimulator.domain.CollectionAccount
 import com.openbank.providersimulator.domain.DeliveredMessage
+import com.openbank.providersimulator.domain.EnergoProBill
+import com.openbank.providersimulator.domain.EnergoProBilling
 import com.openbank.providersimulator.domain.EnergoProCustomer
+import com.openbank.providersimulator.domain.NoticeOutcome
+import com.openbank.providersimulator.domain.PaymentNotice
+import com.openbank.providersimulator.domain.SupplyPoint
 import com.openbank.providersimulator.domain.Verification
 import com.openbank.providersimulator.domain.VerificationKind
 import jakarta.annotation.security.RolesAllowed
@@ -25,6 +32,7 @@ import jakarta.ws.rs.core.MediaType
 import jakarta.ws.rs.core.Response
 import org.eclipse.microprofile.openapi.annotations.Operation
 import org.eclipse.microprofile.openapi.annotations.tags.Tag
+import java.math.BigDecimal
 
 // NON-PRODUCTION third-party providers (see ProviderSimulator). Machine callers only: the bank's
 // services with their M2M token. Wire names are snake_case, like the vendors they stand in for.
@@ -38,6 +46,9 @@ class EnergoProResource {
     @Inject
     lateinit var simulator: ProviderSimulator
 
+    @Inject
+    lateinit var billing: EnergoProBillingDesk
+
     @GET
     @Path("/customers/{customerNumber}")
     @Operation(summary = "An Energo-Pro electricity customer by customer number (404 when Energo-Pro has none)")
@@ -47,8 +58,62 @@ class EnergoProResource {
         return EnergoProCustomerView.of(customer)
     }
 
+    @GET
+    @Path("/customers/{customerNumber}/supply-points")
+    @Operation(summary = "The customer's supply points (the electricity meter points they are billed for)")
+    fun supplyPoints(@PathParam("customerNumber") customerNumber: String): List<SupplyPointView> {
+        require(customerNumber.length <= MAX_NUMBER_INPUT) { "customer number is too long" }
+        return (billing.supplyPoints(customerNumber) ?: throw NotFoundException()).map(SupplyPointView::of)
+    }
+
+    @GET
+    @Path("/customers/{customerNumber}/bills")
+    @Operation(summary = "The customer's bills of the last twelve months, newest first")
+    fun bills(@PathParam("customerNumber") customerNumber: String): List<BillView> {
+        require(customerNumber.length <= MAX_NUMBER_INPUT) { "customer number is too long" }
+        return (billing.bills(customerNumber) ?: throw NotFoundException()).map(BillView::of)
+    }
+
+    @GET
+    @Path("/collection-accounts")
+    @Operation(summary = "Energo-Pro's collection account per market (for a bank's biller registry)")
+    fun collectionAccounts(): List<CollectionAccountView> =
+        EnergoProBilling.COLLECTION.values.map(CollectionAccountView::of)
+
+    @POST
+    @Path("/payments")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Operation(
+        summary = "A bank's notice that a bill was paid (404 unknown reference, 409 amount below the bill)",
+    )
+    fun paymentNotice(body: PaymentNoticeRequest?): Response {
+        val req = requireNotNull(body) { "request body is required" }
+        val reference = requireNotNull(req.reference) { "reference is required" }
+        require(reference.length <= MAX_REFERENCE_INPUT) { "reference is too long" }
+        val notice = PaymentNotice(
+            reference = reference.trim(),
+            amount = requireNotNull(req.amount) { "amount is required" },
+            currency = requireNotNull(req.currency) { "currency is required" },
+            payerIban = req.payerIban,
+            bankReference = req.bankReference,
+            paidAt = simulator.now(),
+        )
+        return when (val outcome = billing.notePayment(notice)) {
+            is NoticeOutcome.Accepted -> Response.ok(BillView.of(outcome.bill)).build()
+            is NoticeOutcome.AmountMismatch ->
+                Response.status(Response.Status.CONFLICT).entity(
+                    mapOf(
+                        "code" to "AMOUNT_MISMATCH",
+                        "bill" to BillView.of(outcome.bill),
+                    ),
+                ).build()
+            NoticeOutcome.UnknownReference -> throw NotFoundException()
+        }
+    }
+
     companion object {
         const val MAX_NUMBER_INPUT = 32
+        const val MAX_REFERENCE_INPUT = 35
     }
 }
 
@@ -179,6 +244,72 @@ data class EnergoProCustomerView(
         )
     }
 }
+
+data class SupplyPointView(
+    val id: String,
+    @JsonProperty("customer_number") val customerNumber: String,
+    val street: String,
+    val city: String,
+    @JsonProperty("postal_code") val postalCode: String,
+    val tariff: String,
+    val currency: String,
+    @JsonProperty("monthly_advance") val monthlyAdvance: BigDecimal,
+) {
+    companion object {
+        fun of(p: SupplyPoint) = SupplyPointView(
+            p.id,
+            p.customerNumber,
+            p.street,
+            p.city,
+            p.postalCode,
+            p.tariff,
+            p.currency,
+            p.monthlyAdvance,
+        )
+    }
+}
+
+data class BillView(
+    val id: String,
+    @JsonProperty("customer_number") val customerNumber: String,
+    @JsonProperty("supply_point_id") val supplyPointId: String,
+    val period: String,
+    val amount: BigDecimal,
+    val currency: String,
+    @JsonProperty("issued_on") val issuedOn: String,
+    @JsonProperty("due_date") val dueDate: String,
+    val status: String,
+    @JsonProperty("collection_iban") val collectionIban: String,
+    val reference: String,
+    @JsonProperty("consumption_kwh") val consumptionKwh: Int,
+) {
+    companion object {
+        fun of(b: EnergoProBill) = BillView(
+            b.id, b.customerNumber, b.supplyPointId, b.period, b.amount, b.currency, b.issuedOn.toString(),
+            b.dueDate.toString(), b.status.name, b.collectionIban, b.reference, b.consumptionKwh,
+        )
+    }
+}
+
+data class CollectionAccountView(
+    val market: String,
+    val name: String,
+    val iban: String,
+    val bic: String,
+    val currency: String,
+) {
+    companion object {
+        fun of(a: CollectionAccount) = CollectionAccountView(a.market.name, a.name, a.iban, a.bic, a.currency)
+    }
+}
+
+data class PaymentNoticeRequest(
+    val reference: String? = null,
+    val amount: BigDecimal? = null,
+    val currency: String? = null,
+    @JsonProperty("payer_iban") val payerIban: String? = null,
+    @JsonProperty("bank_reference") val bankReference: String? = null,
+)
 
 data class SendMessageRequest(
     val channel: DeliveredMessage.Channel? = null,
