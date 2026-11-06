@@ -68,32 +68,55 @@ class BankEventConsumers(private val handler: BankEventHandler, private val stor
         }
     }
 
+    /**
+     * TransactionInitiated carries what was moved; TransactionCompleted only says it settled. The relay
+     * does not keep them in order — two outbox rows written milliseconds apart have been published
+     * completed-first — so whichever arrives second settles it: a completion with nothing pending is
+     * parked under [completedKey] and settled when the initiation arrives.
+     */
     @Incoming("transactions-in")
     @Blocking
     fun transactions(msg: Message<String>) = handle(msg) { type, n ->
         val id = n.uuid("aggregateId") ?: n.uuid("transactionId") ?: return@handle
         when (type) {
-            "TransactionInitiated" -> store.tx { it.putPendingTransaction(id, msg.payload, Instant.now()) }
-            "TransactionCompleted" -> {
-                val initiated =
-                    store.tx { it.takePendingTransaction(id) }?.let(RewardsJson.mapper::readTree) ?: return@handle
-                handler.transactionSettled(
-                    SettledTransaction(
-                        transactionId = id,
-                        type = initiated.text("type") ?: "UNKNOWN",
-                        sourceAccountId = initiated.uuid("sourceAccountId"),
-                        targetAccountId = initiated.uuid("targetAccountId"),
-                        amount = initiated.decimal("amount") ?: return@handle,
-                        currency = initiated.text("currencyCode") ?: "CZK",
-                        rail = initiated.text("rail") ?: "UNKNOWN",
-                        instructionType = initiated.text("instructionType") ?: "UNKNOWN",
-                        reversalOf = initiated.uuid("reversalOf"),
-                        occurredAt = n.instant("occurredAt") ?: Instant.now(),
-                    ),
-                )
+            "TransactionInitiated" -> {
+                val completed = store.tx { tx ->
+                    tx.takePendingTransaction(completedKey(id)).also {
+                        if (it == null) tx.putPendingTransaction(id, msg.payload, Instant.now())
+                    }
+                }
+                completed?.let { settle(id, n, RewardsJson.mapper.readTree(it)) }
             }
-            "TransactionFailed", "TransactionReversed" -> store.tx { it.takePendingTransaction(id) }
+            "TransactionCompleted" -> {
+                val initiated = store.tx { tx ->
+                    tx.takePendingTransaction(id).also {
+                        if (it == null) tx.putPendingTransaction(completedKey(id), msg.payload, Instant.now())
+                    }
+                } ?: return@handle
+                settle(id, RewardsJson.mapper.readTree(initiated), n)
+            }
+            "TransactionFailed", "TransactionReversed" -> store.tx {
+                it.takePendingTransaction(id)
+                it.takePendingTransaction(completedKey(id))
+            }
         }
+    }
+
+    private fun settle(id: UUID, initiated: JsonNode, completed: JsonNode) {
+        handler.transactionSettled(
+            SettledTransaction(
+                transactionId = id,
+                type = initiated.text("type") ?: "UNKNOWN",
+                sourceAccountId = initiated.uuid("sourceAccountId"),
+                targetAccountId = initiated.uuid("targetAccountId"),
+                amount = initiated.decimal("amount") ?: return,
+                currency = initiated.text("currencyCode") ?: "CZK",
+                rail = initiated.text("rail") ?: "UNKNOWN",
+                instructionType = initiated.text("instructionType") ?: "UNKNOWN",
+                reversalOf = initiated.uuid("reversalOf"),
+                occurredAt = completed.instant("occurredAt") ?: Instant.now(),
+            ),
+        )
     }
 
     @Incoming("cards-in")
@@ -254,6 +277,9 @@ class BankEventConsumers(private val handler: BankEventHandler, private val stor
     }
 
     private fun authKey(authId: String): UUID = UUID.nameUUIDFromBytes("card-auth:$authId".toByteArray())
+
+    private fun completedKey(transactionId: UUID): UUID =
+        UUID.nameUUIDFromBytes("tx-completed:$transactionId".toByteArray())
 
     private fun clearedKey(authId: String): UUID = UUID.nameUUIDFromBytes("card-cleared:$authId".toByteArray())
 

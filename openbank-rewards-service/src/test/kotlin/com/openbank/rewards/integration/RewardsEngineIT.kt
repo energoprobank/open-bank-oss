@@ -298,6 +298,31 @@ class RewardsEngineIT {
     }
 
     @Test
+    fun `a completion published before its initiation is parked, then the funding counts`() {
+        // The outbox relay published TransactionCompleted 11 ms before TransactionInitiated (2026-11-06):
+        // the referee's first funding was dropped and the referral never released.
+        val referrer = UUID.randomUUID()
+        val referee = UUID.randomUUID()
+        directory.currentAndSavings(referrer)
+        val (refereeCurrent, _) = directory.currentAndSavings(referee)
+        connector.source<String>("referral-in").send(
+            """{"eventType":"Qualified","inviteId":"${UUID.randomUUID()}","referrerPartyId":"$referrer","refereePartyId":"$referee"}""",
+        )
+        awaitTrue(Duration.ofSeconds(20)) { customers.referrals(referee).isNotEmpty() }
+
+        val tx = UUID.randomUUID()
+        val transactions = connector.source<String>("transactions-in")
+        transactions.send("""{"eventType":"TransactionCompleted","aggregateId":"$tx"}""")
+        transactions.send(
+            """{"eventType":"TransactionInitiated","aggregateId":"$tx","type":"CREDIT","targetAccountId":"$refereeCurrent","amount":300,"currencyCode":"CZK","rail":"DOMESTIC","instructionType":"ONE_OFF"}""",
+        )
+        awaitTrue(Duration.ofSeconds(20)) {
+            customers.missions(referrer).claimable.any { it.def.missionId == "M-REF-1" }
+        }
+        assertThat(customers.claim(referee, "M-REF-1-REFEREE").balance).isEqualTo(100)
+    }
+
+    @Test
     fun `migration is idempotent per party and source`() {
         val party = UUID.randomUUID()
         directory.currentAndSavings(party)
