@@ -17,6 +17,36 @@ import org.junit.jupiter.api.Test
 class ProviderSimulatorApiIT {
 
     @Test
+    @TestSecurity(user = "service-account-openbank-everyday", roles = ["ROLE_API"])
+    fun `a card checkout is paid on the acquirer's page - a declined card stays declined`() {
+        val open = { ref: String ->
+            given().contentType(
+                ContentType.JSON,
+            ).body("""{"amount":1500,"currency":"CZK","merchant_reference":"$ref"}""")
+                .post("/api/v1/acquirer/checkouts").then().statusCode(201).body("status", equalTo("CREATED"))
+                .extract().jsonPath()
+        }
+        val ok = open("top-up-1")
+        val id = ok.getString("id")
+        org.assertj.core.api.Assertions.assertThat(ok.getString("checkout_url")).endsWith("/acquirer/pay/$id")
+        given().get(
+            "/acquirer/pay/$id",
+        ).then().statusCode(200).body(org.hamcrest.Matchers.containsString("Pay 1 500.00 CZK"))
+        given().contentType(ContentType.URLENC).formParam("card", "4242 4242 4242 4242").post("/acquirer/pay/$id")
+            .then().statusCode(200).body(org.hamcrest.Matchers.containsString("Payment authorised"))
+        given().get(
+            "/api/v1/acquirer/checkouts/$id",
+        ).then().body("status", equalTo("AUTHORISED")).body("card_last4", equalTo("4242"))
+
+        val declined = open("top-up-2").getString("id")
+        given().contentType(ContentType.URLENC).formParam("card", "4000 0000 0000 0002").post("/acquirer/pay/$declined")
+        given().get("/api/v1/acquirer/checkouts/$declined").then().body("status", equalTo("DECLINED"))
+        given().contentType(ContentType.JSON).body("""{"amount":0,"currency":"CZK","merchant_reference":"x"}""")
+            .post("/api/v1/acquirer/checkouts").then().statusCode(400)
+        given().get("/api/v1/acquirer/checkouts/nope").then().statusCode(404)
+    }
+
+    @Test
     @TestSecurity(user = "service-account-openbank-onboarding", roles = ["ROLE_API"])
     fun `Energo-Pro answers a known customer and 404 for an unknown one`() {
         given().get("/api/v1/energo-pro/customers/EP-1000001").then().statusCode(200)

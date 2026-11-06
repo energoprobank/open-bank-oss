@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: OpenBank Provider Simulator API
-  version: 1.1.0
+  version: 1.2.0
   description: >-
     NON-PRODUCTION stand-in for third-party providers (Energo-Pro customer system, e-mail/SMS gateway,
     Czech Bank iD, identity verification and liveness). Machine callers only (M2M token).
@@ -49,6 +49,18 @@ paths:
         "200": {description: The bill, now PAID (the same notice twice answers the same), content: {application/json: {schema: {$ref: "#/components/schemas/Bill"}}}}
         "404": {description: No bill with this reference}
         "409": {description: AMOUNT_MISMATCH — currency differs or amount below the bill}
+  /acquirer/checkouts:
+    post:
+      summary: Open a card checkout (the customer pays on checkout_url, the acquirer's own page)
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [amount, currency, merchant_reference], properties: {amount: {type: number}, currency: {type: string, enum: [CZK, EUR]}, merchant_reference: {type: string, maxLength: 64}}}}}}
+      responses:
+        "201": {description: "{id, amount, currency, merchant_reference, status, checkout_url, card_last4}"}
+        "400": {description: Invalid}
+  /acquirer/checkouts/{id}:
+    get:
+      summary: A checkout (CREATED, AUTHORISED, DECLINED, EXPIRED)
+      parameters: [{name: id, in: path, required: true, schema: {type: string}}]
+      responses: {"200": {description: The checkout}, "404": {description: Unknown}}
   /otp/messages:
     post:
       summary: Deliver one e-mail or SMS
