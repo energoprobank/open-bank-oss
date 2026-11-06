@@ -11,17 +11,28 @@ class MerchantCategoryTaxonomyTest {
     @Test
     fun `a single code and a range both classify`() {
         assertThat(MerchantCategoryTaxonomy.categoryOf("7995")).isEqualTo("GAMBLING")
-        assertThat(MerchantCategoryTaxonomy.categoryOf("7801")).isEqualTo("GAMBLING")
+        assertThat(MerchantCategoryTaxonomy.categoryOf("7801")).isEqualTo("BETTING")
         assertThat(MerchantCategoryTaxonomy.categoryOf("5411")).isEqualTo("GROCERIES")
     }
 
     @Test
     fun `range ends are inclusive`() {
-        assertThat(MerchantCategoryTaxonomy.categoryOf("7800")).isEqualTo("GAMBLING")
-        assertThat(MerchantCategoryTaxonomy.categoryOf("7802")).isEqualTo("GAMBLING")
+        assertThat(MerchantCategoryTaxonomy.categoryOf("7800")).isEqualTo("LOTTERY")
+        assertThat(MerchantCategoryTaxonomy.categoryOf("7802")).isEqualTo("BETTING")
         // Just outside must not be swept in — an off-by-one here blocks or frees real spend.
-        assertThat(MerchantCategoryTaxonomy.categoryOf("7799")).isNotEqualTo("GAMBLING")
-        assertThat(MerchantCategoryTaxonomy.categoryOf("7803")).isNotEqualTo("GAMBLING")
+        assertThat(MerchantCategoryTaxonomy.categoryOf("7799")).isNotIn("GAMBLING", "LOTTERY", "BETTING")
+        assertThat(MerchantCategoryTaxonomy.categoryOf("7803")).isNotIn("GAMBLING", "LOTTERY", "BETTING")
+    }
+
+    @Test
+    fun `a specific category wins over the broad range that contains its code`() {
+        assertThat(MerchantCategoryTaxonomy.categoryOf("5967")).isEqualTo("ADULT") // inside SHOPPING's 5940-5999
+        assertThat(MerchantCategoryTaxonomy.categoryOf("7273")).isEqualTo("DATING") // inside SERVICES' 7210-7299
+        assertThat(MerchantCategoryTaxonomy.categoryOf("6051")).isEqualTo("CRYPTO")
+        assertThat(MerchantCategoryTaxonomy.categoryOf("4829")).isEqualTo("MONEY_TRANSFER")
+        assertThat(MerchantCategoryTaxonomy.categoryOf("5945")).isEqualTo("SHOPPING")
+        assertThat(MerchantCategoryTaxonomy.parentOf("LOTTERY")).isEqualTo("GAMBLING")
+        assertThat(MerchantCategoryTaxonomy.parentOf("GAMBLING")).isNull()
     }
 
     @Test

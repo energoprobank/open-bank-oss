@@ -130,6 +130,23 @@ class CardAuthorizationPolicyTest {
     }
 
     @Test
+    fun `blocking gambling still blocks lottery and betting, which are its children`() {
+        val rules = listOf(CategoryRule("GAMBLING", blocked = true))
+        assertThat(
+            CardAuthorizationPolicy.decide(card(), req(mcc = "7800"), rules).reason,
+        ).isEqualTo(DeclineReason.CATEGORY_BLOCKED)
+        assertThat(
+            CardAuthorizationPolicy.decide(card(), req(mcc = "7802"), rules).reason,
+        ).isEqualTo(DeclineReason.CATEGORY_BLOCKED)
+        // ...while blocking only betting leaves the casino and the lottery open
+        val betting = listOf(CategoryRule("BETTING", blocked = true))
+        assertThat(
+            CardAuthorizationPolicy.decide(card(), req(mcc = "7801"), betting).reason,
+        ).isEqualTo(DeclineReason.CATEGORY_BLOCKED)
+        assertThat(CardAuthorizationPolicy.decide(card(), req(mcc = "7800"), betting).approved).isTrue()
+    }
+
+    @Test
     fun `blocking one category leaves the others alone`() {
         val rules = listOf(CategoryRule("GAMBLING", blocked = true))
         assertThat(CardAuthorizationPolicy.decide(card(), req(mcc = "5411"), rules).approved).isTrue()

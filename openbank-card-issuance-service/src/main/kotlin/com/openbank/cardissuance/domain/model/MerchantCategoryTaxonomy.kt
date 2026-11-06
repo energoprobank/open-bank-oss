@@ -26,6 +26,12 @@ object MerchantCategoryTaxonomy {
         val mccRanges: List<String>,
         val blockable: Boolean,
         val limitable: Boolean,
+        /**
+         * A broader category this one belongs to (LOTTERY and BETTING belong to GAMBLING). Blocking
+         * the parent blocks the child too, so splitting a category off never weakens a block a
+         * customer already set; a monthly cap stays per category.
+         */
+        val parent: String? = null,
     )
 
     /**
@@ -37,6 +43,22 @@ object MerchantCategoryTaxonomy {
     val CATEGORIES: List<Category> = listOf(
         // Gambling is the reason the whole feature exists: it is the one category where a customer
         // asking to be stopped is asking for protection, not budgeting.
+        // Experience v2 step 4: what the app lets a customer switch off. Listed BEFORE the broad
+        // categories whose ranges contain their codes (5967 sits in SHOPPING, 7273 in SERVICES, 7800
+        // to 7802 in GAMBLING): the first matching category wins, so the specific one must come first.
+        Category("LOTTERY", "Loterie", listOf("7800"), blockable = true, limitable = true, parent = "GAMBLING"),
+        Category(
+            "BETTING",
+            "Sázky",
+            listOf("7801-7802", "9754"),
+            blockable = true,
+            limitable = true,
+            parent = "GAMBLING",
+        ),
+        Category("CRYPTO", "Kryptoměny", listOf("6051"), blockable = true, limitable = true),
+        Category("ADULT", "Obsah pro dospělé", listOf("5967"), blockable = true, limitable = true),
+        Category("DATING", "Seznamky", listOf("7273"), blockable = true, limitable = true),
+        Category("MONEY_TRANSFER", "Převody peněz", listOf("4829", "6540"), blockable = true, limitable = true),
         Category("GAMBLING", "Hazard", listOf("7800-7802", "7995", "9754"), blockable = true, limitable = true),
         Category("GROCERIES", "Potraviny", listOf("5411", "5422", "5441", "5451", "5462", "5499"), true, true),
         Category("DINING", "Restaurace", listOf("5811-5814"), true, true),
@@ -76,4 +98,7 @@ object MerchantCategoryTaxonomy {
     fun isKnown(categoryId: String): Boolean = categoryId in BY_ID
 
     fun isBlockable(categoryId: String): Boolean = BY_ID[categoryId]?.blockable ?: false
+
+    /** The broader category [categoryId] belongs to, if any (blocking it blocks [categoryId] too). */
+    fun parentOf(categoryId: String): String? = BY_ID[categoryId]?.parent
 }

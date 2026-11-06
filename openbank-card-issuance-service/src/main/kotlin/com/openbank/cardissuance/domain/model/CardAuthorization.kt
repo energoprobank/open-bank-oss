@@ -70,7 +70,13 @@ object CardAuthorizationPolicy {
     /** ISO-3166 alpha-2 of the issuing market; see the note at the abroad check. */
     const val HOME_COUNTRY: String = "CZ"
 
-    fun decide(card: Card, request: AuthorizationRequest, rules: List<CategoryRule>): AuthorizationDecision {
+    fun decide(
+        card: Card,
+        request: AuthorizationRequest,
+        rules: List<CategoryRule>,
+        travel: List<TravelWindow> = emptyList(),
+        today: java.time.LocalDate = java.time.LocalDate.now(),
+    ): AuthorizationDecision {
         val category = MerchantCategoryTaxonomy.categoryOf(request.mcc)
         fun decline(reason: DeclineReason) = AuthorizationDecision(false, reason, category)
 
@@ -84,11 +90,11 @@ object CardAuthorizationPolicy {
         // "Home" is the bank's market rather than a per-card field, because no such field exists on
         // the card: a Czech bank's cards are issued in CZ. When the bank issues outside CZ this
         // becomes a card attribute, and this constant is where that change starts.
-        val abroad = request.countryCode != null && !request.countryCode.equals(HOME_COUNTRY, ignoreCase = true)
-        if (abroad && !card.abroadEnabled) return decline(DeclineReason.ABROAD_DISABLED)
+        if (abroadDeclined(card, request, travel, today)) return decline(DeclineReason.ABROAD_DISABLED)
 
         val rule = rules.firstOrNull { it.category == category }
         categoryDecline(rule, category, request)?.let { return decline(it) }
+        if (blockedByParent(category, rules)) return decline(DeclineReason.CATEGORY_BLOCKED)
         amountDecline(card, request)?.let { return decline(it) }
 
         return AuthorizationDecision(approved = true, category = category)
@@ -104,6 +110,27 @@ object CardAuthorizationPolicy {
     }
 
     /** A block the customer set, or their cap for this category, whichever bites first. */
+    /**
+     * Abroad with payments abroad switched off — unless a travel notice opens exactly this country
+     * today: that is what the notice is for.
+     */
+    private fun abroadDeclined(
+        card: Card,
+        request: AuthorizationRequest,
+        travel: List<TravelWindow>,
+        today: java.time.LocalDate,
+    ): Boolean {
+        val country = request.countryCode ?: return false
+        if (country.equals(HOME_COUNTRY, ignoreCase = true) || card.abroadEnabled) return false
+        return travel.none { it.covers(country, today) }
+    }
+
+    /** A block on the broader category covers this one (GAMBLING covers LOTTERY and BETTING). */
+    private fun blockedByParent(category: String, rules: List<CategoryRule>): Boolean {
+        val parent = MerchantCategoryTaxonomy.parentOf(category) ?: return false
+        return MerchantCategoryTaxonomy.isBlockable(category) && rules.any { it.category == parent && it.blocked }
+    }
+
     private fun categoryDecline(rule: CategoryRule?, category: String, request: AuthorizationRequest): DeclineReason? {
         if (rule == null) return null
         if (rule.blocked && MerchantCategoryTaxonomy.isBlockable(category)) return DeclineReason.CATEGORY_BLOCKED

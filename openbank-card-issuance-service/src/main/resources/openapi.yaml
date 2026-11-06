@@ -3,7 +3,7 @@
 openapi: 3.1.0
 info:
   title: Card Issuance Service API
-  version: 1.10.0
+  version: 1.11.0
   description: Debit/credit card lifecycle — issue, activate, block, suspend, resume, cancel;
     synthetic PAN vault, product-catalog entitlements, and additional-cardholder cards issued
     under a delegation grant (ADR-0249 D1/D2).
@@ -581,6 +581,368 @@ paths:
         '403':
           description: Caller does not hold ROLE_ADMIN
 
+  /api/v1/cards/{id}/pin:
+    get:
+      tags: [Cards]
+      summary: Whether the card has a PIN, when it last changed and the attempts left
+      operationId: getCardPinStatus
+      parameters:
+        - $ref: '#/components/parameters/cardId'
+      responses:
+        '200':
+          description: PIN status (never the PIN)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PinStatus'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Cards]
+      summary: Change the PIN
+      description: >-
+        Four digits that a thief would not try first: not four of one digit, not a run such as
+        1234 or 6543, not a year. SCA (`CHANGE_PIN`) is enforced at the customer edge.
+      operationId: changeCardPin
+      parameters:
+        - $ref: '#/components/parameters/cardId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                new_pin: {type: string, pattern: '^[0-9]{4}$'}
+              required: [new_pin]
+      responses:
+        '204':
+          description: PIN changed
+        '400':
+          description: Weak or malformed PIN
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/cards/{id}/pin/view:
+    post:
+      tags: [Cards]
+      summary: Reveal the PIN once (no-store; SCA `VIEW_PIN` at the customer edge)
+      operationId: viewCardPin
+      parameters:
+        - $ref: '#/components/parameters/cardId'
+      responses:
+        '200':
+          description: The PIN and how long the app may show it
+          headers:
+            Cache-Control:
+              schema: {type: string, example: no-store}
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pin: {type: string}
+                  visible_seconds: {type: integer}
+                required: [pin, visible_seconds]
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/cards/{id}/design:
+    get:
+      tags: [Cards]
+      summary: The card's design
+      operationId: getCardDesign
+      parameters:
+        - $ref: '#/components/parameters/cardId'
+      responses:
+        '200':
+          description: Design
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardDesign'
+    put:
+      tags: [Cards]
+      summary: Change the design, until the plastic card is printed
+      operationId: setCardDesign
+      parameters:
+        - $ref: '#/components/parameters/cardId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CardDesign'
+      responses:
+        '200':
+          description: Design changed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardDesign'
+        '400':
+          description: Unknown design
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The card is already printed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /api/v1/cards/{id}/self-activation:
+    post:
+      tags: [Cards]
+      summary: Activate a delivered plastic card with the last four digits printed on it
+      operationId: selfActivateCard
+      parameters:
+        - $ref: '#/components/parameters/cardId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                last4: {type: string, pattern: '^[0-9]{4}$'}
+              required: [last4]
+      responses:
+        '200':
+          description: Activated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  card_id: {type: string, format: uuid}
+                  status: {type: string}
+                required: [card_id, status]
+        '400':
+          description: Wrong digits
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: Not delivered yet (`NOT_DELIVERED`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /api/v1/cards/{id}/wallet-provisioning-data:
+    post:
+      tags: [Cards]
+      summary: In-app Apple Wallet provisioning data from the wallet's token service
+      operationId: provisionCardToWallet
+      parameters:
+        - $ref: '#/components/parameters/cardId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                certificates: {type: array, items: {type: string, contentEncoding: base64}}
+                nonce: {type: string, contentEncoding: base64}
+                nonce_signature: {type: string, contentEncoding: base64}
+              required: [certificates, nonce, nonce_signature]
+      responses:
+        '200':
+          description: PassKit's fields, plus the token reference (no-store)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletProvisioning'
+        '409':
+          description: The card is not active
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /api/v1/cards/{id}/travel-notices:
+    get:
+      tags: [Cards]
+      summary: The card's travel notices
+      operationId: listCardTravelNotices
+      parameters:
+        - $ref: '#/components/parameters/cardId'
+      responses:
+        '200':
+          description: Travel notices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TravelNotice'
+    post:
+      tags: [Cards]
+      summary: Payments in these countries on these dates are allowed, even with payments abroad off
+      operationId: addCardTravelNotice
+      parameters:
+        - $ref: '#/components/parameters/cardId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                countries: {type: array, items: {type: string, pattern: '^[A-Za-z]{2}$'}}
+                start_date: {type: string, format: date}
+                end_date: {type: string, format: date}
+              required: [countries, start_date, end_date]
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TravelNotice'
+        '400':
+          description: Invalid countries or dates
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /api/v1/cards/{id}/travel-notices/{noticeId}:
+    delete:
+      tags: [Cards]
+      summary: Remove a travel notice
+      operationId: removeCardTravelNotice
+      parameters:
+        - $ref: '#/components/parameters/cardId'
+        - name: noticeId
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '204':
+          description: Removed
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/card-orders:
+    post:
+      tags: [Cards]
+      summary: Order a plastic card for an issued card from the manufacturer
+      operationId: createCardOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                party_id: {type: string, format: uuid}
+                account_id: {type: string, format: uuid}
+                card_id: {type: string, format: uuid}
+                design: {type: string}
+                name_on_card: {type: string}
+                delivery_address:
+                  $ref: '#/components/schemas/DeliveryAddress'
+              required: [party_id, account_id, card_id, design, name_on_card, delivery_address]
+      responses:
+        '201':
+          description: Ordered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardOrder'
+        '400':
+          description: Invalid order
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+    get:
+      tags: [Cards]
+      summary: A party's plastic card orders
+      operationId: listCardOrders
+      parameters:
+        - name: partyId
+          in: query
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: Orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CardOrder'
+  /api/v1/card-orders/{orderId}:
+    get:
+      tags: [Cards]
+      summary: One order with the courier's tracking
+      operationId: getCardOrder
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+        - name: partyId
+          in: query
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: Order
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardOrder'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/card-notification-settings/{partyId}:
+    get:
+      tags: [Cards]
+      summary: A party's card notification settings (defaults until saved)
+      operationId: getCardNotificationSettings
+      parameters:
+        - name: partyId
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+        - name: currency
+          in: query
+          required: false
+          schema: {type: string}
+      responses:
+        '200':
+          description: Settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardNotificationSettings'
+    put:
+      tags: [Cards]
+      summary: Replace a party's card notification settings
+      operationId: replaceCardNotificationSettings
+      parameters:
+        - name: partyId
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CardNotificationSettings'
+      responses:
+        '200':
+          description: Saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardNotificationSettings'
 components:
   securitySchemes:
     bearerAuth:
@@ -606,6 +968,80 @@ components:
             $ref: '#/components/schemas/ApiError'
 
   schemas:
+    PinStatus:
+      type: object
+      properties:
+        pin_set: {type: boolean}
+        last_changed_at: {type: [string, 'null'], format: date-time}
+        attempts_left: {type: [integer, 'null']}
+      required: [pin_set]
+    CardDesign:
+      type: object
+      properties:
+        design: {type: string, enum: [energoBlue, midnight, hydro, copper]}
+      required: [design]
+    WalletProvisioning:
+      type: object
+      properties:
+        activation_data: {type: string}
+        encrypted_pass_data: {type: string}
+        ephemeral_public_key: {type: string}
+        token_reference: {type: string}
+        token_last4: {type: string}
+      required: [activation_data, encrypted_pass_data, ephemeral_public_key, token_reference, token_last4]
+    TravelNotice:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        countries: {type: array, items: {type: string}}
+        start_date: {type: string, format: date}
+        end_date: {type: string, format: date}
+      required: [id, countries, start_date, end_date]
+    DeliveryAddress:
+      type: object
+      properties:
+        line1: {type: string}
+        line2: {type: [string, 'null']}
+        city: {type: string}
+        postal_code: {type: string}
+        country_code: {type: string, pattern: '^[A-Z]{2}$'}
+      required: [line1, city, postal_code, country_code]
+    CardOrderEvent:
+      type: object
+      properties:
+        status: {type: string}
+        at: {type: string}
+        detail: {type: [string, 'null']}
+      required: [status, at]
+    CardOrder:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        card_id: {type: string, format: uuid}
+        last4: {type: [string, 'null']}
+        design: {type: string}
+        status: {type: string, description: "ORDERED, IN_PRODUCTION, SHIPPED, DELIVERED, ACTIVATED or RETURNED"}
+        carrier: {type: [string, 'null']}
+        tracking_number: {type: [string, 'null']}
+        tracking_url: {type: [string, 'null']}
+        expected_on: {type: [string, 'null'], format: date}
+        delivery_address:
+          $ref: '#/components/schemas/DeliveryAddress'
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/CardOrderEvent'
+      required: [id, card_id, design, status, delivery_address, events]
+    CardNotificationSettings:
+      type: object
+      properties:
+        every_payment: {type: boolean}
+        declined_payments: {type: boolean}
+        payments_abroad: {type: boolean}
+        online_payments: {type: boolean}
+        weekly_summary: {type: boolean}
+        large_payment_threshold: {type: [number, 'null']}
+        currency: {type: string}
     OutboxRequeueResponse:
       type: object
       properties:

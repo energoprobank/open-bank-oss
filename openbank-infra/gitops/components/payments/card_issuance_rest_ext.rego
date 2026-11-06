@@ -155,3 +155,25 @@ allowed_reasons contains "service-edge-card-details-read" if {
 	machine_named("service-account-openbank-edge")
 	input.action == "card.details.read"
 }
+
+# Experience v2 step 4: what a customer manages on their own card, through customer-edge (which has
+# established the card is theirs and checked SCA for the PIN and the order). Edge identity only.
+allowed_reasons contains "service-edge-card-self-service" if {
+	input.principal.type == "HUMAN"
+	machine_named("service-account-openbank-edge")
+	input.action in {
+		"card.pin.read",
+		"card.pin.view",
+		"card.pin.update",
+		"card.design.read",
+		"card.design.update",
+		"card.self-activate",
+		"card.wallet.provision",
+		"card.travel.read",
+		"card.travel.update",
+		"card.order.create",
+		"card.order.read",
+		"card.notifications.read",
+		"card.notifications.update",
+	}
+}

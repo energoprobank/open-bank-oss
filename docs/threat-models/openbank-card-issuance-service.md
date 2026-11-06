@@ -12,7 +12,7 @@ Copyright (c) OpenBank contributors. Licensed under the Apache License, Version 
 
 Card registry and lifecycle manager: issue virtual/physical cards (debit, credit, prepaid),
 enforce lifecycle transitions (PENDING→ACTIVE→SUSPENDED/BLOCKED→CANCELLED), store reference
-spending limits. **Not** a card processor — no real-time authorisation, no PIN management, no 3DS,
+spending limits. **Not** a card processor — no real-time authorisation, no PIN verification, no 3DS,
 no external network connection in sandbox. Sandbox `maskedPan` is synthetic (no real PAN stored).
 
 ## 2. Data flow (DFD)
@@ -155,6 +155,31 @@ Postgres or Kafka trust boundaries.
 DEK stay decryptable only as long as that DEK is still derivable, so a rollback must happen before
 retiring the corresponding KEK version in Transit, not after.
 
+## 4d. Customer card self-service (Experience v2 step 4) — STRIDE supplement
+
+New: a PIN per chip card (`card_pins`, V14), card design, plastic card orders placed with a card
+manufacturer (`CARD_FACTORY_URL`), self-activation of a delivered card, travel notices, card
+notification settings, and Apple Wallet in-app provisioning data from a wallet token service
+(`WALLET_TOKEN_SERVICE_URL`). Every route is `ROLE_API` and, in `card_issuance_rest_ext.rego`,
+granted to customer-edge's service identity only. Ownership of the card and the SCA step-up
+(`CARD_MANAGEMENT` with `VIEW_PIN`, `CHANGE_PIN`, `ORDER_PHYSICAL`, consumed once) are enforced
+at customer-edge, which also audits PIN views, PIN changes, orders and wallet provisioning.
+
+| Threat | Mitigation |
+|---|---|
+| **I** — PIN disclosed from the database or a backup | Stored encrypted with `CardSecretCipher`, the PAN vault's key (§4c), never in clear. It is *reversible* by design — the customer can view their PIN — so a holder of that key can read every PIN, the same exposure as the PAN vault. |
+| **I** — PIN disclosed in transit or by a cache | `POST /pin/view` (a POST, not a GET) answers `Cache-Control: no-store`; the PIN is never logged; wallet provisioning data is `no-store` too. |
+| **E** — a caller other than customer-edge reads or changes a PIN | OPA grants `card.pin.*` only to `service-account-openbank-edge` (rego tests cover a denied machine identity). |
+| **T** — a weak PIN | `PinPolicy` refuses four of one digit, ascending/descending runs and years 1900–2099. |
+| **S** — activating a card the customer does not hold | Activation needs the order to be DELIVERED by the manufacturer and the last four digits printed on the plastic. |
+| **T** — a travel notice opening payments abroad too widely | A notice opens exactly its countries and inclusive dates, only for a card with payments abroad off; enforced in `CardAuthorizationPolicy`. |
+
+**Residual:** no PIN *verification* exists here (no ATM/POS PIN path), so `attempts_left` is
+reported but never decremented; the manufacturer and the token service are the local provider
+simulator, with no mTLS and simulator keys — a real vendor needs its own trust review; card
+notification settings are stored but nothing sends from them yet.
+**Rollback:** V14 only adds tables; reverting the code leaves them unused.
+
 ## 5. Residual risks / assumptions
 
 - **No optimistic locking today.** `Card` lacks a `version` column; two concurrent lifecycle
@@ -184,6 +209,8 @@ retiring the corresponding KEK version in Transit, not after.
   process would need this before card data does.
 
 ## 6. Change log
+
+- **2026-11-06** — **Customer card self-service** (Experience v2 step 4, §4d): PIN (encrypted with the card-secret key, viewable and changeable via customer-edge after SCA), design, plastic card orders with a card manufacturer, self-activation with the printed last four digits, travel notices enforced at authorisation, card notification settings, Apple Wallet provisioning data. New outbound edges to the card manufacturer and the wallet token service; new inbound routes granted to customer-edge's identity only.
 
 - **2026-10-03** — **SENT outbox rows are purged after 7 days** (ADR-0329, ADR-0327 D8). `card_outbox` kept every SENT row, payload included, indefinitely: `purgeSent` existed and nothing called it. The shared libs-runtime `OutboxSentRetentionJob` now deletes SENT rows whose `sent_at` is older than `openbank.outbox.retention.sent-days` (default 7) nightly in bounded batches; its v1 repository opts in by delegating `SentOutboxRetention` to `PanacheOutboxRetention`. PENDING, FAILED, DISPATCHING and DEAD rows are never touched. Information disclosure: shrinks the window in which a database read (replica, backup, operator query) exposes past event payloads. No new endpoint, caller or privilege; replaying an event older than 7 days now comes from the broker or audit-service, not this table.
 

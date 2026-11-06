@@ -62,6 +62,12 @@ quarkus:
     # Short timeouts on purpose: product-catalog is KEDA scale-to-zero, and this lookup is
     # fail-open (see CardProductCatalogPort) — waiting on a cold start would delay every issue
     # for a rule that is allowed to be skipped.
+    # Experience v2 step 4: the card manufacturer and the wallet's token service (locally both are faces
+    # of openbank-provider-simulator).
+    card-factory:
+      url: ${CARD_FACTORY_URL:http://localhost:8163}
+    wallet-token-service:
+      url: ${WALLET_TOKEN_SERVICE_URL:http://localhost:8163}
     "product-catalog-api":
       # `openbank-product-catalog:8080` resolved to nothing and named the wrong port — the
       # Service is `product-catalog` on 8104 in namespace `accounts`. Overridden in the cluster

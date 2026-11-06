@@ -38,6 +38,14 @@ object SpendCategory {
      * place is a failure rather than a silent divergence in how the two services enumerate.
      */
     val IDS: List<String> = listOf(
+        // Experience v2 step 4: what the app lets a customer switch off on a card. LOTTERY and BETTING
+        // are children of GAMBLING (blocking GAMBLING blocks them too); each is blockable and limitable.
+        "LOTTERY",
+        "BETTING",
+        "CRYPTO",
+        "ADULT",
+        "DATING",
+        "MONEY_TRANSFER",
         "GAMBLING",
         "GROCERIES",
         "DINING",

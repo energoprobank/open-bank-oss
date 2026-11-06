@@ -37,6 +37,7 @@ import java.util.UUID
 class CardAuthorizationResource(
     private val cardUseCase: CardUseCase,
     private val categoryRules: CardCategoryRuleRepository,
+    private val selfService: com.openbank.cardissuance.infrastructure.persistence.CardSelfServiceStore,
 ) {
 
     /**
@@ -170,6 +171,8 @@ class CardAuthorizationResource(
                 spentThisMonthInCategoryMinorUnits = req.spentThisMonthInCategoryMinorUnits,
             ),
             rules = categoryRules.findByCard(id),
+            // Experience v2 step 4: the customer's travel notices open the countries they named.
+            travel = selfService.travelWindows(id),
         )
         return Response.ok(
             AuthorizationDecisionResponse(

@@ -350,3 +350,16 @@ test_authorization_decide_denied_to_everyone_else if {
 	rest.allow == false with input as {"principal": {"type": "HUMAN", "id": "u-staff", "roles": ["ROLE_OPERATOR", "ROLE_ADMIN"]}, "action": "card.authorization.decide"}
 		with data.rules as b6_rules
 }
+
+# Experience v2 step 4: the edge, and only the edge, may drive the card self-service actions.
+test_edge_may_drive_card_self_service if {
+	every action in {"card.pin.view", "card.pin.update", "card.order.create", "card.self-activate", "card.travel.update"} {
+		"service-edge-card-self-service" in rest.allowed_reasons with input as {"principal": b6_sa("edge"), "action": action}
+	}
+}
+
+test_no_other_machine_drives_card_self_service if {
+	every name in {"card-processing", "delegation", "rewards", "party"} {
+		not "service-edge-card-self-service" in rest.allowed_reasons with input as {"principal": b6_sa(name), "action": "card.pin.view"}
+	}
+}
