@@ -54,7 +54,7 @@ info:
   # 1.83.0 -> 1.84.0: additive low-balance-alert endpoint and schemas (ADR-0333).
   # 1.85.0 -> 1.86.0: additive — /rewards/* (FLUX rewards, openbank-rewards-service Customer API),
   # capability id rewards.flux; the /loyalty routes are marked deprecated (the app moves to /rewards).
-  version: 1.88.0
+  version: 1.89.0
   description: >-
     Customer-facing edge proxy (ADR-0065). Single internet-facing entry point for the
     retail customer app. Validates JWTs from the openbank-customers Keycloak realm,
@@ -278,6 +278,272 @@ paths:
     put: { summary: "Change payment protection (street mode is enforced on payments: 403 STREET_MODE)", responses: { '200': { description: Saved } } }
   /financial-health/energy-trend:
     get: { summary: The linked Energo-Pro account's cost over twelve months, responses: { '200': { description: Trend }, '404': { description: Not linked } } }
+  /cards/physical/options:
+    get:
+      tags: [Cards]
+      summary: 'A plastic card: fee (first free), designs, address on file, delivery days (experience v2 step 4)'
+      parameters:
+      - name: account_id
+        in: query
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Options
+  /cards/physical:
+    post:
+      tags: [Cards]
+      summary: Order a plastic card (SCA CARD_MANAGEMENT ORDER_PHYSICAL bound to the account)
+      responses:
+        '201':
+          description: The order
+        '403':
+          description: SCA_REQUIRED
+  /cards/physical/orders:
+    get:
+      tags: [Cards]
+      summary: The customer's plastic card orders with delivery status
+      responses:
+        '200':
+          description: Orders
+  /cards/physical/orders/{orderId}:
+    get:
+      tags: [Cards]
+      summary: One order
+      parameters:
+      - name: orderId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: The order
+  /cards/{id}/activate:
+    post:
+      tags: [Cards]
+      summary: Activate a delivered plastic card with the last four digits on it
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: ACTIVE
+        '409':
+          description: NOT_DELIVERED
+  /cards/{id}/design:
+    get:
+      tags: [Cards]
+      summary: The card's design
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Design
+    put:
+      tags: [Cards]
+      summary: Change the design (until a plastic card is printed)
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Design
+        '409':
+          description: ALREADY_PRINTED
+  /cards/{id}/pin:
+    get:
+      tags: [Cards]
+      summary: Whether the card has a PIN
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: '{pin_set, last_changed_at, attempts_left}'
+    put:
+      tags: [Cards]
+      summary: Change the PIN (SCA CHANGE_PIN)
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '204':
+          description: Changed
+        '400':
+          description: A weak PIN
+        '403':
+          description: SCA_REQUIRED
+  /cards/{id}/pin/view:
+    post:
+      tags: [Cards]
+      summary: Show the PIN (SCA VIEW_PIN); never cached
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: '{pin, visible_seconds}'
+        '403':
+          description: SCA_REQUIRED
+  /cards/{id}/merchant-categories:
+    get:
+      tags: [Cards]
+      summary: Categories the card declines
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: '{blocked}'
+    put:
+      tags: [Cards]
+      summary: Block or unblock categories (monthly caps are kept)
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: '{blocked}'
+  /cards/{id}/travel-notices:
+    get:
+      tags: [Cards]
+      summary: Travel notices (payments allowed in these countries on these dates)
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Notices
+    post:
+      tags: [Cards]
+      summary: Add a travel notice
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '201':
+          description: The notice
+  /cards/{id}/travel-notices/{noticeId}:
+    delete:
+      tags: [Cards]
+      summary: Remove a travel notice
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: noticeId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '204':
+          description: Removed
+  /cards/notification-settings:
+    get:
+      tags: [Cards]
+      summary: Card notifications
+      responses:
+        '200':
+          description: Settings
+    put:
+      tags: [Cards]
+      summary: Change card notifications
+      responses:
+        '200':
+          description: Settings
+  /cards/{id}/wallet:
+    get:
+      tags: [Cards]
+      summary: Whether the card is in Apple Wallet
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: '{in_wallet, device_name, token_last4}'
+  /cards/{id}/wallet/provision:
+    post:
+      tags: [Cards]
+      summary: In-app Apple Wallet provisioning data
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: '{activation_data, encrypted_pass_data, ephemeral_public_key}'
+  /cards/{id}/transactions:
+    get:
+      tags: [Cards]
+      summary: The card's payments
+      newest first: null
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Payments
   /security/liveness/policy:
     get:
       summary: The customer's face-check limit
