@@ -41,6 +41,7 @@
   "openbank-pension-fund-service": "1.0.2",
   "openbank-pid-service": "0.10.10",
   "openbank-product-catalog": "1.1.0",
+  "openbank-everyday-service": "0.1.0",
   "openbank-provider-simulator": "0.1.0",
   "openbank-psd2-service": "0.11.10",
   "openbank-incentive-service": "0.8.0",

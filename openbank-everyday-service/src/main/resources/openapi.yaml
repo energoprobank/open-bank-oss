@@ -1,0 +1,114 @@
+openapi: 3.0.3
+info:
+  title: OpenBank Everyday Service API
+  version: 1.0.0
+  description: >-
+    Everyday money (experience v2 step 3): biller registry, the Energo-Pro electricity account and its
+    bills, bill reminders. Machine callers only (customer-edge, with the party id from the customer's token).
+servers:
+  - url: /api/v1/everyday
+security:
+  - bearer: []
+paths:
+  /parties/{partyId}/bills/billers:
+    get:
+      summary: Billers in the customer's market
+      parameters: [{$ref: "#/components/parameters/PartyId"}]
+      responses:
+        "200": {description: Billers, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/Biller"}}}}}
+  /parties/{partyId}/bills/energo-pro:
+    get:
+      summary: The linked Energo-Pro account and its current bill (linked=false when none)
+      parameters: [{$ref: "#/components/parameters/PartyId"}]
+      responses:
+        "200": {description: The account, content: {application/json: {schema: {$ref: "#/components/schemas/ElectricityAccount"}}}}
+  /parties/{partyId}/bills/energo-pro/bills:
+    get:
+      summary: The linked account's bills, newest first (empty when not linked)
+      parameters: [{$ref: "#/components/parameters/PartyId"}]
+      responses:
+        "200": {description: Bills, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/Bill"}}}}}
+  /parties/{partyId}/bills/energo-pro/link:
+    post:
+      summary: Link the customer's own Energo-Pro customer number
+      parameters: [{$ref: "#/components/parameters/PartyId"}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [customer_number, data_sharing_consent]
+              properties:
+                customer_number: {type: string, pattern: "^EP-\\d{7}$"}
+                data_sharing_consent: {type: boolean}
+      responses:
+        "200": {description: Linked, content: {application/json: {schema: {$ref: "#/components/schemas/ElectricityAccount"}}}}
+        "400": {description: No consent or a malformed number}
+        "404": {description: "NO_MATCH: no Energo-Pro customer with this number and the customer's name"}
+        "409": {description: "ALREADY_LINKED: linked to another customer"}
+    delete:
+      summary: Unlink the Energo-Pro account
+      parameters: [{$ref: "#/components/parameters/PartyId"}]
+      responses:
+        "204": {description: Unlinked}
+  /parties/{partyId}/bills/reminders:
+    get:
+      summary: Bill reminders and the bills they will remind about
+      parameters: [{$ref: "#/components/parameters/PartyId"}]
+      responses:
+        "200": {description: Reminders, content: {application/json: {schema: {$ref: "#/components/schemas/Reminders"}}}}
+    put:
+      summary: Turn reminders on or off and choose the days before the due date (0-14)
+      parameters: [{$ref: "#/components/parameters/PartyId"}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [enabled]
+              properties:
+                enabled: {type: boolean}
+                days_before: {type: integer, minimum: 0, maximum: 14}
+      responses:
+        "200": {description: Saved, content: {application/json: {schema: {$ref: "#/components/schemas/Reminders"}}}}
+        "400": {description: days_before out of range}
+components:
+  securitySchemes:
+    bearer: {type: http, scheme: bearer}
+  parameters:
+    PartyId: {name: partyId, in: path, required: true, schema: {type: string, format: uuid}}
+  schemas:
+    Biller:
+      type: object
+      properties:
+        id: {type: string}
+        name: {type: string}
+        category: {type: string}
+        iban: {type: string}
+    Bill:
+      type: object
+      properties:
+        id: {type: string}
+        period: {type: string}
+        amount: {type: number}
+        currency: {type: string}
+        due_date: {type: string, format: date}
+        status: {type: string, enum: [DUE, PAID, OVERDUE]}
+        collection_iban: {type: string}
+        reference: {type: string}
+    ElectricityAccount:
+      type: object
+      properties:
+        linked: {type: boolean}
+        customer_number: {type: string, nullable: true}
+        supplier_name: {type: string, nullable: true}
+        current_bill: {allOf: [{$ref: "#/components/schemas/Bill"}], nullable: true}
+        next_estimate: {type: number, nullable: true}
+    Reminders:
+      type: object
+      properties:
+        enabled: {type: boolean}
+        days_before: {type: integer}
+        upcoming: {type: array, items: {$ref: "#/components/schemas/Bill"}}

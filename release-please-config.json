@@ -131,6 +131,12 @@
         "openbank-incentive-service/src/test"
       ]
     },
+    "openbank-everyday-service": {
+      "component": "everyday-service",
+      "exclude-paths": [
+        "openbank-everyday-service/src/test"
+      ]
+    },
     "openbank-provider-simulator": {
       "component": "provider-simulator",
       "exclude-paths": [

@@ -1,0 +1,141 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) OpenBank contributors. Licensed under the Apache License, Version 2.0.
+#
+# openbank-everyday-service — everyday money (experience v2 step 3): biller registry, the Energo-Pro
+# electricity account and bill payments, bill reminders. Blocking JDBC (no Hibernate), like rewards.
+quarkus:
+  application:
+    name: openbank-everyday-service
+  http:
+    port: 8164
+    header:
+      X-Content-Type-Options:
+        value: nosniff
+      X-Frame-Options:
+        value: DENY
+      Referrer-Policy:
+        value: strict-origin-when-cross-origin
+      Content-Security-Policy:
+        value: "default-src 'self'"
+      Strict-Transport-Security:
+        value: "max-age=31536000; includeSubDomains"
+  datasource:
+    db-kind: postgresql
+    username: ${POSTGRES_USER:openbank}
+    password: ${POSTGRES_PASSWORD:CHANGE_ME_LOCAL_DEV_ONLY}
+    jdbc:
+      url: ${JDBC_URL:jdbc:postgresql://localhost:5432/openbank_everyday}
+      max-size: 10
+  flyway:
+    migrate-at-start: true
+    connect-retries: 10
+    connect-retries-interval: 2S
+  oidc:
+    auth-server-url: ${QUARKUS_OIDC_AUTH_SERVER_URL:http://localhost:8080/realms/openbank}
+    client-id: openbank-services
+    credentials:
+      secret: ${OIDC_CLIENT_SECRET:CHANGE_ME_LOCAL_DEV_ONLY}
+  # The token this service PRESENTS to Energo-Pro (the provider simulator) and party-service.
+  oidc-client:
+    auth-server-url: ${QUARKUS_OIDC_CLIENT_AUTH_SERVER_URL:http://localhost:8080/realms/openbank}
+    client-id: ${EVERYDAY_OIDC_CLIENT_ID:openbank-services}
+    credentials:
+      secret: ${EVERYDAY_OIDC_CLIENT_SECRET:${OIDC_CLIENT_SECRET:CHANGE_ME_LOCAL_DEV_ONLY}}
+    grant:
+      type: client
+    early-tokens-acquisition: false
+    # Refresh before expiry: a token valid when checked must not expire in transit (onboarding #step8).
+    refresh-token-time-skew: 30S
+  rest-client:
+    energo-pro:
+      url: ${ENERGO_PRO_URL:http://localhost:8163}
+    party-service:
+      url: ${PARTY_SERVICE_URL:http://localhost:8111}
+  swagger-ui:
+    always-include: true
+    path: /api/docs
+  management:
+    enabled: true
+    port: 8085
+    host: 0.0.0.0
+    root-path: /q
+  shutdown:
+    timeout: 30S
+  log:
+    level: INFO
+    console:
+      json: true
+  otel:
+    exporter:
+      otlp:
+        endpoint: http://localhost:4317
+  dev-ui:
+    enabled: false
+
+mp:
+  messaging:
+    # No group.id key: the group is the fallback `quarkus.application.name`. DLQ topic in the NESTED
+    # form, the only one SmallRye's YAML source resolves (#686). The handler never rethrows, so the
+    # DLQ is a safety net, not a path.
+    incoming:
+      domestic-payments-in:
+        connector: smallrye-kafka
+        topic: openbank.domestic.payment.events
+        failure-strategy: dead-letter-queue
+        dead-letter-queue:
+          topic: openbank.dlq.everyday.domestic-payments-in
+        value:
+          deserializer: org.apache.kafka.common.serialization.StringDeserializer
+
+"%dev":
+  quarkus:
+    log:
+      console:
+        json: false
+
+"%test":
+  quarkus:
+    datasource:
+      username: openbank
+      password: openbank_secret
+      jdbc:
+        url: jdbc:postgresql://localhost:5432/openbank_everyday_it
+    devservices:
+      enabled: false
+    management:
+      enabled: false
+    oidc:
+      tenant-enabled: false
+    oidc-client:
+      enabled: false
+  authz:
+    enforce: false
+  mp:
+    messaging:
+      incoming:
+        domestic-payments-in:
+          connector: smallrye-in-memory
+  openbank:
+    everyday:
+      notice-retry:
+        every: 1h
+
+opa:
+  url: "${OPA_URL:http://localhost:8181}"
+  path: "${OPA_PATH:/v1/data/openbank/rest/allow}"
+  timeout-ms: "${OPA_TIMEOUT_MS:500}"
+authz:
+  enforce: "${AUTHZ_ENFORCE:true}"
+
+openbank:
+  # BUILD-TIME switch for the libs-runtime OPA PolicyDecisionPoint producer: without it every
+  # @Authorize endpoint fails closed.
+  authz:
+    opa-pdp-producer:
+      enabled: true
+  api:
+    version: "1"
+  build:
+    time: "${BUILD_TIME:unknown}"
+  git:
+    commit: "${GIT_COMMIT:unknown}"

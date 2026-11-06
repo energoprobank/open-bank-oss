@@ -1,0 +1,27 @@
+# SPDX-License-Identifier: Apache-2.0
+# Per-service governance manifest (ADR-0071). Declarative, curatorial facts only.
+#
+# openbank-everyday-service — everyday money (experience v2 step 3): the biller registry, the
+# Energo-Pro electricity account a customer links, the bill payments the bank sees (and tells the
+# biller about), and bill reminders. Money moves only through domestic-payment, signed by the customer.
+dataDomain: payments
+primaryDatastore: postgresql
+dataLineageRole: internal
+dataClassification: confidential
+retentionPolicy: bill payments 10 years (accounting); electricity link until unlinked
+evidenceExported: false
+lineage:
+  upstream:
+    - serviceName: domestic-payment
+      relationType: event
+      description: DOMESTIC_PAYMENT_CREATED on openbank.domestic.payment.events (bill payments)
+    - serviceName: party
+      relationType: api
+      description: the customer's name and market
+    - serviceName: provider-simulator
+      relationType: api
+      description: Energo-Pro customer and billing system (bills, payment notices)
+  downstream:
+    - serviceName: customer-edge
+      relationType: api
+      description: bills, billers, electricity link and reminders for the mobile app
