@@ -131,6 +131,8 @@ b5_rules := {
 b5_grants := {
 	"analytics-sink": {"reason": "service-analytics-sink-account-read", "actions": {"account.list"}},
 	"billing": {"reason": "service-billing-account-read", "actions": {"account.list", "account.read"}},
+	# experience v2 step 3: a customer's account list only (transactions, top-up target).
+	"everyday": {"reason": "service-everyday-account-read", "actions": {"account.list"}},
 	"interest": {"reason": "service-interest-account-read", "actions": {"account.list", "account.read"}},
 	"document": {"reason": "service-document-account-read", "actions": {"account.list"}},
 	"lending": {"reason": "service-lending-account-read", "actions": {"account.list"}},

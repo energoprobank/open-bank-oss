@@ -9,7 +9,7 @@ metadata:
     app.kubernetes.io/name: ledger-service
     app.kubernetes.io/part-of: ledger-pension-co
   annotations:
-    openbank.tech/policy-checksum: "3aefc26e13679949"
+    openbank.tech/policy-checksum: "9693ee94282c4e22"
 data:
   rest.rego: |
     # SPDX-License-Identifier: Apache-2.0
@@ -789,6 +789,9 @@ data:
     #   ledger.trigger  — run the daily FX revaluation (ops/backfill only)
     #   ledger.replay   — re-emit historical AccountBookedChanged for a window (ops recovery,
     #                      #860); posts no journal, re-drives the book of record's own events.
+    #   ledger.rewardProvision — POST /api/v1/ledger/reward-provisions (RewardProvisionResource,
+    #                      ADR-0344): the FLUX provision template (Dr 5300/5301 / Cr 2400/2401, or the
+    #                      reverse). Machine-only, ONE principal: service-account-openbank-rewards.
     #
     # Base rest.rego's operator-read-any / compliance-read-any only cover HUMAN
     # ROLE_OPERATOR/ROLE_ADMIN/ROLE_COMPLIANCE on *.read + *.list — but every ledger read
@@ -1034,6 +1037,21 @@ data:
     	input.action == "ledger.reverse"
     }
 
+    # ADR-0344 — the FLUX rewards engine on its own identity (Keycloak client `openbank-rewards`, ROLE_API
+    # only). Its WHOLE grant here is ledger.rewardProvision: the fixed provision template, whose accounts the
+    # ledger chooses, so this principal can move value only between FLUX reward expense and FLUX provision
+    # and only in the CZK/EUR pair its market fixes. It is NOT granted ledger.create — a stolen rewards
+    # credential cannot post an arbitrary journal — nor any read. Granted by identity alone (never by role:
+    # machine principals reach no role grant, see the #3734 note above), and nothing else reaches the action:
+    # it is not in rules.yaml's role_action_matrix, it is no read/list verb, and operator-ledger-write does
+    # not list it — an operator correction to the provision is an ordinary, reviewed ledger.create journal.
+    # Not a four-eyes verb on purpose (`post`/`credit` are): this is an automated daily call.
+    allowed_reasons contains "service-rewards-ledger-provision" if {
+    	input.principal.type == "HUMAN"
+    	machine_named("service-account-openbank-rewards")
+    	input.action == "ledger.rewardProvision"
+    }
+
     # ledger.trigger (FX revaluation) and ledger.approve (year-close attest) have NO in-repo
     # M2M caller — the FX revaluation is scheduled in-process (FxRevaluationScheduler) and the
     # ops/backfill re-run endpoint is operator-only; year-close attestation is a human sign-off
@@ -1042,7 +1060,7 @@ data:
 
     prohibited if {
     	machine_named("service-account-openbank-edge")
-        input.action in {"ledger.create", "ledger.reverse", "ledger.trigger", "ledger.replay", "ledger.approve", "ledger.close.draft"}
+        input.action in {"ledger.create", "ledger.reverse", "ledger.trigger", "ledger.replay", "ledger.approve", "ledger.close.draft", "ledger.rewardProvision"}
     }
   ledger_pension_co_rest_ext.rego: |
     # SPDX-License-Identifier: Apache-2.0

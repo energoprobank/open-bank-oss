@@ -147,6 +147,14 @@ allowed_reasons contains "service-sdd-transaction-create" if {
 	input.action == "transaction.create"
 }
 
+# Experience v2 step 3: everyday-service reads a customer's transactions (subscriptions, spending
+# insights, export) and books the credit of a card top-up the acquirer authorised. Nothing else.
+allowed_reasons contains "service-everyday-transaction" if {
+	input.principal.type == "HUMAN"
+	machine_named("service-account-openbank-everyday")
+	input.action in {"transaction.create", "transaction.list"}
+}
+
 allowed_reasons contains "service-standing-order-transaction-create" if {
 	input.principal.type == "HUMAN"
 	machine_named("service-account-openbank-standing-order")

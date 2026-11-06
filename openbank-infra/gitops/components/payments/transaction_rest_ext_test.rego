@@ -45,6 +45,8 @@ grants := {
 	"sepa-instant": {"reason": "service-sepa-instant-transaction-create", "actions": {"transaction.create"}},
 	"swift": {"reason": "service-swift-transaction-create", "actions": {"transaction.create"}},
 	"interest": {"reason": "service-interest-transaction-create", "actions": {"transaction.create"}},
+	# experience v2 step 3: card top-up credits, and reading a customer's transactions
+	"everyday": {"reason": "service-everyday-transaction", "actions": {"transaction.create", "transaction.list"}},
 }
 
 all_actions := {

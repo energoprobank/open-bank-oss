@@ -129,6 +129,14 @@ allowed_reasons contains "service-analytics-sink-account-read" if {
 	input.action == "account.list"
 }
 
+# Experience v2 step 3: everyday-service lists a customer's accounts to read their transactions
+# (subscriptions, spending insights, export) and to find the account a card top-up credits.
+allowed_reasons contains "service-everyday-account-read" if {
+	input.principal.type == "HUMAN"
+	machine_named("service-account-openbank-everyday")
+	input.action == "account.list"
+}
+
 allowed_reasons contains "service-billing-account-read" if {
 	input.principal.type == "HUMAN"
 	machine_named("service-account-openbank-billing")

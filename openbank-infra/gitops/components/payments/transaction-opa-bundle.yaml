@@ -9,7 +9,7 @@ metadata:
     app.kubernetes.io/name: transaction-service
     app.kubernetes.io/part-of: payments
   annotations:
-    openbank.tech/policy-checksum: "fb285a77b264631e"
+    openbank.tech/policy-checksum: "d8a3d1032f13c454"
 data:
   rest.rego: |
     # SPDX-License-Identifier: Apache-2.0
@@ -908,6 +908,14 @@ data:
     	input.principal.type == "HUMAN"
     	machine_named("service-account-openbank-sdd")
     	input.action == "transaction.create"
+    }
+
+    # Experience v2 step 3: everyday-service reads a customer's transactions (subscriptions, spending
+    # insights, export) and books the credit of a card top-up the acquirer authorised. Nothing else.
+    allowed_reasons contains "service-everyday-transaction" if {
+    	input.principal.type == "HUMAN"
+    	machine_named("service-account-openbank-everyday")
+    	input.action in {"transaction.create", "transaction.list"}
     }
 
     allowed_reasons contains "service-standing-order-transaction-create" if {
