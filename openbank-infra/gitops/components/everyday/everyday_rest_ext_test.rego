@@ -15,10 +15,13 @@ shared_sa := {"service_account": true, "client_id": "openbank-services", "type":
 test_edge_may_read_and_link_bills if {
 	"service-everyday-edge-m2m" in allowed_reasons with input as {"principal": edge_sa, "action": "everyday.bills.read"}
 	"service-everyday-edge-m2m" in allowed_reasons with input as {"principal": edge_sa, "action": "everyday.bills.update"}
+	"service-everyday-edge-m2m" in allowed_reasons with input as {"principal": edge_sa, "action": "everyday.money.update"}
+	"service-everyday-edge-m2m" in allowed_reasons with input as {"principal": edge_sa, "action": "everyday.exports.download"}
 }
 
 test_no_other_machine_may if {
 	not "service-everyday-edge-m2m" in allowed_reasons with input as {"principal": shared_sa, "action": "everyday.bills.update"}
+	not "service-everyday-edge-m2m" in allowed_reasons with input as {"principal": shared_sa, "action": "everyday.money.update"}
 }
 
 test_the_edge_gets_nothing_else_here if {

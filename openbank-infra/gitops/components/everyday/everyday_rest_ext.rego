@@ -7,6 +7,9 @@
 # ROLE_API is held by every service account.
 #   everyday.bills.read   — billers, the electricity account, bills, reminders
 #   everyday.bills.update — link / unlink the Energo-Pro account, save reminders
+#   everyday.money.read   — direct debits, subscriptions, insights, exports, top-ups, protection, energy trend
+#   everyday.money.update — create/cancel those, start a top-up or an export, recall a transfer
+#   everyday.exports.download — an export file by its short-lived download token
 
 package openbank.rest
 
@@ -18,5 +21,8 @@ allowed_reasons contains "service-everyday-edge-m2m" if {
 	input.action in {
 		"everyday.bills.read",
 		"everyday.bills.update",
+		"everyday.money.read",
+		"everyday.money.update",
+		"everyday.exports.download",
 	}
 }

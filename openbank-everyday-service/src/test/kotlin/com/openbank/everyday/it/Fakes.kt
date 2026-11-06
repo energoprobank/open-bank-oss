@@ -80,3 +80,91 @@ class FakeEnergoPro : EnergoProPort {
         const val DUE_REFERENCE = "4000001102"
     }
 }
+
+/** Jana's accounts and a year of believable payments (Netflix monthly, salary, groceries, a transfer). */
+@Alternative
+@Priority(1)
+@ApplicationScoped
+class FakeBank :
+    com.openbank.everyday.application.AccountsPort,
+    com.openbank.everyday.application.TransactionsPort,
+    com.openbank.everyday.application.AcquirerPort {
+    val credits = CopyOnWriteArrayList<String>()
+
+    @Volatile
+    var acquirerStatus = "CREATED"
+
+    override fun accounts(partyId: UUID): List<com.openbank.everyday.domain.AccountRef> = if (partyId != People.JANA) {
+        emptyList()
+    } else {
+        listOf(
+            com.openbank.everyday.domain.AccountRef(
+                CURRENT,
+                "CZ6588990000000000000001",
+                "CZK",
+                "CURRENT",
+                "ACTIVE",
+            ),
+            com.openbank.everyday.domain.AccountRef(
+                SAVINGS,
+                "CZ6588990000000000000002",
+                "CZK",
+                "SAVINGS",
+                "ACTIVE",
+            ),
+        )
+    }
+
+    override fun payments(
+        account: com.openbank.everyday.domain.AccountRef,
+        since: LocalDate,
+        own: Set<UUID>,
+    ): List<com.openbank.everyday.domain.Txn> {
+        if (account.id != CURRENT) return emptyList()
+        val today = LocalDate.now()
+        val out = mutableListOf<com.openbank.everyday.domain.Txn>()
+        fun t(daysAgo: Long, outgoing: Boolean, amount: String, text: String, rail: String?, own: Boolean = false) {
+            out += com.openbank.everyday.domain.Txn(
+                UUID.nameUUIDFromBytes(
+                    "$daysAgo|$text".toByteArray(),
+                ),
+                CURRENT, outgoing, BigDecimal(amount), "CZK", text,
+                today.minusDays(daysAgo), null, rail, null, own,
+            )
+        }
+        for (m in 0L..5L) {
+            t(m * 30 + 3, true, "299.00", "NETFLIX.COM ${m + 1}", "CARD")
+            t(m * 30 + 10, false, "52000.00", "Mzda ACME s.r.o.", "DOMESTIC")
+            t(m * 30 + 5, true, "1840.50", "ALBERT 1234 PRAHA", "CARD")
+        }
+        t(2, true, "5000.00", "Převod na spoření", "DOMESTIC", own = true)
+        t(1, true, "1200.00", "Jan Novák — oprava", "DOMESTIC")
+        return out.filter { !it.date.isBefore(since) }.sortedByDescending { it.date }
+    }
+
+    override fun credit(
+        accountId: UUID,
+        amount: BigDecimal,
+        currency: String,
+        description: String,
+        idempotencyKey: String,
+        party: UUID,
+    ): UUID {
+        credits += idempotencyKey
+        return UUID.nameUUIDFromBytes(idempotencyKey.toByteArray())
+    }
+
+    override fun start(amount: BigDecimal, currency: String, reference: String) =
+        com.openbank.everyday.application.AcquirerSession(
+            "acq-$reference",
+            "http://acquirer.test/pay/acq-$reference",
+            "CREATED",
+        )
+
+    override fun status(acquirerRef: String): String = acquirerStatus
+
+    companion object {
+        val CURRENT: UUID = UUID.fromString("00000000-0000-0000-0000-0000000a0001")
+        val SAVINGS: UUID = UUID.fromString("00000000-0000-0000-0000-0000000a0002")
+    }
+}

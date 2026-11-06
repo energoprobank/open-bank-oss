@@ -20,6 +20,8 @@ dependencies {
     implementation(libs.quarkus.rest.client.reactive.jackson)
     implementation(libs.jackson.module.kotlin)
     implementation(libs.jackson.datatype.jsr310)
+    // Payments export as PDF (DejaVu Sans embedded: Czech and Bulgarian text).
+    implementation(libs.pdfbox)
     implementation(project(":openbank-libs-domain"))
     implementation(project(":openbank-libs-runtime"))
 

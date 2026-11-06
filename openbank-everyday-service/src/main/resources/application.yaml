@@ -51,6 +51,13 @@ quarkus:
       url: ${ENERGO_PRO_URL:http://localhost:8163}
     party-service:
       url: ${PARTY_SERVICE_URL:http://localhost:8111}
+    account-service:
+      url: ${ACCOUNT_SERVICE_URL:http://localhost:8100}
+    transaction-service:
+      url: ${TRANSACTION_SERVICE_URL:http://localhost:8102}
+    # The card acquirer running the top-up checkout (locally: the provider simulator).
+    acquirer:
+      url: ${ACQUIRER_URL:http://localhost:8163}
   swagger-ui:
     always-include: true
     path: /api/docs

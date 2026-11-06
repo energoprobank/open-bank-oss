@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: OpenBank Everyday Service API
-  version: 1.0.0
+  version: 1.1.0
   description: >-
     Everyday money (experience v2 step 3): biller registry, the Energo-Pro electricity account and its
     bills, bill reminders. Machine callers only (customer-edge, with the party id from the customer's token).
@@ -74,6 +74,38 @@ paths:
       responses:
         "200": {description: Saved, content: {application/json: {schema: {$ref: "#/components/schemas/Reminders"}}}}
         "400": {description: days_before out of range}
+  /parties/{partyId}/direct-debits/mandates:
+    get: {summary: Direct-debit consents, parameters: [{$ref: "#/components/parameters/PartyId"}], responses: {"200": {description: Mandates}}}
+    post: {summary: "Allow a creditor to collect (INKASO, SIPO, SEPA_CORE)", parameters: [{$ref: "#/components/parameters/PartyId"}], responses: {"201": {description: Created}, "400": {description: Invalid}, "404": {description: Not the customer's account}, "409": {description: MANDATE_EXISTS}}}
+  /parties/{partyId}/direct-debits/mandates/{id}:
+    delete: {summary: Withdraw a consent, parameters: [{$ref: "#/components/parameters/PartyId"}, {name: id, in: path, required: true, schema: {type: string, format: uuid}}], responses: {"200": {description: Cancelled}, "404": {description: Not found}}}
+  /parties/{partyId}/subscriptions:
+    get: {summary: Detected subscriptions, parameters: [{$ref: "#/components/parameters/PartyId"}], responses: {"200": {description: Subscriptions}}}
+  /parties/{partyId}/subscriptions/{id}/cancel:
+    post: {summary: Ask to stop a subscription, parameters: [{$ref: "#/components/parameters/PartyId"}, {name: id, in: path, required: true, schema: {type: string}}], responses: {"200": {description: CANCEL_REQUESTED}, "404": {description: Not found}}}
+  /parties/{partyId}/subscriptions/{id}/reminder:
+    put: {summary: Remind before the next charge, parameters: [{$ref: "#/components/parameters/PartyId"}, {name: id, in: path, required: true, schema: {type: string}}], responses: {"200": {description: Saved}}}
+  /parties/{partyId}/accounts/{accountId}/insights/spending:
+    get: {summary: "A month's spending by category (month=yyyy-MM)", parameters: [{$ref: "#/components/parameters/PartyId"}, {name: accountId, in: path, required: true, schema: {type: string, format: uuid}}, {name: month, in: query, required: true, schema: {type: string}}], responses: {"200": {description: Spending}}}
+  /parties/{partyId}/accounts/{accountId}/insights/cash-flow:
+    get: {summary: "Month-end forecast (balance = today's, from the caller)", parameters: [{$ref: "#/components/parameters/PartyId"}, {name: accountId, in: path, required: true, schema: {type: string, format: uuid}}, {name: balance, in: query, required: true, schema: {type: number}}], responses: {"200": {description: Cash flow}}}
+  /parties/{partyId}/accounts/{accountId}/exports:
+    post: {summary: Export payments (CSV or PDF), parameters: [{$ref: "#/components/parameters/PartyId"}, {name: accountId, in: path, required: true, schema: {type: string, format: uuid}}], responses: {"201": {description: "READY, with a download token"}}}
+  /parties/{partyId}/accounts/{accountId}/exports/{exportId}:
+    get: {summary: An export, parameters: [{$ref: "#/components/parameters/PartyId"}, {name: accountId, in: path, required: true, schema: {type: string, format: uuid}}, {name: exportId, in: path, required: true, schema: {type: string, format: uuid}}], responses: {"200": {description: The export}}}
+  /export-files/{token}:
+    get: {summary: The file behind a download token (404 when unknown or expired), parameters: [{name: token, in: path, required: true, schema: {type: string}}], responses: {"200": {description: CSV or PDF}, "404": {description: Unknown or expired}}}
+  /parties/{partyId}/money/transactions/{transactionId}/recall:
+    post: {summary: Recall a transfer, parameters: [{$ref: "#/components/parameters/PartyId"}, {name: transactionId, in: path, required: true, schema: {type: string, format: uuid}}], responses: {"201": {description: SENT_TO_BANK}, "409": {description: "NOT_RECALLABLE, USE_DISPUTE, RECALL_EXISTS"}}}
+  /parties/{partyId}/money/top-ups:
+    post: {summary: Start a card top-up, parameters: [{$ref: "#/components/parameters/PartyId"}], responses: {"201": {description: "CREATED, with the checkout URL"}}}
+  /parties/{partyId}/money/top-ups/{id}:
+    get: {summary: "A top-up (credits once the acquirer authorised)", parameters: [{$ref: "#/components/parameters/PartyId"}, {name: id, in: path, required: true, schema: {type: string, format: uuid}}], responses: {"200": {description: The top-up}}}
+  /parties/{partyId}/money/payment-protection:
+    get: {summary: Payment protection, parameters: [{$ref: "#/components/parameters/PartyId"}], responses: {"200": {description: Settings}}}
+    put: {summary: Change payment protection, parameters: [{$ref: "#/components/parameters/PartyId"}], responses: {"200": {description: Saved}, "400": {description: Invalid}}}
+  /parties/{partyId}/money/energy-trend:
+    get: {summary: Twelve months of Energo-Pro cost, parameters: [{$ref: "#/components/parameters/PartyId"}], responses: {"200": {description: Trend}, "404": {description: Not linked}}}
 components:
   securitySchemes:
     bearer: {type: http, scheme: bearer}
