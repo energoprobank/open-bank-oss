@@ -53,6 +53,12 @@ class ExperienceEdge(val upstream: UpstreamClient) {
     )
     lateinit var onboardingUrl: String
 
+    @ConfigProperty(
+        name = "openbank.edge.everyday-service-url",
+        defaultValue = "http://everyday-service.payments.svc:8164",
+    )
+    lateinit var everydayUrl: String
+
     @ConfigProperty(name = "openbank.edge.party-service-url")
     lateinit var partyUrl: String
 

@@ -298,12 +298,16 @@ class CustomerEdgeResource(
         if (own.statusInfo.family != Response.Status.Family.SUCCESSFUL) return own
         val shared = sharedAccountsFor(customer.partyId)
         if (shared.isEmpty()) return own
-        val merged = runCatching { objectMapper.readTree(own.entity?.toString() ?: "") }
-            .getOrNull()?.takeIf { it.isArray } ?: return own
+        val body = runCatching { objectMapper.readTree(own.entity?.toString() ?: "") }.getOrNull() ?: return own
+        // account-service answers a page ({data, pagination}): the shared accounts join `data`, the
+        // page keeps its shape. A bare array (the older shape) stays an array.
+        val page = body as? com.fasterxml.jackson.databind.node.ObjectNode
+        val list = (if (body.isArray) body else page?.path("data"))?.takeIf { it.isArray } ?: return own
         val out = objectMapper.createArrayNode()
-        merged.forEach { out.add(it) }
+        list.forEach { out.add(it) }
         shared.forEach { out.add(it) }
-        return Response.ok(objectMapper.writeValueAsString(out)).type(MediaType.APPLICATION_JSON).build()
+        val result = page?.deepCopy()?.also { it.set<com.fasterxml.jackson.databind.JsonNode>("data", out) } ?: out
+        return Response.ok(objectMapper.writeValueAsString(result)).type(MediaType.APPLICATION_JSON).build()
     }
 
     /**
@@ -2384,8 +2388,9 @@ class CustomerEdgeResource(
     private fun resolvePayableAccount(payeePartyId: String): Pair<String, String>? {
         val resp = upstream.get("$accountServiceUrl/api/v1/accounts?partyId=$payeePartyId", payeePartyId)
         if (resp.status != 200) return null
+        // account-service answers a page ({data, pagination}); an older shape was a bare array.
         val accounts = runCatching { objectMapper.readTree(resp.entity?.toString() ?: "") }.getOrNull()
-            ?.takeIf { it.isArray } ?: return null
+            ?.let { if (it.isArray) it else it.path("data").takeIf { d -> d.isArray } } ?: return null
         return accounts
             .filter { it.path("status").asText() == "ACTIVE" }
             .filter { it.path("accountType").asText() == "CURRENT" }

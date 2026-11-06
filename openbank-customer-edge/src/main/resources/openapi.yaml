@@ -54,7 +54,7 @@ info:
   # 1.83.0 -> 1.84.0: additive low-balance-alert endpoint and schemas (ADR-0333).
   # 1.85.0 -> 1.86.0: additive — /rewards/* (FLUX rewards, openbank-rewards-service Customer API),
   # capability id rewards.flux; the /loyalty routes are marked deprecated (the app moves to /rewards).
-  version: 1.87.0
+  version: 1.88.0
   description: >-
     Customer-facing edge proxy (ADR-0065). Single internet-facing entry point for the
     retail customer app. Validates JWTs from the openbank-customers Keycloak realm,
@@ -218,6 +218,34 @@ paths:
       requestBody: { content: { application/json: { schema: { type: object, properties: { wallet: { type: string, enum: [APPLE_PAY, GOOGLE_PAY] } } } } } }
       responses: { '200': { description: "{status: ADDED | PENDING}" }, '404': { description: No such card }, '503': { description: WALLET_UNAVAILABLE } }
   # ---- Experience v2 step 8: face check for large payments, international transfer
+  /billers:
+    get:
+      summary: Billers in the customer's market (experience v2 step 3)
+      responses: { '200': { description: "[{id, name, category, iban}]" } }
+  /bills/energo-pro:
+    get:
+      summary: The linked Energo-Pro electricity account and its current bill (linked=false when none)
+      responses: { '200': { description: "{linked, customer_number, supplier_name, current_bill, next_estimate}" } }
+  /bills/energo-pro/bills:
+    get:
+      summary: The linked account's bills, newest first
+      responses: { '200': { description: "[{id, period, amount, currency, due_date, status, collection_iban, reference}]" } }
+  /bills/energo-pro/link:
+    post:
+      summary: Link the customer's own Energo-Pro customer number (with their data-sharing consent)
+      requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { customer_number: { type: string }, data_sharing_consent: { type: boolean } } } } } }
+      responses: { '200': { description: The linked account }, '400': { description: No consent or a malformed number }, '404': { description: NO_MATCH }, '409': { description: ALREADY_LINKED } }
+    delete:
+      summary: Unlink the Energo-Pro account
+      responses: { '204': { description: Unlinked } }
+  /bills/reminders:
+    get:
+      summary: Bill reminders and the bills they will remind about
+      responses: { '200': { description: "{enabled, days_before, upcoming}" } }
+    put:
+      summary: Turn bill reminders on or off (days_before 0-14)
+      requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { enabled: { type: boolean }, days_before: { type: integer } } } } } }
+      responses: { '200': { description: The reminders }, '400': { description: days_before out of range } }
   /security/liveness/policy:
     get:
       summary: The customer's face-check limit

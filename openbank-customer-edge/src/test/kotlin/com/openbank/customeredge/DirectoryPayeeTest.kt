@@ -52,7 +52,11 @@ class DirectoryPayeeTest {
     private fun matchJson(partyId: UUID, name: String = "Jarmila Nováková") =
         Response.ok("""{"matches":[{"phoneHash":"$hash","partyId":"$partyId","legalName":"$name"}]}""").build()
 
-    private fun accountsJson(vararg rows: String) = Response.ok("[${rows.joinToString(",")}]").build()
+    // account-service's real answer is a page, {data, pagination} (CursorPage). This helper once
+    // returned a bare array — the shape the edge wrongly expected — so every test here passed while
+    // every real pay-by-phone answered 404.
+    private fun accountsJson(vararg rows: String) =
+        Response.ok("""{"data":[${rows.joinToString(",")}],"pagination":{"hasMore":false}}""").build()
 
     private fun acct(
         id: UUID,

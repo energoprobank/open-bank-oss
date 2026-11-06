@@ -204,6 +204,8 @@ openbank:
     # Experience v2 step 8: the onboarding application (contact codes, Energo-Pro prefill, personal
     # details, identity checks) and the face check for large payments.
     onboarding-service-url: ${ONBOARDING_SERVICE_URL:http://onboarding-service.onboarding.svc:8130}
+    # Experience v2 step 3: billers, the Energo-Pro electricity account, bills and reminders.
+    everyday-service-url: ${EVERYDAY_SERVICE_URL:http://everyday-service.payments.svc:8164}
     # Wallet provisioning (card-processing tokenisation). Blank = unconfigured: 503 WALLET_UNAVAILABLE.
     card-processing-service-url: ${OPENBANK_EDGE_CARD_PROCESSING_URL:}
     # ADR-0310 D5: operator switches behind GET /customer/v1/capabilities. A capability is live only
