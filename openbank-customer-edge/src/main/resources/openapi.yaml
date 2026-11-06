@@ -246,6 +246,38 @@ paths:
       summary: Turn bill reminders on or off (days_before 0-14)
       requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { enabled: { type: boolean }, days_before: { type: integer } } } } } }
       responses: { '200': { description: The reminders }, '400': { description: days_before out of range } }
+  /direct-debits/mandates:
+    get: { summary: "Direct-debit consents (experience v2 step 3)", responses: { '200': { description: Mandates } } }
+    post: { summary: "Allow a creditor to collect: INKASO, SIPO or SEPA_CORE", responses: { '201': { description: Created }, '400': { description: Invalid }, '409': { description: MANDATE_EXISTS } } }
+  /direct-debits/mandates/{id}:
+    delete: { summary: Withdraw a consent, parameters: [ { name: id, in: path, required: true, schema: { type: string, format: uuid } } ], responses: { '200': { description: Cancelled } } }
+  /subscriptions:
+    get: { summary: Subscriptions detected from the customer's payments, responses: { '200': { description: Subscriptions } } }
+  /subscriptions/{id}/cancel:
+    post: { summary: Ask to stop a subscription, parameters: [ { name: id, in: path, required: true, schema: { type: string } } ], responses: { '200': { description: CANCEL_REQUESTED } } }
+  /subscriptions/{id}/reminder:
+    put: { summary: Remind before the next charge, parameters: [ { name: id, in: path, required: true, schema: { type: string } } ], responses: { '200': { description: Saved } } }
+  /accounts/{accountId}/insights/spending:
+    get: { summary: "A month's spending by category", parameters: [ { name: accountId, in: path, required: true, schema: { type: string, format: uuid } }, { name: month, in: query, required: true, schema: { type: string } } ], responses: { '200': { description: Spending } } }
+  /accounts/{accountId}/insights/cash-flow:
+    get: { summary: The balance expected at the end of the month, parameters: [ { name: accountId, in: path, required: true, schema: { type: string, format: uuid } } ], responses: { '200': { description: Cash flow } } }
+  /accounts/{accountId}/exports:
+    post: { summary: Export payments as CSV or PDF, parameters: [ { name: accountId, in: path, required: true, schema: { type: string, format: uuid } } ], responses: { '201': { description: "READY, with a 30-minute download_url" } } }
+  /accounts/{accountId}/exports/{exportId}:
+    get: { summary: An export, parameters: [ { name: accountId, in: path, required: true, schema: { type: string, format: uuid } }, { name: exportId, in: path, required: true, schema: { type: string, format: uuid } } ], responses: { '200': { description: The export } } }
+  /export-files/{token}/{fileName}:
+    get: { summary: "The export file (no sign-in: the link's token is the capability)", security: [], parameters: [ { name: token, in: path, required: true, schema: { type: string } }, { name: fileName, in: path, required: true, schema: { type: string } } ], responses: { '200': { description: CSV or PDF }, '404': { description: Unknown or expired } } }
+  /transactions/{transactionId}/recall:
+    post: { summary: Recall a transfer, parameters: [ { name: transactionId, in: path, required: true, schema: { type: string, format: uuid } } ], responses: { '201': { description: SENT_TO_BANK }, '409': { description: "NOT_RECALLABLE, USE_DISPUTE, RECALL_EXISTS" } } }
+  /top-ups:
+    post: { summary: "Top up by card (the card is entered on the acquirer's page)", responses: { '201': { description: "CREATED, with checkout_url" } } }
+  /top-ups/{id}:
+    get: { summary: A top-up (CREDITED once the acquirer authorised), parameters: [ { name: id, in: path, required: true, schema: { type: string, format: uuid } } ], responses: { '200': { description: The top-up } } }
+  /payments/protection:
+    get: { summary: Payment protection, responses: { '200': { description: Settings } } }
+    put: { summary: "Change payment protection (street mode is enforced on payments: 403 STREET_MODE)", responses: { '200': { description: Saved } } }
+  /financial-health/energy-trend:
+    get: { summary: The linked Energo-Pro account's cost over twelve months, responses: { '200': { description: Trend }, '404': { description: Not linked } } }
   /security/liveness/policy:
     get:
       summary: The customer's face-check limit

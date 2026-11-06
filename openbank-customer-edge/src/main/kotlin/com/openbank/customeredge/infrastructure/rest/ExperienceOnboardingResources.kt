@@ -59,6 +59,9 @@ class ExperienceEdge(val upstream: UpstreamClient) {
     )
     lateinit var everydayUrl: String
 
+    @ConfigProperty(name = "openbank.edge.balance-service-url")
+    lateinit var balanceUrl: String
+
     @ConfigProperty(name = "openbank.edge.party-service-url")
     lateinit var partyUrl: String
 

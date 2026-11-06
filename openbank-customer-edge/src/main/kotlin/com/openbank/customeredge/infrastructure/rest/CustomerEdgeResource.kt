@@ -116,6 +116,10 @@ class CustomerEdgeResource(
     @Inject
     lateinit var livenessGate: LivenessGate
 
+    // Experience v2 step 3: street mode (payment protection) caps payments while the customer is out.
+    @Inject
+    lateinit var streetModeGate: StreetModeGate
+
     @Inject
     lateinit var experienceEdge: ExperienceEdge
 
@@ -3034,6 +3038,9 @@ class CustomerEdgeResource(
                 livenessSessionId,
             )
                 ?.let { return it }
+        }
+        if (this::streetModeGate.isInitialized) {
+            streetModeGate.check(customer.human, amount.toBigDecimalOrNull())?.let { return it }
         }
         // Cumulative ceiling (ADR-0249 D3) BEFORE the SCA gate, not after: a payment that the
         // delegate's monthly limit will refuse must not first cost them a biometric prompt and a
