@@ -36,11 +36,11 @@ class CardEdgeSupport(val edge: ExperienceEdge, private val audit: EdgeAuditPubl
         it.trim().trimEnd('/')
     }.filter { it.isNotEmpty() }.orElse(null)?.let { "$it$path" }
 
-    /** The card, when its holder is [party]; null otherwise (answered as "no such card", never as "not yours"). */
+    /** The card, when its holder is [party] (card-issuance's `partyId`); null otherwise — answered as "no such card", never as "not yours". */
     fun ownCard(party: UUID, card: UUID): JsonNode? {
         val r = edge.upstream.get(cards("/api/v1/cards/$card"), party.toString())
         val node = EdgeJson.parse(r) ?: return null
-        return node.takeIf { r.status in ExperienceEdge.SUCCESS && node.text("ownerPartyId") == party.toString() }
+        return node.takeIf { r.status in ExperienceEdge.SUCCESS && node.text("partyId") == party.toString() }
     }
 
     fun ownAccount(party: UUID, account: UUID): JsonNode? {
