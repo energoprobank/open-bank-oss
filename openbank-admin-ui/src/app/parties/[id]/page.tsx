@@ -20,6 +20,8 @@ import { opsMessageApi, OPERATOR_MESSAGE_TEMPLATE_VARS, type OperatorMessageTemp
 import { parseKycCaseEvidence, type KycCaseEvidence } from '@/lib/parties/kycEvidenceContract'
 import { parsePartyEvidence, type PartyEvidence } from '@/lib/parties/partyEvidenceContract'
 import { BRAND } from '@/lib/brand'
+import { KycEvidencePanel } from '@/components/kyc/KycEvidencePanel'
+import { KycDecisionActions } from '@/components/kyc/KycDecisionActions'
 import { affectedKycCheck, describeTopMatch, partyScreening, type PartyScreening, type ScreeningCheck } from '@/lib/parties/screeningHold'
 
 const PAGE_SIZE = 25
@@ -223,7 +225,9 @@ function PartyDetailPage() {
                 [t('Obchodní název', 'Trading Name'),     party.tradingName ?? '—'],
                 [t('E-mail', 'Email'),                    party.email],
                 [t('Telefon', 'Phone'),                   party.phone ?? '—'],
+                // Shown exactly as party-service returns it — the service masks it (e.g. `910813/****`).
                 [t('Daňové ID', 'Tax ID'),                party.taxId ?? '—'],
+                ...(party.nationalIdLast4 ? [[t('Rodné číslo (poslední 4)', 'National ID (last 4)'), `****${party.nationalIdLast4}`]] : []),
                 [t('Reg. číslo', 'Reg. Number'),          party.registrationNumber ?? '—'],
                 [t('Státní příslušnost', 'Nationality'),  party.nationality ?? '—'],
                 [t('Datum narození', 'Date of Birth'),    party.dateOfBirth ?? '—'],
@@ -278,6 +282,8 @@ function PartyDetailPage() {
                     {t('Kontroloval:', 'Reviewed by:')} {kyc.reviewedBy}
                   </div>
                 )}
+                <KycEvidencePanel kycCase={kyc} />
+                <KycDecisionActions kycCase={kyc} onDecided={() => void load()} />
               </div>
             ) : (
               <DataUnavailable kind={kycUnavailable} service="KYC-service" feature={t('Případ KYC', 'KYC case')} lang={language} dense />

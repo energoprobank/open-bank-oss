@@ -32,3 +32,59 @@ describe('party KYC evidence contract', () => {
     expect(parseKycCasePageEvidence({ ...page, items: [{ ...evidence, checks: {} }] }, 0, 20)).toBeNull()
   })
 })
+
+describe('KYC case contract — onboarding assessment fields (experience v2 step 9)', () => {
+  it('leaves every new field absent on an old case', () => {
+    const parsed = parseKycCaseEvidence(evidence, 'party-1')
+    expect(parsed).not.toBeNull()
+    expect(parsed?.evidence).toBeUndefined()
+    expect(parsed?.dueDiligence).toBeUndefined()
+    expect(parsed?.policyVersion).toBeUndefined()
+    expect(parsed?.reviewReasons).toBeUndefined()
+    expect(parsed?.decidedBy).toBeUndefined()
+  })
+
+  it('treats explicit nulls as absent', () => {
+    const parsed = parseKycCaseEvidence({ ...evidence, evidence: null, dueDiligence: null, policyVersion: null, reviewReasons: null, decidedBy: null }, 'party-1')
+    expect(parsed).not.toBeNull()
+    expect(parsed?.evidence).toBeUndefined()
+  })
+
+  it('parses the full assessment shape', () => {
+    const parsed = parseKycCaseEvidence({
+      ...evidence,
+      dueDiligence: 'EDD', policyVersion: 'onboarding-policy-v1', reviewReasons: ['FACE_MATCH_GREY'], decidedBy: 'onboarding-service',
+      evidence: {
+        method: 'DOCUMENT',
+        identityChecks: [{ type: 'MRZ', status: 'PASSED', detail: 'ok' }],
+        face: { liveness: 0.97, match: 0.72 },
+        risk: { score: 10, rating: 'LOW', factors: [{ code: 'PEP', points: 10, label: 'PEP relative' }] },
+        firstPayment: { payerName: 'Jan', amount: 1, currency: 'CZK', nameMatch: true },
+        pid: { decision: 'NO_MATCH' },
+      },
+    }, 'party-1')
+    expect(parsed).toMatchObject({
+      dueDiligence: 'EDD', policyVersion: 'onboarding-policy-v1', reviewReasons: ['FACE_MATCH_GREY'], decidedBy: 'onboarding-service',
+      evidence: {
+        method: 'DOCUMENT', identityChecks: [{ type: 'MRZ', status: 'PASSED', detail: 'ok' }],
+        face: { liveness: 0.97, match: 0.72 }, risk: { score: 10, factors: [{ code: 'PEP', points: 10 }] },
+        firstPayment: { amount: '1', currency: 'CZK', nameMatch: true }, pid: { decision: 'NO_MATCH' }, unrecognised: {},
+      },
+    })
+  })
+
+  it('never rejects a case for malformed or unknown evidence — it falls back to raw', () => {
+    const parsed = parseKycCaseEvidence({
+      ...evidence,
+      reviewReasons: ['OK_REASON', 7],
+      dueDiligence: 42,
+      evidence: { identityChecks: [{ type: 'MRZ' }], futureSection: { x: 1 }, method: 'BANK_ID' },
+    }, 'party-1')
+    expect(parsed).not.toBeNull()
+    expect(parsed?.reviewReasons).toEqual(['OK_REASON'])
+    expect(parsed?.dueDiligence).toBeUndefined()
+    expect(parsed?.evidence?.method).toBe('BANK_ID')
+    expect(parsed?.evidence?.identityChecks).toBeUndefined()
+    expect(parsed?.evidence?.unrecognised).toEqual({ identityChecks: [{ type: 'MRZ' }], futureSection: { x: 1 } })
+  })
+})

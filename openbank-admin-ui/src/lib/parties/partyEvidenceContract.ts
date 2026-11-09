@@ -14,7 +14,10 @@ export interface PartyEvidence {
   email: string
   phone?: string
   kycStatus: string
+  /** Exactly as party-service returns it — already masked server-side (e.g. `910813/****`). */
   taxId?: string
+  /** Last four digits of the national id, when party-service exposes them. */
+  nationalIdLast4?: string
   registrationNumber?: string
   nationality?: string
   dateOfBirth?: string
@@ -68,7 +71,8 @@ export function parsePartyEvidence(value: unknown, requestedId: string): PartyEv
     id: requestedId, partyType: String(value.partyType), status: String(value.status),
     legalName: value.legalName, tradingName: optionalText(value.tradingName),
     email: value.email, phone: optionalText(value.phone), kycStatus: String(value.kycStatus),
-    taxId: optionalText(value.taxId), registrationNumber: optionalText(value.registrationNumber),
+    taxId: optionalText(value.taxId), nationalIdLast4: optionalText(value.nationalIdLast4),
+    registrationNumber: optionalText(value.registrationNumber),
     nationality: optionalText(value.nationality), dateOfBirth: optionalText(value.dateOfBirth),
     address, createdAt: value.createdAt, updatedAt: value.updatedAt,
   }

@@ -4,15 +4,17 @@
 
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { Fragment, useState, useEffect, useCallback, useRef } from 'react'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { classifyBffFailure } from '@/lib/services/bff'
 import { DataUnavailable, type UnavailableKind } from '@/components/feedback/DataUnavailable'
-import { ShieldCheck, Search, RefreshCw, ChevronRight } from 'lucide-react'
+import { ShieldCheck, Search, RefreshCw, ChevronRight, ChevronDown } from 'lucide-react'
 import Link from 'next/link'
 import { PageHeader, StatusBadge } from '@/components/ui'
 import { Can } from '@/components/auth/AuthGuard'
 import { PartySearch, type PartyHit } from '@/components/party/PartySearch'
+import { KycEvidencePanel } from '@/components/kyc/KycEvidencePanel'
+import { KycDecisionActions } from '@/components/kyc/KycDecisionActions'
 import { parseKycCaseEvidence, parseKycCasePageEvidence, type KycCaseEvidence } from '@/lib/parties/kycEvidenceContract'
 
 const KYC_SERVICE = '/api/svc/kyc-service'
@@ -35,6 +37,8 @@ export default function KycPage() {
   const [selectedParty, setSelectedParty] = useState<PartyHit | null>(null)
   const [page, setPage] = useState(0)
   const [pagination, setPagination] = useState<{ total: number; page: number; size: number } | null>(null)
+  // One case's evidence + review actions open at a time, inline under its row.
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   const load = useCallback(async (requestedPartyId = partyId, requestedPage = page) => {
     activeLoad.current?.abort()
@@ -227,7 +231,8 @@ export default function KycPage() {
               </td></tr>
             )}
             {!loading && filtered.map(c => (
-              <tr key={c.id}>
+              <Fragment key={c.id}>
+              <tr>
                 <td style={{ fontFamily: 'var(--font-mono)', fontSize: '11px' }}>{c.id.slice(0, 8)}…</td>
                 <td style={{ fontFamily: 'var(--font-mono)', fontSize: '11px' }}>
                   <Can permission="parties:view"><Link href={`/parties/${c.partyId}`} style={{ color: 'var(--accent)', textDecoration: 'none' }}>{c.partyId.slice(0, 8)}…</Link></Can>
@@ -248,8 +253,29 @@ export default function KycPage() {
                   <Can permission="parties:view"><Link href={`/parties/${c.partyId}`} style={{ color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '2px', fontSize: '12px', textDecoration: 'none' }}>
                     {t('Klient', 'Party')} <ChevronRight size={12} />
                   </Link></Can>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    aria-expanded={expandedId === c.id}
+                    aria-controls={`kyc-case-detail-${c.id}`}
+                    aria-label={expandedId === c.id ? t('Skrýt důkazy případu', 'Hide case evidence') : t('Zobrazit důkazy případu', 'Show case evidence')}
+                    onClick={() => setExpandedId(current => (current === c.id ? null : c.id))}
+                    style={{ marginTop: '4px', fontSize: '11px', padding: '2px 8px' }}
+                  >
+                    <ChevronDown size={12} aria-hidden="true" style={{ transform: expandedId === c.id ? 'rotate(180deg)' : 'none' }} />
+                    {c.status === 'UNDER_REVIEW' ? t('Posoudit', 'Review') : t('Detail', 'Detail')}
+                  </button>
                 </td>
               </tr>
+              {expandedId === c.id && (
+                <tr id={`kyc-case-detail-${c.id}`}>
+                  <td colSpan={7} style={{ background: 'var(--surface-2)', padding: '12px 16px' }}>
+                    <KycEvidencePanel kycCase={c} />
+                    <KycDecisionActions kycCase={c} onDecided={() => void load()} />
+                  </td>
+                </tr>
+              )}
+              </Fragment>
             ))}
           </tbody>
         </table>
