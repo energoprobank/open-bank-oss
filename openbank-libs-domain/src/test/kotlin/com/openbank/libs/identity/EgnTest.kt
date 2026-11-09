@@ -29,4 +29,11 @@ class EgnTest {
         assertThat(Egn.parse("750101001")).isEqualTo(Egn.Invalid("length must be 10 digits"))
         assertThat(Egn.isValid("75O1010010")).isFalse()
     }
+
+    @Test
+    fun `a birthdate after today is refused when today is given`() {
+        val today = LocalDate.of(2026, 11, 9)
+        assertThat(Egn.parse("3051010005")).isInstanceOf(Egn.Parsed::class.java)
+        assertThat(Egn.parse("3051010005", today)).isEqualTo(Egn.Invalid("birthdate in the future"))
+    }
 }

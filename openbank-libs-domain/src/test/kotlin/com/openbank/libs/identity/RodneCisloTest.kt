@@ -85,4 +85,26 @@ class RodneCisloTest {
     fun `rejects empty input`() {
         assertThat(RodneCislo.parse("   ")).isInstanceOf(RodneCislo.Invalid::class.java)
     }
+
+    // ---- experience v2 step 9: as strict as the app
+
+    @Test
+    fun `a nine-digit number from 1954 on is refused`() {
+        assertThat(RodneCislo.parse("540312123")).isInstanceOf(RodneCislo.Invalid::class.java)
+        assertThat(RodneCislo.parse("992312123")).isInstanceOf(RodneCislo.Invalid::class.java)
+    }
+
+    @Test
+    fun `the plus-20 overflow before 2004 is refused, from 2004 accepted`() {
+        assertThat(RodneCislo.parse("0222081233")).isInstanceOf(RodneCislo.Invalid::class.java)
+        assertThat((RodneCislo.parse("0522081230") as RodneCislo.Parsed).birthdate).isEqualTo(LocalDate.of(2005, 2, 8))
+    }
+
+    @Test
+    fun `a birthdate after today is refused only when today is given`() {
+        val today = LocalDate.of(2026, 11, 9)
+        assertThat(RodneCislo.parse("3001011233")).isInstanceOf(RodneCislo.Parsed::class.java)
+        assertThat((RodneCislo.parse("3001011233", today) as RodneCislo.Invalid).reason).contains("future")
+        assertThat(RodneCislo.parse("0921150120", today)).isInstanceOf(RodneCislo.Parsed::class.java)
+    }
 }

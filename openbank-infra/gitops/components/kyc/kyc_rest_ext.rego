@@ -59,3 +59,11 @@ allowed_reasons contains "operator-kyc-case-review-disposition" if {
 	role in input.principal.roles
 	input.action in {"kyc.case.approve", "kyc.case.reject"}
 }
+
+# Experience v2 step 9: the onboarding orchestrator submits an assessment (identity, registers,
+# screening, risk, evidence); kyc-service itself decides straight-through vs review. Pinned to the
+# onboarding service's own identity by principal.id — never widened to a role (see header).
+allowed_reasons contains "onboarding-kyc-case-assess" if {
+	input.principal.id == "service-account-openbank-onboarding"
+	input.action == "kyc.case.assess"
+}

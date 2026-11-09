@@ -92,7 +92,39 @@ data class KycCase(
     val createdAt: Instant,
     val updatedAt: Instant,
     val subjectType: SubjectType = SubjectType.INDIVIDUAL,
+    /** EBA due-diligence level: SDD, CDD (default) or EDD. Set by an onboarding assessment. */
+    val dueDiligence: String = "CDD",
+    /** The onboarding policy that produced the assessment, e.g. `onboarding-policy-v1`. */
+    val policyVersion: String? = null,
+    /** Why the assessment routed the case to a person (empty for a straight-through decision). */
+    val reviewReasons: List<String> = emptyList(),
+    /** The evidence the assessment rests on (identity, registers, screening, risk, first payment). */
+    val evidence: Map<String, Any?>? = null,
+    /** Who submitted the assessment — a reviewer may not be the same principal (four-eyes). */
+    val assessedBy: String? = null,
+    val assessedAt: Instant? = null,
+    /** Periodic re-KYC due date by risk (ADR-0116 §5: LOW 5 y, MEDIUM 3 y, HIGH and above 1 y). */
+    val nextReviewAt: Instant? = null,
 )
+
+/** Due-diligence levels (EBA AML guidelines). */
+val DUE_DILIGENCE_LEVELS = setOf("SDD", "CDD", "EDD")
+
+/**
+ * The outcome of an onboarding assessment (experience v2 step 9): every check the bank ran, the
+ * risk it computed and the evidence, from the onboarding orchestrator. kyc-service keeps the
+ * decision: it approves straight through only when the policy allows it, otherwise a person does.
+ */
+data class KycAssessment(
+    val policyVersion: String,
+    val riskLevel: RiskLevel,
+    val dueDiligence: String,
+    val checks: Map<CheckType, AssessedCheck>,
+    val reviewReasons: List<String>,
+    val evidence: Map<String, Any?>?,
+)
+
+data class AssessedCheck(val status: CheckStatus, val result: String?)
 
 data class KycCheck(
     val id: UUID,

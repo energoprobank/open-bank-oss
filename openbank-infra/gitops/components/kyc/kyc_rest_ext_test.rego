@@ -70,3 +70,12 @@ test_service_m2m_cannot_approve if {
 test_anonymous_denied if {
 	count(allowed_reasons) == 0 with input as {"principal": {"service_account": false, "type": "ANONYMOUS", "id": "anon", "roles": []}, "action": "kyc.case.approve"}
 }
+
+test_onboarding_service_may_assess if {
+	"onboarding-kyc-case-assess" in allowed_reasons with input as {"principal": service_m2m, "action": "kyc.case.assess"}
+}
+
+test_staff_may_not_submit_an_assessment if {
+	count(allowed_reasons) == 0 with input as {"principal": admin, "action": "kyc.case.assess"}
+	count(allowed_reasons) == 0 with input as {"principal": opener, "action": "kyc.case.assess"}
+}

@@ -91,7 +91,7 @@ class KycServiceTest {
         // No status/risk change ⇒ the service must take the event-FREE overload (no event is due).
         coEvery { repo.update(any<KycCase>()) } answers { firstArg<KycCase>() }
 
-        service.approve(caseId, "operator-1")
+        service.approveCase(caseId, "operator-1", "identity documents verified")
 
         verify(exactly = 1) { metrics.kycVerdict("individual", "approved") }
     }
@@ -105,7 +105,7 @@ class KycServiceTest {
         // No status/risk change ⇒ the service must take the event-FREE overload (no event is due).
         coEvery { repo.update(any<KycCase>()) } answers { firstArg<KycCase>() }
 
-        service.reject(caseId, "operator-1", "documents invalid")
+        service.rejectCase(caseId, "operator-1", "documents invalid")
 
         verify(exactly = 1) { metrics.kycVerdict("individual", "rejected") }
     }

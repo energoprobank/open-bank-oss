@@ -27,9 +27,9 @@ import java.time.LocalDate
  * women `+70`). The `+20`/`+70` overflow only exists in the 2000s, which disambiguates the
  * century for those records.
  *
- * This validator is deterministic and takes no clock: it does not reject "future" birthdates
- * (the caller compares the extracted [Parsed.birthdate] against the declared birthdate, which
- * is the meaningful cross-field check).
+ * The rules are the app's (experience v2 step 9: the server is as strict as the client): a
+ * 9-digit number only before 1954, the `+20`/`+70` overflow only from 2004, and — when the caller
+ * passes `today` — no birthdate in the future. The validator itself takes no clock.
  */
 object RodneCislo {
 
@@ -42,7 +42,18 @@ object RodneCislo {
 
     data class Invalid(val reason: String) : Result
 
-    fun parse(raw: String): Result {
+    /** [today], when given, rejects a birthdate after it (an RČ is issued at birth, never before). */
+    fun parse(raw: String, today: LocalDate? = null): Result {
+        val result = parseStructure(raw)
+        return if (result is Parsed && today != null && result.birthdate.isAfter(today)) {
+            Invalid("birthdate in the future")
+        } else {
+            result
+        }
+    }
+
+    @Suppress("ReturnCount", "CyclomaticComplexMethod") // one early return per rule of the RČ
+    private fun parseStructure(raw: String): Result {
         val cleaned = raw.trim().replace("/", "").replace(" ", "")
         if (cleaned.isEmpty()) return Invalid("empty")
         if (!cleaned.all { it.isDigit() }) return Invalid("non-digit characters")
@@ -79,6 +90,12 @@ object RodneCislo {
             else -> return Invalid("invalid month component")
         }
 
+        // A 9-digit RČ was issued only before 1954, and never with the 2004+ overflow.
+        if (cleaned.length == 9 && (yy >= NINE_DIGIT_UNTIL || forces2000s)) {
+            return Invalid("a 9-digit number is valid only for births before 1954")
+        }
+        if (forces2000s && yy < OVERFLOW_FROM) return Invalid("the +20/+70 month exists only from 2004")
+
         // Century: the +20/+70 overflow only exists from 2004 on. Otherwise, the 10-digit
         // form maps 54..99 → 1900s and 00..53 → 2000s; the 9-digit form is pre-1954 → 1900s.
         val year = when {
@@ -104,4 +121,7 @@ object RodneCislo {
 
     /** True iff [raw] is a structurally valid RČ. */
     fun isValid(raw: String): Boolean = parse(raw) is Parsed
+
+    private const val NINE_DIGIT_UNTIL = 54
+    private const val OVERFLOW_FROM = 4
 }

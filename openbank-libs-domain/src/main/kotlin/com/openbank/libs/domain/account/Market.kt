@@ -25,6 +25,18 @@ enum class Market(val currency: String, val nationalIdName: String) {
         BG -> (Egn.parse(raw) as? Egn.Parsed)?.canonical
     }
 
+    /**
+     * The national number read with every rule the app applies (experience v2 step 9): structure,
+     * checksum, the market's date encoding and — against [today] — no birthdate in the future.
+     * Null when it is not a valid number for this market.
+     */
+    fun nationalId(raw: String, today: java.time.LocalDate): NationalId? = when (this) {
+        CZ -> (RodneCislo.parse(raw, today) as? RodneCislo.Parsed)?.let {
+            NationalId(it.canonical, it.birthdate, it.gender)
+        }
+        BG -> (Egn.parse(raw, today) as? Egn.Parsed)?.let { NationalId(it.canonical, it.birthdate, it.gender) }
+    }
+
     /** The birthdate the national number encodes, for the cross-check with the declared date of birth. */
     fun birthdateOf(raw: String): java.time.LocalDate? = when (this) {
         CZ -> (RodneCislo.parse(raw) as? RodneCislo.Parsed)?.birthdate
@@ -40,4 +52,13 @@ enum class Market(val currency: String, val nationalIdName: String) {
 
         fun forCurrency(currency: String): Market? = entries.firstOrNull { it.currency == currency.uppercase() }
     }
+}
+
+/** A valid national number: canonical digits, the birthdate and sex it encodes. */
+data class NationalId(val canonical: String, val birthdate: java.time.LocalDate, val gender: RodneCislo.Gender) {
+    /** Completed years of age on [on]. */
+    fun ageOn(on: java.time.LocalDate): Int = java.time.Period.between(birthdate, on).years
+
+    /** "M" or "F", the form identity documents and providers use. */
+    val sex: String get() = if (gender == RodneCislo.Gender.FEMALE) "F" else "M"
 }

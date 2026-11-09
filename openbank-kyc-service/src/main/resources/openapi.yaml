@@ -5,7 +5,9 @@ info:
   title: KYC Service API
   # 1.9.0 -> 1.10.0 (#9038): additive — the list operation declares the 400 it already answers
   # for an unparseable ?status= filter.
-  version: 1.11.1
+  # 1.11.1 -> 1.12.0 (experience v2 step 9): additive — the onboarding assessment operation and
+  # the assessment fields on a case (dueDiligence, policyVersion, reviewReasons, evidence, ...).
+  version: 1.12.0
   description: Know Your Customer case management — open cases, run checks, approve/reject.
   license:
     name: Apache-2.0
@@ -111,6 +113,41 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /api/v1/kyc/cases/party/{partyId}/assessment:
+    post:
+      tags: [KYC]
+      summary: Apply an onboarding assessment to the party's KYC case
+      operationId: assessKycCase
+      description: >
+        The onboarding orchestrator reports every check it ran, the risk it computed and the
+        evidence. Straight-through APPROVED only when enabled, the risk is LOW, every mandatory
+        check PASSED and no review reason is given; otherwise UNDER_REVIEW for a person. A FAILED
+        check never rejects here. An APPROVED or REJECTED case is returned unchanged.
+      parameters:
+        - name: partyId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KycAssessmentRequest'
+      responses:
+        '200':
+          description: The case after the assessment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KycCaseResponse'
+        '400':
+          description: Invalid assessment (unknown check type or status, PENDING check, bad level)
+        '403':
+          description: Not the onboarding service
+
   /api/v1/kyc/cases/{id}/checks/{checkType}:
     put:
       tags: [KYC]
@@ -165,6 +202,8 @@ paths:
           description: Forbidden — caller lacks ROLE_OPERATOR, ROLE_KYC or ROLE_ADMIN
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          description: The reviewer is the principal that submitted the assessment (SAME_ACTOR)
         '422':
           $ref: '#/components/responses/InvalidStateTransition'
 
@@ -232,6 +271,8 @@ paths:
           description: Forbidden — caller lacks ROLE_OPERATOR, ROLE_KYC or ROLE_ADMIN
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          description: The reviewer is the principal that submitted the assessment (SAME_ACTOR)
         '422':
           $ref: '#/components/responses/InvalidStateTransition'
 
@@ -391,6 +432,61 @@ components:
         updatedAt:
           type: string
           format: date-time
+        dueDiligence:
+          type: string
+          enum: [SDD, CDD, EDD]
+        policyVersion:
+          type: [string, 'null']
+        reviewReasons:
+          type: array
+          items:
+            type: string
+        evidence:
+          type: [object, 'null']
+          additionalProperties: true
+          description: The assessment's evidence (identity, document, chip, face, Bank iD, registers, screening, risk, first payment).
+        assessedBy:
+          type: [string, 'null']
+        assessedAt:
+          type: [string, 'null']
+          format: date-time
+        nextReviewAt:
+          type: [string, 'null']
+          format: date-time
+
+    KycAssessmentRequest:
+      type: object
+      required: [policyVersion, riskLevel, checks]
+      properties:
+        policyVersion:
+          type: string
+          maxLength: 64
+        riskLevel:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, VERY_HIGH]
+        dueDiligence:
+          type: string
+          enum: [SDD, CDD, EDD]
+        checks:
+          type: object
+          description: Keyed by check type (IDENTITY, ADDRESS, PEP_SCREENING, SANCTIONS_SCREENING, ...).
+          additionalProperties:
+            type: object
+            required: [status]
+            properties:
+              status:
+                type: string
+                enum: [PASSED, FAILED, MANUAL_REVIEW]
+              result:
+                type: [string, 'null']
+        reviewReasons:
+          type: array
+          maxItems: 20
+          items:
+            type: string
+        evidence:
+          type: object
+          additionalProperties: true
 
     KycCheckResponse:
       type: object

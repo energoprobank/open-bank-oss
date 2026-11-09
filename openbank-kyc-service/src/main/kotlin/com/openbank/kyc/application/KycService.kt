@@ -9,6 +9,8 @@ import com.openbank.kyc.application.port.out.KycCaseRepository
 import com.openbank.kyc.application.port.out.PepScreeningStatus
 import com.openbank.kyc.domain.model.CheckStatus
 import com.openbank.kyc.domain.model.CheckType
+import com.openbank.kyc.domain.model.DUE_DILIGENCE_LEVELS
+import com.openbank.kyc.domain.model.KycAssessment
 import com.openbank.kyc.domain.model.KycCase
 import com.openbank.kyc.domain.model.KycCaseStatus
 import com.openbank.kyc.domain.model.KycCheck
@@ -23,6 +25,7 @@ import jakarta.enterprise.context.ApplicationScoped
 import jakarta.inject.Inject
 import java.time.Clock
 import java.time.Instant
+import java.time.ZoneOffset
 import java.util.UUID
 
 // #10911 phase 2: extends the libs-domain base so libs-runtime's ResourceNotFoundExceptionMapper
@@ -87,6 +90,13 @@ class KycService {
 
         /** Minimum reason length enforced by the ČNB four-eyes audit trail mandate (AML Act §8). */
         const val MIN_REASON_LENGTH = 10
+
+        private val DECIDED = setOf(KycCaseStatus.APPROVED, KycCaseStatus.REJECTED)
+        private const val MAX_RESULT = 500
+        private const val MAX_POLICY = 64
+        private const val MAX_REASONS = 20
+        private const val REVIEW_YEARS_LOW = 5L
+        private const val REVIEW_YEARS_MEDIUM = 3L
     }
 
     @Inject lateinit var repo: KycCaseRepository
@@ -105,6 +115,15 @@ class KycService {
     // activates without an operator. MUST stay false in production (four-eyes, ADR-0068).
     @org.eclipse.microprofile.config.inject.ConfigProperty(name = "openbank.kyc.auto-approve", defaultValue = "false")
     var autoApprove: Boolean = false
+
+    // Experience v2 step 9: an onboarding assessment that passed every check at LOW risk is
+    // approved by the policy itself ("straight-through:<policy>"); anything else waits for a
+    // person. Off by default: without it every assessment goes to UNDER_REVIEW.
+    @org.eclipse.microprofile.config.inject.ConfigProperty(
+        name = "openbank.kyc.straight-through.enabled",
+        defaultValue = "false",
+    )
+    var straightThrough: Boolean = false
 
     /**
      * Operator-facing open. Rejects a duplicate with [KycCaseConflictException] (→ 409) when the
@@ -375,33 +394,6 @@ class KycService {
         RiskLevel.VERY_HIGH -> RiskLevel.VERY_HIGH
     }
 
-    suspend fun approve(caseId: UUID, reviewedBy: String): KycCase {
-        val case = repo.findById(caseId) ?: throw KycCaseNotFoundException(caseId)
-        val updated = case.copy(
-            status = KycCaseStatus.APPROVED,
-            reviewedBy = reviewedBy,
-            reviewedAt = Instant.now(clock),
-            updatedAt = Instant.now(clock),
-        )
-        val saved = repo.update(updated, KycEvents.caseApproved(updated, Instant.now(clock)))
-        metrics.kycVerdict(caseType(case.subjectType), "approved")
-        return saved
-    }
-
-    suspend fun reject(caseId: UUID, reviewedBy: String, reason: String): KycCase {
-        val case = repo.findById(caseId) ?: throw KycCaseNotFoundException(caseId)
-        val updated = case.copy(
-            status = KycCaseStatus.REJECTED,
-            reviewedBy = reviewedBy,
-            reviewedAt = Instant.now(clock),
-            notes = reason,
-            updatedAt = Instant.now(clock),
-        )
-        val saved = repo.update(updated, KycEvents.caseRejected(updated, Instant.now(clock)))
-        metrics.kycVerdict(caseType(case.subjectType), "rejected")
-        return saved
-    }
-
     /**
      * Approve a KYC case with a mandatory reason for the regulatory audit trail.
      *
@@ -423,12 +415,15 @@ class KycService {
         if (case.status != KycCaseStatus.UNDER_REVIEW) {
             throw InvalidStateTransitionException(caseId, case.status, "approve")
         }
+        requireOtherThanAssessor(case, approvedBy)
+        val now = Instant.now(clock)
         val updated = case.copy(
             status = KycCaseStatus.APPROVED,
             reviewedBy = approvedBy,
-            reviewedAt = Instant.now(clock),
+            reviewedAt = now,
             notes = reason,
-            updatedAt = Instant.now(clock),
+            updatedAt = now,
+            nextReviewAt = nextReview(case.riskLevel, now),
         )
         val saved = repo.update(updated, KycEvents.caseApproved(updated, Instant.now(clock)))
         metrics.kycVerdict(caseType(case.subjectType), "approved")
@@ -456,6 +451,7 @@ class KycService {
         if (case.status != KycCaseStatus.UNDER_REVIEW) {
             throw InvalidStateTransitionException(caseId, case.status, "reject")
         }
+        requireOtherThanAssessor(case, rejectedBy)
         val updated = case.copy(
             status = KycCaseStatus.REJECTED,
             reviewedBy = rejectedBy,
@@ -466,6 +462,99 @@ class KycService {
         val saved = repo.update(updated, KycEvents.caseRejected(updated, Instant.now(clock)))
         metrics.kycVerdict(caseType(case.subjectType), "rejected")
         return saved
+    }
+
+    /**
+     * Applies an onboarding assessment (experience v2 step 9) to the party's KYC case: every
+     * check's status, the risk level, the due-diligence level, the evidence and why a person must
+     * look. kyc-service keeps the decision. It approves straight through only when that is enabled,
+     * the risk is LOW, every mandatory check PASSED and the assessment names no review reason;
+     * otherwise the case waits in UNDER_REVIEW for a reviewer. A FAILED check never rejects here:
+     * rejection is a person's decision (ADR-0116).
+     *
+     * A case already APPROVED or REJECTED is returned unchanged (a decided case is never
+     * re-evaluated); an EXPIRED one, or none, gets a fresh case.
+     */
+    suspend fun applyAssessment(partyId: UUID, assessment: KycAssessment, actor: String): KycCase {
+        validate(assessment)
+        val latest = repo.findByPartyId(partyId)
+        if (latest != null && latest.status in DECIDED) return latest
+        val case = repo.findActiveByPartyId(partyId) ?: openCaseForParty(partyId).case
+        if (case.status in DECIDED) return case
+        val now = Instant.now(clock)
+        val checks = case.checks.map { check ->
+            assessment.checks[check.checkType]?.let {
+                check.copy(
+                    status = it.status,
+                    result = it.result?.take(MAX_RESULT),
+                    provider = assessment.policyVersion,
+                    performedAt = now,
+                )
+            } ?: check
+        }
+        val mandatoryPassed = case.subjectType.mandatoryChecks.all { type ->
+            checks.firstOrNull { it.checkType == type }?.status == CheckStatus.PASSED
+        }
+        val approve = straightThrough &&
+            assessment.riskLevel == RiskLevel.LOW &&
+            mandatoryPassed &&
+            assessment.reviewReasons.isEmpty()
+        val assessed = case.copy(
+            checks = checks,
+            riskLevel = assessment.riskLevel,
+            dueDiligence = assessment.dueDiligence,
+            policyVersion = assessment.policyVersion,
+            reviewReasons = assessment.reviewReasons,
+            evidence = assessment.evidence,
+            assessedBy = actor,
+            assessedAt = now,
+            updatedAt = now,
+        )
+        return if (approve) {
+            val approved = assessed.copy(
+                status = KycCaseStatus.APPROVED,
+                reviewedBy = "straight-through:${assessment.policyVersion}",
+                reviewedAt = now,
+                notes = "Approved straight through: every check passed at LOW risk (${assessment.policyVersion})",
+                nextReviewAt = nextReview(assessment.riskLevel, now),
+            )
+            metrics.kycVerdict(caseType(case.subjectType), "approved")
+            repo.update(approved, KycEvents.caseApproved(approved, now))
+        } else {
+            val review = assessed.copy(status = KycCaseStatus.UNDER_REVIEW)
+            repo.update(review, KycEvents.caseStatusChanged(review, now))
+        }
+    }
+
+    private fun validate(a: KycAssessment) {
+        require(a.policyVersion.isNotBlank() && a.policyVersion.length <= MAX_POLICY) {
+            "policyVersion is required (at most $MAX_POLICY characters)"
+        }
+        require(a.dueDiligence in DUE_DILIGENCE_LEVELS) { "dueDiligence must be one of $DUE_DILIGENCE_LEVELS" }
+        require(a.checks.values.none { it.status == CheckStatus.PENDING }) { "an assessed check cannot be PENDING" }
+        require(a.reviewReasons.size <= MAX_REASONS && a.reviewReasons.all { it.length <= MAX_POLICY }) {
+            "at most $MAX_REASONS review reasons of at most $MAX_POLICY characters"
+        }
+    }
+
+    /** Four-eyes, minimal form: whoever submitted the assessment cannot also decide it. */
+    private fun requireOtherThanAssessor(case: KycCase, reviewer: String) {
+        if (case.assessedBy != null && case.assessedBy == reviewer) {
+            throw ResourceConflictException(
+                "The reviewer must be a different person from whoever submitted the assessment",
+                "SAME_ACTOR",
+            )
+        }
+    }
+
+    /** ADR-0116 §5 cadence: LOW every 5 years, MEDIUM every 3, HIGH and above every year. */
+    private fun nextReview(risk: RiskLevel, from: Instant): Instant {
+        val years = when (risk) {
+            RiskLevel.LOW -> REVIEW_YEARS_LOW
+            RiskLevel.MEDIUM -> REVIEW_YEARS_MEDIUM
+            RiskLevel.HIGH, RiskLevel.VERY_HIGH -> 1L
+        }
+        return from.atOffset(ZoneOffset.UTC).plusYears(years).toInstant()
     }
 
     /**

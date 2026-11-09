@@ -101,6 +101,29 @@ class KycCaseEntity : PanacheEntity() {
 
     @Column(name = "erased_at")
     var erasedAt: Instant? = null
+
+    // V2 + V13: the onboarding assessment (experience v2 step 9).
+    @Column(name = "due_diligence_level", nullable = false)
+    var dueDiligenceLevel: String = "CDD"
+
+    @Column(name = "next_review_date")
+    var nextReviewDate: Instant? = null
+
+    @Column(name = "evidence_json", columnDefinition = "TEXT")
+    var evidenceJson: String? = null
+
+    @Column(name = "policy_version")
+    var policyVersion: String? = null
+
+    /** Newline-separated review reason codes. */
+    @Column(name = "review_reasons", columnDefinition = "TEXT")
+    var reviewReasons: String? = null
+
+    @Column(name = "assessed_by")
+    var assessedBy: String? = null
+
+    @Column(name = "assessed_at")
+    var assessedAt: Instant? = null
 }
 
 @Suppress("TooManyFunctions")
@@ -231,6 +254,7 @@ class KycRepository(private val outboxRepository: KycOutboxRepository) :
             it.reviewedBy = case.reviewedBy
             it.reviewedAt = case.reviewedAt
             it.updatedAt = case.updatedAt
+            it.writeAssessment(case, objectMapper)
         }
     }.replaceWith(case)
 
@@ -253,6 +277,7 @@ class KycRepository(private val outboxRepository: KycOutboxRepository) :
                     c.screeningRef = null
                     c.escalatedTo = null
                     c.escalationReason = null
+                    c.evidenceJson = null
                     // ADR-0118 §5: record when PII was erased so the retention job can delete after 5y
                     if (c.erasedAt == null) c.erasedAt = now
                 }
@@ -364,6 +389,21 @@ private fun KycCase.toEntity(objectMapper: ObjectMapper) = KycCaseEntity().also 
     it.expiresAt = expiresAt
     it.createdAt = createdAt
     it.updatedAt = updatedAt
+    it.writeAssessment(this, objectMapper)
+}
+
+@Suppress("UNCHECKED_CAST") // a JSON object read as a map is a Map<String, Any?>
+private fun evidenceOf(json: String, objectMapper: ObjectMapper): Map<String, Any?> =
+    objectMapper.readValue(json, Map::class.java) as Map<String, Any?>
+
+private fun KycCaseEntity.writeAssessment(case: KycCase, objectMapper: ObjectMapper) {
+    dueDiligenceLevel = case.dueDiligence
+    nextReviewDate = case.nextReviewAt
+    evidenceJson = case.evidence?.let { objectMapper.writeValueAsString(it) }
+    policyVersion = case.policyVersion
+    reviewReasons = case.reviewReasons.takeIf { it.isNotEmpty() }?.joinToString("\n")
+    assessedBy = case.assessedBy
+    assessedAt = case.assessedAt
 }
 
 private fun KycCaseEntity.toDomain(objectMapper: ObjectMapper): KycCase {
@@ -375,5 +415,12 @@ private fun KycCaseEntity.toDomain(objectMapper: ObjectMapper): KycCase {
         caseId, partyId, KycCaseStatus.valueOf(status), RiskLevel.valueOf(riskLevel),
         assignedTo, checks, notes, reviewedBy, reviewedAt, expiresAt, createdAt, updatedAt,
         subjectType = SubjectType.valueOf(subjectType),
+        dueDiligence = dueDiligenceLevel,
+        policyVersion = policyVersion,
+        reviewReasons = reviewReasons?.split('\n')?.filter { it.isNotBlank() }.orEmpty(),
+        evidence = evidenceJson?.let { evidenceOf(it, objectMapper) },
+        assessedBy = assessedBy,
+        assessedAt = assessedAt,
+        nextReviewAt = nextReviewDate,
     )
 }

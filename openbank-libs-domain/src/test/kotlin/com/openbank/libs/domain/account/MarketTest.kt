@@ -33,4 +33,16 @@ class MarketTest {
         // A known published example: GB82 WEST 1234 5698 7654 32.
         assertThat(Iban.compose("GB", "WEST12345698765432").value).isEqualTo("GB82WEST12345698765432")
     }
+
+    @Test
+    fun `nationalId reads birthdate, sex and age with the app's rules`() {
+        val today = java.time.LocalDate.of(2026, 11, 9)
+        val bg = Market.BG.nationalId("7501010010", today)!!
+        org.assertj.core.api.Assertions.assertThat(bg.sex).isEqualTo("F") // ninth digit 1: odd = female
+        org.assertj.core.api.Assertions.assertThat(bg.ageOn(today)).isEqualTo(51)
+        org.assertj.core.api.Assertions.assertThat(Market.CZ.nationalId("3001011233", today)).isNull()
+        org.assertj.core.api.Assertions.assertThat(
+            Market.CZ.nationalId("0921150120", today)!!.ageOn(today),
+        ).isEqualTo(17)
+    }
 }

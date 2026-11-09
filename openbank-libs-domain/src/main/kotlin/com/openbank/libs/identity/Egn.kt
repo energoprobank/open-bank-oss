@@ -30,7 +30,18 @@ object Egn {
 
     private val WEIGHTS = intArrayOf(2, 4, 8, 5, 10, 9, 7, 3, 6)
 
-    fun parse(raw: String): Result {
+    /** [today], when given, rejects a birthdate after it. */
+    fun parse(raw: String, today: LocalDate? = null): Result {
+        val result = parseStructure(raw)
+        return if (result is Parsed && today != null && result.birthdate.isAfter(today)) {
+            Invalid("birthdate in the future")
+        } else {
+            result
+        }
+    }
+
+    @Suppress("ReturnCount")
+    private fun parseStructure(raw: String): Result {
         val cleaned = raw.trim().replace(" ", "")
         if (cleaned.isEmpty()) return Invalid("empty")
         if (!cleaned.all { it.isDigit() }) return Invalid("non-digit characters")
