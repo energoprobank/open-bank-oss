@@ -29,7 +29,7 @@ class SanctionsServiceTest {
     private val entryRepo = mockk<SanctionsEntryRepository>()
     private val importer = mockk<SanctionsImportService>()
     private val clock = Clock.fixed(Instant.parse("2024-01-15T12:00:00Z"), ZoneOffset.UTC)
-    private val service = SanctionsService(repo, entryRepo, importer, clock)
+    private val service = SanctionsService(repo, entryRepo, importer, clock, mockk(relaxed = true))
 
     // Sensible default: normalize returns lowercased input; search returns no results
     init {
@@ -316,7 +316,8 @@ class SanctionsServiceTest {
     private fun stubPepHit() {
         coEvery { repo.findByIdempotencyKey(any()) } returns null
         coEvery { repo.saveWithEvent(any(), any()) } answers { firstArg() }
-        val entry = sampleEntry(listType = SanctionsListType.PEP_GLOBAL, primaryName = "John Doe", programs = listOf("PEP"))
+        val entry =
+            sampleEntry(listType = SanctionsListType.PEP_GLOBAL, primaryName = "John Doe", programs = listOf("PEP"))
         coEvery { entryRepo.search("john doe", any(), any(), any()) } returns listOf(
             SanctionsEntryMatch(entry = entry, matchedName = "John Doe", score = 1.0),
         )
@@ -328,10 +329,16 @@ class SanctionsServiceTest {
         val cleared = sampleCheck(status = SanctionsCheckStatus.CLEAR, reviewedBy = "officer@bank")
         coEvery { repo.findLatestReviewedForParty("party-1") } returns cleared
 
-        val result = service.screen(sampleScreenCommand(name = "John Doe").copy(identifiers = mapOf("partyId" to "party-1")))
+        val result = service.screen(
+            sampleScreenCommand(name = "John Doe").copy(
+                identifiers = mapOf(
+                    "partyId" to "party-1",
+                ),
+            ),
+        )
 
         assertThat(result.status).isEqualTo(SanctionsCheckStatus.WHITELISTED)
-        assertThat(result.matches).hasSize(1)   // the match stays on record
+        assertThat(result.matches).hasSize(1) // the match stays on record
         assertThat(result.reviewedBy).isEqualTo("officer@bank")
         assertThat(result.reviewNote).contains(cleared.id.toString())
     }
@@ -345,7 +352,13 @@ class SanctionsServiceTest {
             sampleCheck(status = SanctionsCheckStatus.CLEAR, reviewedBy = "officer@bank").copy(name = "Jane Roe")
 
         for (party in listOf("confirmed", "renamed")) {
-            val result = service.screen(sampleScreenCommand(name = "John Doe").copy(identifiers = mapOf("partyId" to party)))
+            val result = service.screen(
+                sampleScreenCommand(name = "John Doe").copy(
+                    identifiers = mapOf(
+                        "partyId" to party,
+                    ),
+                ),
+            )
             assertThat(result.status).isEqualTo(SanctionsCheckStatus.HIT)
             assertThat(result.reviewedBy).isNull()
         }

@@ -125,11 +125,30 @@ sequenceDiagram
 
 `overallScore` = max of all individual match scores across all lists.
 
-Status assignment:
-- `overallScore == 1.0` → `HIT`
-- `overallScore > 0.85` → `POTENTIAL_HIT`
-- `overallScore ≤ 0.85` → `CLEAR`
+Status assignment (the list search returns every name match with `word_similarity >= 0.65`):
+- `overallScore >= 0.85` → `HIT`
+- `0.65 <= overallScore < 0.85` → `POTENTIAL_HIT`
+- otherwise → `CLEAR`
 - After human review: `WHITELISTED` or `ESCALATED`
+
+Before the status is decided, each match's name score is weighed against the subject's date of
+birth and nationality, when BOTH the request and the list entry carry them (`MatchScoring`):
+same date of birth → unchanged; same year, different full date → × 0.85; different birth year
+→ × 0.6; a nationality the entry's country list does not contain → − 0.05. An entry without a
+date of birth keeps its name score. Each match records `nameScore` and `scoreAdjustments`
+(`dob_match`, `dob_year_match`, `dob_partial_mismatch`, `dob_mismatch`, `nationality_mismatch`).
+
+### Ongoing monitoring
+
+`monitor: true` on a screen request (requires `identifiers.partyId`) enrols the party in
+`sanctions_monitored_subjects`. When a list refresh publishes `SANCTIONS_LIST_CHANGED` — or
+withholds a new `SANCTIONS_LIST_CHANGE_STORM` (the entries changed, only publication is held) —
+every monitored subject screened against that list is screened again against it, after the
+publication commits. A `HIT` / `POTENTIAL_HIT` not covered by a prior clearance of the same party
+and name becomes an ordinary check (idempotency key `rescreen:<publicationId>:<partyId>`), in the
+normal review queue with a normal `SanctionChecked` event. A clear or already-cleared re-screen
+records nothing. The sweep never fails the refresh, isolates per-subject failures, pages 100 at a
+time and stops at 5 000 subjects per change (logged as truncated).
 
 Domain method `SanctionsCheck.isHighRisk()` returns `true` for `HIT` or `POTENTIAL_HIT` with score > 0.85.
 

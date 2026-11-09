@@ -7,6 +7,7 @@ package com.openbank.sanctions.infrastructure.persistence.repository
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.openbank.libs.domain.identifiers.Ids
 import com.openbank.libs.persistence.outbox.OutboxMessage
+import com.openbank.sanctions.application.port.`in`.MonitoredRescreenUseCase
 import com.openbank.sanctions.application.port.out.SanctionsChangePublisher
 import com.openbank.sanctions.application.port.out.SanctionsOutboxRepository
 import com.openbank.sanctions.application.port.out.SanctionsPublicationOutcome
@@ -34,6 +35,7 @@ class SanctionsChangePublisherImpl(
     private val clock: Clock,
     @ConfigProperty(name = "openbank.sanctions.list-change.storm-threshold-share", defaultValue = "0.5")
     private val stormThreshold: Double,
+    private val rescreen: MonitoredRescreenUseCase,
 ) : SanctionsChangePublisher {
     override suspend fun publishPending(listId: UUID, listType: SanctionsListType): SanctionsPublicationOutcome =
         publish(listId, listType, permit = null)
@@ -52,7 +54,7 @@ class SanctionsChangePublisherImpl(
         listType: SanctionsListType,
         permit: SanctionsPublicationPermit?,
     ): SanctionsPublicationOutcome {
-        return Panache.withTransaction {
+        val result = Panache.withTransaction {
             Panache.getSession().chain { session ->
                 uni(CoroutineScope(Dispatchers.Unconfined)) {
                     require(stormThreshold.isFinite() && stormThreshold > 0 && stormThreshold <= 1)
@@ -67,7 +69,7 @@ class SanctionsChangePublisherImpl(
                             "SELECT pg_try_advisory_xact_lock(11492, hashtext(:type))",
                             Boolean::class.java,
                         ).setParameter("type", listType.name).singleResult.awaitSuspending()
-                        if (!importFinished) return@uni SanctionsPublicationOutcome.DEFERRED
+                        if (!importFinished) return@uni Publication(SanctionsPublicationOutcome.DEFERRED)
                     }
                     // The row lock makes generation validation atomic with journal selection.
                     // A dead JDBC owner leaves refresh_active=true; never publish its partial
@@ -78,7 +80,7 @@ class SanctionsChangePublisherImpl(
                                 "WHERE list_type = :type FOR UPDATE",
                             Boolean::class.java,
                         ).setParameter("type", listType.name).singleResult.awaitSuspending()
-                        if (active) return@uni SanctionsPublicationOutcome.DEFERRED
+                        if (active) return@uni Publication(SanctionsPublicationOutcome.DEFERRED)
                     } else {
                         val generation = session.createNativeQuery(
                             "SELECT refresh_generation FROM sanctions_change_publication " +
@@ -106,13 +108,17 @@ class SanctionsChangePublisherImpl(
                     val selectedCount = session.createNativeQuery<Any>(SanctionsPublicationSql.SELECT_PENDING)
                         .setParameter("type", listType.name).executeUpdate().awaitSuspending()
                     if (selectedCount == 0) {
-                        SanctionsPublicationOutcome.NO_CHANGES
+                        Publication(SanctionsPublicationOutcome.NO_CHANGES)
                     } else {
                         publishSelection(session, listId, listType, previousStorm)
                     }
                 }
             }
         }.awaitSuspending()
+        // After commit, never inside the transaction: a re-screen writes checks of its own, and a
+        // failed publication must not leave checks behind for a change nobody was told about.
+        result.changeId?.let { rescreen.rescreenAfterListChange(listType, it, result.storm) }
+        return result.outcome
     }
 
     private suspend fun publishSelection(
@@ -120,7 +126,7 @@ class SanctionsChangePublisherImpl(
         listId: UUID,
         listType: SanctionsListType,
         previousStorm: String,
-    ): SanctionsPublicationOutcome {
+    ): Publication {
         val summary = summarize(session, listType)
         if (summary.reason != null) {
             val reason = summary.reason
@@ -144,17 +150,22 @@ class SanctionsChangePublisherImpl(
                 ).setParameter("fingerprint", fingerprint).setParameter("type", listType.name)
                     .executeUpdate().awaitSuspending()
                 Log.errorf("Sanctions publication withheld for %s: %s; journal retained", listType, reason)
+                // The entries already changed in the table, only their publication is withheld —
+                // so monitored subjects are screened against the new data once per NEW storm
+                // (the fingerprint dedupes retries, exactly as it dedupes the storm event).
+                val stormId = UUID.nameUUIDFromBytes(fingerprint.toByteArray(Charsets.UTF_8)).toString()
+                return Publication(SanctionsPublicationOutcome.WITHHELD, stormId, storm = true)
             }
-            return SanctionsPublicationOutcome.WITHHELD
+            return Publication(SanctionsPublicationOutcome.WITHHELD)
         }
-        persistChunks(session, listId, listType, summary.changeCount)
+        val publicationId = persistChunks(session, listId, listType, summary.changeCount)
         // Never delete by list or high-water mark: later commits can carry earlier sequence IDs.
         session.createNativeQuery<Any>(SanctionsPublicationSql.DELETE_SELECTION)
             .executeUpdate().awaitSuspending()
         session.createNativeQuery<Any>(
             "UPDATE sanctions_change_publication SET last_storm_fingerprint = NULL WHERE list_type = :type",
         ).setParameter("type", listType.name).executeUpdate().awaitSuspending()
-        return SanctionsPublicationOutcome.PUBLISHED
+        return Publication(SanctionsPublicationOutcome.PUBLISHED, publicationId.toString())
     }
 
     private suspend fun summarize(session: Mutiny.Session, listType: SanctionsListType): Summary {
@@ -185,7 +196,12 @@ class SanctionsChangePublisherImpl(
         return Summary(count, baseline, reason, fingerprint)
     }
 
-    private suspend fun persistChunks(session: Mutiny.Session, listId: UUID, listType: SanctionsListType, count: Long) {
+    private suspend fun persistChunks(
+        session: Mutiny.Session,
+        listId: UUID,
+        listType: SanctionsListType,
+        count: Long,
+    ): UUID {
         val publicationId = Ids.randomId()
         val chunkCount = (count + IDS_PER_EVENT - 1) / IDS_PER_EVENT
         var after = 0L
@@ -215,6 +231,7 @@ class SanctionsChangePublisherImpl(
             after = chunk.last().id
             index += 1
         }
+        return publicationId
     }
 
     private suspend fun persist(listId: UUID, eventType: String, payload: Map<String, Any>) {
@@ -241,6 +258,14 @@ class SanctionsChangePublisherImpl(
     }
 
     private data class Target(val id: Long, val externalId: String, val active: Boolean)
+
+    /** [changeId] is set when monitored subjects must be re-screened after commit. */
+    private data class Publication(
+        val outcome: SanctionsPublicationOutcome,
+        val changeId: String? = null,
+        val storm: Boolean = false,
+    )
+
     private data class Summary(val changeCount: Long, val baseline: Long, val reason: String?, val fingerprint: String)
 
     private companion object {

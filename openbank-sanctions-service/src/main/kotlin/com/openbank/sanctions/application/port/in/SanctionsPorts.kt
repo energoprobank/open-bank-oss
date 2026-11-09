@@ -25,7 +25,45 @@ data class ScreenEntityCommand(
      * turned exactly that into an NPE-driven 500.
      */
     val listTypes: List<String?>? = null,
+    /**
+     * Keep this party under ongoing monitoring: it is screened again whenever a list it was
+     * screened against changes. Requires `identifiers.partyId` (the monitoring key).
+     */
+    val monitor: Boolean = false,
 )
+
+/** What screening a monitored subject again after a list change came to. */
+enum class RescreenOutcome {
+    /** No match at or above the potential-hit threshold. */
+    CLEAR,
+
+    /** It matched, but a person already cleared this party under this name — nothing to review. */
+    COVERED_BY_CLEARANCE,
+
+    /** A new HIT / POTENTIAL_HIT check was created and is waiting in the review queue. */
+    CHECK_CREATED,
+
+    /** The idempotency key already had a check (this change was re-screened before). */
+    ALREADY_SCREENED,
+}
+
+/** Totals of one re-screen sweep, for the log line and the tests. */
+data class RescreenSummary(
+    val screened: Int = 0,
+    val checksCreated: Int = 0,
+    val coveredByClearance: Int = 0,
+    val failed: Int = 0,
+    val truncated: Boolean = false,
+)
+
+/** Screens monitored subjects again after a list they watch changed. Never throws. */
+interface MonitoredRescreenUseCase {
+    /**
+     * @param changeId the publication id of the SANCTIONS_LIST_CHANGED event (or a stable id derived
+     *   from the change-storm evidence); part of each check's idempotency key.
+     */
+    suspend fun rescreenAfterListChange(listType: SanctionsListType, changeId: String, storm: Boolean): RescreenSummary
+}
 
 data class ReviewCommand(
     val checkId: UUID,

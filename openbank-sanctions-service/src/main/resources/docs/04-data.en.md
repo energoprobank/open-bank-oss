@@ -66,6 +66,7 @@ Flyway, immutable historical scripts, forward-only:
 | `V2__create_sanctions_outbox.sql` | Table `sanctions_outbox` (transactional outbox pattern) |
 | `V3__create_sanctions_lists.sql` | Table `sanctions_lists` with 6 seed rows (one per list type) |
 | `V4__hibernate_sequences.sql` | Hibernate sequence table for surrogate key generation |
+| `V17__sanctions_monitored_subjects.sql` | Table `sanctions_monitored_subjects` (parties under ongoing monitoring). Rollback: roll pods back to a build without monitoring, then `DROP TABLE sanctions_monitored_subjects` — nothing references it |
 
 > Migrations are immutable after apply. Never alter a migration that has been applied to a production DB.
 

@@ -12,12 +12,26 @@ import java.time.Clock
 import java.time.Instant
 import java.util.UUID
 
+/** The monitoring key; bounded so `rescreen:<changeId>:<partyId>` fits the idempotency-key column. */
+private const val MAX_MONITORED_PARTY_ID_LENGTH = 200
+
+private fun requireMonitoredPartyId(cmd: ScreenEntityCommand): String {
+    val partyId = cmd.identifiers["partyId"]?.trim()
+    require(!partyId.isNullOrEmpty()) { "monitor=true requires identifiers.partyId" }
+    require(partyId.length <= MAX_MONITORED_PARTY_ID_LENGTH) {
+        "identifiers.partyId must be at most $MAX_MONITORED_PARTY_ID_LENGTH characters when monitor=true"
+    }
+    return partyId
+}
+
+@Suppress("TooManyFunctions") // the screening use case: screen/rescreen/review plus its four read queries
 @ApplicationScoped
 class SanctionsService(
     private val repo: SanctionsRepository,
     private val entryRepo: SanctionsEntryRepository,
     private val importer: SanctionsImportService,
     private val clock: Clock,
+    private val monitored: MonitoredSubjectRepository,
 ) : SanctionsUseCase {
 
     /**
@@ -59,6 +73,12 @@ class SanctionsService(
     /**
      * Query [SanctionsEntryRepository] using pg_trgm similarity for each name in the command.
      * Returns (status, matches) based on DB results — no hardcoded data.
+     *
+     * The search runs at the POTENTIAL_HIT threshold, not the HIT one. It used to ask the database
+     * for `>= HIT_THRESHOLD` only, so nothing between 0.65 and 0.85 ever came back and the
+     * POTENTIAL_HIT branch below was unreachable: a near-miss on a listed name screened CLEAR
+     * instead of reaching a person. Each surviving name score is then weighed against the
+     * subject's date of birth and nationality ([MatchScoring]) before the status is decided.
      */
     private suspend fun performScreening(
         cmd: ScreenEntityCommand,
@@ -72,8 +92,8 @@ class SanctionsService(
             val results = entryRepo.search(
                 normalizedQuery = normalized,
                 listTypes = targetLists,
-                threshold = HIT_THRESHOLD,
-                limit = 10,
+                threshold = POTENTIAL_HIT_THRESHOLD,
+                limit = SEARCH_LIMIT,
             )
             for (m in results) {
                 val key = "${m.entry.listType}:${m.entry.externalId ?: m.entry.primaryName}"
@@ -82,7 +102,14 @@ class SanctionsService(
             }
         }
 
-        val hits = matchMap.values.sortedByDescending { it.score }.map { m ->
+        val hits = matchMap.values.map { m ->
+            val scored = MatchScoring.score(
+                nameScore = m.score,
+                subjectDob = cmd.dateOfBirth,
+                subjectNationality = cmd.nationality,
+                entryDob = m.entry.dateOfBirth,
+                entryNationalities = m.entry.nationalities,
+            )
             SanctionsMatch(
                 listType = m.entry.listType,
                 matchType = when {
@@ -90,13 +117,15 @@ class SanctionsService(
                     m.score >= 0.80 -> MatchType.FUZZY
                     else -> MatchType.PHONETIC
                 },
-                matchScore = m.score,
+                matchScore = scored.score,
                 matchedName = m.entry.primaryName,
                 matchedId = m.entry.externalId,
                 listEntryDate = null,
                 programs = m.entry.programs,
+                nameScore = m.score,
+                scoreAdjustments = scored.adjustments,
             )
-        }
+        }.sortedByDescending { it.matchScore }
 
         val status = when {
             hits.any { it.matchScore >= HIT_THRESHOLD } -> SanctionsCheckStatus.HIT
@@ -118,9 +147,55 @@ class SanctionsService(
         cmd.listTypes?.forEachIndexed { index, listType ->
             requireNotNull(listType) { "listTypes[$index] must not be null" }
         }
-        repo.findByIdempotencyKey(cmd.idempotencyKey)?.let { return it }
+        val monitoredPartyId = if (cmd.monitor) requireMonitoredPartyId(cmd) else null
+        val check = repo.findByIdempotencyKey(cmd.idempotencyKey) ?: run {
+            val targetLists = resolveTargetLists(cmd)
+            val (status, matches) = performScreening(cmd, targetLists)
+            record(cmd, targetLists, status, matches)
+        }
+        // Upserted on the replay path too: a first attempt that saved its check and then lost the
+        // upsert must not leave the party unmonitored forever because every retry short-circuits.
+        if (monitoredPartyId != null) {
+            monitored.upsert(
+                MonitoredSubject(
+                    partyId = monitoredPartyId,
+                    entityType = cmd.entityType,
+                    name = cmd.name,
+                    aliases = cmd.aliases.filterNotNull(),
+                    dateOfBirth = cmd.dateOfBirth,
+                    nationality = cmd.nationality,
+                    listTypes = if (cmd.listTypes.isNullOrEmpty()) emptyList() else resolveTargetLists(cmd),
+                    lastScreenedAt = check.checkedAt,
+                ),
+            )
+        }
+        return check
+    }
+
+    /**
+     * Screen a monitored subject again after a list change. Persists a check ONLY when there is
+     * something for a person to look at: a HIT or POTENTIAL_HIT not already covered by a clearance
+     * of this party under this name. That check takes the same path as [screen] — same status
+     * mapping, same `SanctionChecked` event — so it lands in the ordinary /pending queue.
+     * A CLEAR re-screen, or one a prior clearance covers, records nothing: it is not a new fact
+     * about the customer, and storing one per monitored party per list refresh would bury the queue.
+     */
+    suspend fun rescreen(cmd: ScreenEntityCommand): RescreenOutcome {
+        if (repo.findByIdempotencyKey(cmd.idempotencyKey) != null) return RescreenOutcome.ALREADY_SCREENED
         val targetLists = resolveTargetLists(cmd)
         val (status, matches) = performScreening(cmd, targetLists)
+        if (status == SanctionsCheckStatus.CLEAR) return RescreenOutcome.CLEAR
+        if (priorClearance(cmd) != null) return RescreenOutcome.COVERED_BY_CLEARANCE
+        record(cmd, targetLists, status, matches)
+        return RescreenOutcome.CHECK_CREATED
+    }
+
+    private suspend fun record(
+        cmd: ScreenEntityCommand,
+        targetLists: List<SanctionsListType>,
+        status: SanctionsCheckStatus,
+        matches: List<SanctionsMatch>,
+    ): SanctionsCheck {
         val clearance = if (status == SanctionsCheckStatus.CLEAR) null else priorClearance(cmd)
         val check = SanctionsCheck(
             id = UUID.randomUUID(), idempotencyKey = cmd.idempotencyKey,
@@ -131,7 +206,9 @@ class SanctionsService(
             overallScore = matches.maxOfOrNull { it.matchScore } ?: 0.0,
             checkedLists = targetLists,
             reviewedBy = clearance?.reviewedBy,
-            reviewNote = clearance?.let { "Carried over from check ${it.id}: the same party and name were cleared as ${it.status}." },
+            reviewNote = clearance?.let {
+                "Carried over from check ${it.id}: the same party and name were cleared as ${it.status}."
+            },
             checkedAt = Instant.now(clock), reviewedAt = clearance?.let { Instant.now(clock) },
         )
         return repo.saveWithEvent(check, EVENT_SCREENED)
@@ -155,6 +232,7 @@ class SanctionsService(
     companion object {
         private const val HIT_THRESHOLD = 0.85
         private const val POTENTIAL_HIT_THRESHOLD = 0.65
+        private const val SEARCH_LIMIT = 10
 
         /**
          * Emitted by [screen]: an automated screening produced a status from list matching.

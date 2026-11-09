@@ -8,7 +8,10 @@ info:
   # ApprovalResponse (makerId, createdAt). No breaking change.
   # ADR-0227 D1: additive projection fields (summary, domain, amount, currency, riskClass,
   # payloadRef — all optional) on ApprovalResponse; no breaking change.
-  version: 2.2.0
+  # 2.2.0 -> 2.3.0 (experience v2 step 9): additive only — optional `monitor` on
+  # ScreenEntityCommand, and two optional explanatory fields (nameScore, scoreAdjustments) on
+  # SanctionsMatch. No breaking change.
+  version: 2.3.0
   # 1.4.0 -> 2.0.0 (#9048, ADR-0048): POST /lists/refresh-all could not keep answering 200 — that
   # required the whole external-feed fan-out to finish inside the request, which was the defect.
   # oasdiff classifies 200 -> 202 as breaking, and a breaking change here means a new URL major:
@@ -474,6 +477,15 @@ components:
               - FATF_HIGH_RISK
               - PEP_GLOBAL
               - CNB_DOMESTIC
+        monitor:
+          type: boolean
+          default: false
+          description: >-
+            Keep this party under ongoing monitoring. Requires `identifiers.partyId` (400 without
+            it). The party is screened again, against the changed list, whenever a list it was
+            screened against publishes a change; a new HIT or POTENTIAL_HIT not covered by an
+            earlier clearance of the same party and name is created as an ordinary check and
+            appears in GET /api/v1/sanctions/pending.
 
     ReviewCommand:
       type: object
@@ -573,6 +585,21 @@ components:
           nullable: true
         programs:
           type: array
+          items:
+            type: string
+        nameScore:
+          type: number
+          format: double
+          nullable: true
+          description: >-
+            Name similarity before date-of-birth / nationality weighting. matchScore is the
+            weighted score the status is decided on. Null on checks recorded before weighting.
+        scoreAdjustments:
+          type: array
+          description: >-
+            Why matchScore differs from nameScore (or why it did not move): dob_match,
+            dob_year_match, dob_partial_mismatch (x0.85), dob_mismatch (x0.6),
+            nationality_mismatch (-0.05). Empty when either side lacked the data.
           items:
             type: string
 

@@ -28,6 +28,17 @@ data class SanctionsMatch(
     val matchedId: String?,
     val listEntryDate: String?,
     val programs: List<String>,
+    /**
+     * The pure name similarity the list search returned, before [MatchScoring] moved it. Null on
+     * checks stored before scoring existed (their [matchScore] IS the name score).
+     */
+    val nameScore: Double? = null,
+    /**
+     * Why [matchScore] differs from [nameScore] — or, for a confirming signal, why it did not
+     * move: `dob_match`, `dob_year_match`, `dob_partial_mismatch`, `dob_mismatch`,
+     * `nationality_mismatch`. Empty when neither side carried the data to compare.
+     */
+    val scoreAdjustments: List<String> = emptyList(),
 )
 
 data class SanctionsCheck(
