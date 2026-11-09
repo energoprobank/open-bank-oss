@@ -68,6 +68,14 @@ data class IdentityVerification(
     val failureReason: String?,
     val createdAt: Instant,
     val updatedAt: Instant,
+    // Step 9: the Bank iD OIDC round trip (state, PKCE verifier, nonce), the document being checked,
+    // the checks the bank ran (JSON evidence) and whether a person must look at the result.
+    val oidcState: String? = null,
+    val oidcVerifier: String? = null,
+    val oidcNonce: String? = null,
+    val documentId: String? = null,
+    val evidenceJson: String? = null,
+    val needsReview: Boolean = false,
 )
 
 /** The application's own state: what the applicant chose that is not master data. */
@@ -79,7 +87,24 @@ data class OnboardingApplication(
     val identityVerifiedAt: Instant?,
     val identityMethod: IdentityMethod?,
     val updatedAt: Instant,
+    /** Step 9: where the application stands (see [ApplicationStatus]). */
+    val status: ApplicationStatus = ApplicationStatus.IN_PROGRESS,
+    val pidDecision: String? = null,
+    val pidCaseId: UUID? = null,
+    /** The variable symbol the first payment must carry (document path). */
+    val firstPaymentReference: String? = null,
+    val firstPaymentJson: String? = null,
+    val assessmentJson: String? = null,
+    val kycCaseId: String? = null,
+    val submittedAt: Instant? = null,
 )
+
+/**
+ * Where an account opening stands (step 9). IN_PROGRESS while the applicant is filling it in;
+ * IDENTITY_REVIEW when pid could not tell whether the applicant is a new person; then, once
+ * submitted, APPROVED (straight through or by a person), IN_REVIEW, or REJECTED by a person.
+ */
+enum class ApplicationStatus { IN_PROGRESS, IDENTITY_REVIEW, AWAITING_FIRST_PAYMENT, IN_REVIEW, APPROVED, REJECTED }
 
 enum class LivenessPurpose { POLICY_CHANGE, PAYMENT }
 

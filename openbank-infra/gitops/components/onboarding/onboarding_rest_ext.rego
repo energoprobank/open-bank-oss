@@ -8,6 +8,7 @@
 #   onboarding.contact-verification.create / .confirm — e-mail + SMS one-time codes (before sign-in)
 #   onboarding.energo-pro.prefill                      — Energo-Pro record against a confirmed contact
 #   onboarding.application.read / .update              — the application, identity checks
+#   onboarding.bank-id.callback                        — step 9: the browser's return from Bank iD (state-bound)
 #   liveness.policy.read / .update, liveness.session.create / .read / .consume — face check
 
 package openbank.rest
@@ -23,6 +24,7 @@ allowed_reasons contains "service-onboarding-edge-m2m" if {
 		"onboarding.energo-pro.prefill",
 		"onboarding.application.read",
 		"onboarding.application.update",
+		"onboarding.bank-id.callback",
 		"liveness.policy.read",
 		"liveness.policy.update",
 		"liveness.session.create",

@@ -30,9 +30,27 @@ import java.util.concurrent.ConcurrentHashMap
 object Applicants {
     val CZ: UUID = UUID.fromString("00000000-0000-0000-0000-00000000c201")
     val BG: UUID = UUID.fromString("00000000-0000-0000-0000-00000000b601")
+
+    // Step 9 applicants, one per decision path (each IT test owns its own applicant).
+    val BANK_ID: UUID = UUID.fromString("00000000-0000-0000-0000-0000000009a1")
+    val DOCUMENT: UUID = UUID.fromString("00000000-0000-0000-0000-0000000009a2")
+    val GREY: UUID = UUID.fromString("00000000-0000-0000-0000-0000000009a3")
+    val OTHER: UUID = UUID.fromString("00000000-0000-0000-0000-0000000009a4")
     val facts = mapOf(
         CZ to PartyFacts(CZ, "Jana Testová", "1990-04-12", "9004120004", "CZ", "PROSPECT"),
         BG to PartyFacts(BG, "Велина Тестова", "1975-01-01", "7501010010", "BG", "PROSPECT"),
+        BANK_ID to PartyFacts(BANK_ID, "Tomáš Banka", "1985-03-21", null, "CZ", "PENDING_KYC"),
+        DOCUMENT to PartyFacts(DOCUMENT, "Petr Doklad", "1988-06-15", null, "CZ", "PENDING_KYC"),
+        GREY to PartyFacts(GREY, "Eva Šedá", "1992-08-07", null, "CZ", "PENDING_KYC"),
+        OTHER to PartyFacts(OTHER, "Karel Jiný", "1979-01-01", null, "CZ", "PENDING_KYC"),
+    )
+
+    /** The national number each step-9 applicant types. */
+    val numbers = mapOf(
+        BANK_ID to "8503211233",
+        DOCUMENT to "8806154566",
+        GREY to "9258077895",
+        OTHER to "7901013219",
     )
 }
 

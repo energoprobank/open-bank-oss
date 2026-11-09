@@ -7,6 +7,7 @@ package com.openbank.onboarding.infrastructure.persistence
 import com.openbank.onboarding.application.port.out.ApplicationStore
 import com.openbank.onboarding.application.port.out.ContactVerificationStore
 import com.openbank.onboarding.application.port.out.LivenessStore
+import com.openbank.onboarding.domain.model.ApplicationStatus
 import com.openbank.onboarding.domain.model.ContactVerification
 import com.openbank.onboarding.domain.model.IdentityMethod
 import com.openbank.onboarding.domain.model.IdentityStatus
@@ -121,24 +122,33 @@ class JdbcApplicationStore(private val dataSource: DataSource) :
                 identityVerifiedAt = rs.instant("identity_verified_at"),
                 identityMethod = rs.getString("identity_method")?.let(IdentityMethod::valueOf),
                 updatedAt = rs.instant("updated_at")!!,
+                status = ApplicationStatus.valueOf(rs.getString("status")),
+                pidDecision = rs.getString("pid_decision"),
+                pidCaseId = rs.getObject("pid_case_id", UUID::class.java),
+                firstPaymentReference = rs.getString("first_payment_reference"),
+                firstPaymentJson = rs.getString("first_payment_json"),
+                assessmentJson = rs.getString("assessment_json"),
+                kycCaseId = rs.getString("kyc_case_id"),
+                submittedAt = rs.instant("submitted_at"),
             )
         }
 
     override fun upsertApplication(a: OnboardingApplication) {
         update(
             """INSERT INTO onboarding_applications (party_id, package_code, personal_details_at, tax_residency_at,
-               identity_verified_at, identity_method, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)
+               identity_verified_at, identity_method, updated_at, status, pid_decision, pid_case_id,
+               first_payment_reference, first_payment_json, assessment_json, kyc_case_id, submitted_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                ON CONFLICT (party_id) DO UPDATE SET package_code = EXCLUDED.package_code,
                personal_details_at = EXCLUDED.personal_details_at, tax_residency_at = EXCLUDED.tax_residency_at,
                identity_verified_at = EXCLUDED.identity_verified_at, identity_method = EXCLUDED.identity_method,
-               updated_at = EXCLUDED.updated_at""",
-            a.partyId,
-            a.packageCode,
-            a.personalDetailsAt,
-            a.taxResidencyAt,
-            a.identityVerifiedAt,
-            a.identityMethod,
-            a.updatedAt,
+               updated_at = EXCLUDED.updated_at, status = EXCLUDED.status, pid_decision = EXCLUDED.pid_decision,
+               pid_case_id = EXCLUDED.pid_case_id, first_payment_reference = EXCLUDED.first_payment_reference,
+               first_payment_json = EXCLUDED.first_payment_json, assessment_json = EXCLUDED.assessment_json,
+               kyc_case_id = EXCLUDED.kyc_case_id, submitted_at = EXCLUDED.submitted_at""",
+            a.partyId, a.packageCode, a.personalDetailsAt, a.taxResidencyAt, a.identityVerifiedAt,
+            a.identityMethod, a.updatedAt, a.status, a.pidDecision, a.pidCaseId, a.firstPaymentReference,
+            a.firstPaymentJson, a.assessmentJson, a.kycCaseId, a.submittedAt,
         )
     }
 
@@ -147,32 +157,43 @@ class JdbcApplicationStore(private val dataSource: DataSource) :
     override fun insertIdentityVerification(v: IdentityVerification) {
         update(
             """INSERT INTO identity_verifications (id, party_id, method, document_type, provider_ref, status,
-               failure_reason, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               failure_reason, created_at, updated_at, oidc_state, oidc_verifier, oidc_nonce, document_id,
+               evidence_json, needs_review) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             v.id, v.partyId, v.method, v.documentType, v.providerRef,
             v.status, v.failureReason, v.createdAt, v.updatedAt,
+            v.oidcState, v.oidcVerifier, v.oidcNonce, v.documentId, v.evidenceJson, v.needsReview,
         )
     }
 
     override fun identityVerification(id: UUID): IdentityVerification? =
-        queryOne("SELECT * FROM identity_verifications WHERE id = ?", id) { rs ->
-            IdentityVerification(
-                id = rs.uuid(
-                    "id",
-                ),
-                partyId = rs.uuid("party_id"), method = IdentityMethod.valueOf(rs.getString("method")),
-                documentType = rs.getString("document_type"), providerRef = rs.getString("provider_ref"),
-                status = IdentityStatus.valueOf(rs.getString("status")), failureReason = rs.getString("failure_reason"),
-                createdAt = rs.instant("created_at")!!, updatedAt = rs.instant("updated_at")!!,
-            )
-        }
+        queryOne("SELECT * FROM identity_verifications WHERE id = ?", id, map = ::verification)
+
+    override fun identityVerificationByState(state: String): IdentityVerification? =
+        queryOne("SELECT * FROM identity_verifications WHERE oidc_state = ?", state, map = ::verification)
+
+    override fun identityVerifications(partyId: UUID): List<IdentityVerification> = withConnection { c ->
+        val ps = c.prepareStatement("SELECT * FROM identity_verifications WHERE party_id = ? ORDER BY created_at")
+        bind(ps, arrayOf(partyId))
+        val rs = ps.executeQuery()
+        buildList { while (rs.next()) add(verification(rs)) }
+    }
+
+    private fun verification(rs: ResultSet) = IdentityVerification(
+        id = rs.uuid("id"),
+        partyId = rs.uuid("party_id"), method = IdentityMethod.valueOf(rs.getString("method")),
+        documentType = rs.getString("document_type"), providerRef = rs.getString("provider_ref"),
+        status = IdentityStatus.valueOf(rs.getString("status")), failureReason = rs.getString("failure_reason"),
+        createdAt = rs.instant("created_at")!!, updatedAt = rs.instant("updated_at")!!,
+        oidcState = rs.getString("oidc_state"), oidcVerifier = rs.getString("oidc_verifier"),
+        oidcNonce = rs.getString("oidc_nonce"), documentId = rs.getString("document_id"),
+        evidenceJson = rs.getString("evidence_json"), needsReview = rs.getBoolean("needs_review"),
+    )
 
     override fun updateIdentityVerification(v: IdentityVerification) {
         update(
-            "UPDATE identity_verifications SET status = ?, failure_reason = ?, updated_at = ? WHERE id = ?",
-            v.status,
-            v.failureReason,
-            v.updatedAt,
-            v.id,
+            """UPDATE identity_verifications SET status = ?, failure_reason = ?, updated_at = ?, document_id = ?,
+               evidence_json = ?, needs_review = ?, oidc_state = ? WHERE id = ?""",
+            v.status, v.failureReason, v.updatedAt, v.documentId, v.evidenceJson, v.needsReview, v.oidcState, v.id,
         )
     }
 

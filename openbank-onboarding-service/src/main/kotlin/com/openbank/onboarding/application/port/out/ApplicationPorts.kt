@@ -92,6 +92,8 @@ data class PersonalDetailsWrite(
     val city: String,
     val postalCode: String,
     val country: String,
+    /** Step 9: ISO 3166-1 alpha-2 citizenship. */
+    val nationality: String? = null,
 )
 
 data class TaxResidencyWrite(val country: String, val tin: String?)
@@ -126,6 +128,12 @@ interface ApplicationStore {
     fun insertIdentityVerification(v: IdentityVerification)
 
     fun identityVerification(id: UUID): IdentityVerification?
+
+    /** Step 9: the Bank iD verification an OIDC callback's `state` belongs to. */
+    fun identityVerificationByState(state: String): IdentityVerification?
+
+    /** Step 9: every identity verification of the applicant, oldest first. */
+    fun identityVerifications(partyId: UUID): List<IdentityVerification>
 
     fun updateIdentityVerification(v: IdentityVerification)
 }

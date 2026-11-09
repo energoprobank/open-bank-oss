@@ -96,6 +96,29 @@ quarkus:
       url: ${IDV_URL:http://localhost:8163}
       connect-timeout: 2000
       read-timeout: 5000
+    # Experience v2 step 9: the account opening now waits for these. Every one FAILS CLOSED (503 to
+    # the app, retry), never passes by default. Registers and the "other bank" are simulator faces
+    # locally; pid/kyc/sanctions are the bank's own services.
+    "registers":
+      url: ${REGISTERS_URL:http://localhost:8163}
+      connect-timeout: 2000
+      read-timeout: 5000
+    "other-bank":
+      url: ${OTHER_BANK_URL:http://localhost:8163}
+      connect-timeout: 2000
+      read-timeout: 5000
+    "pid-service":
+      url: ${PID_SERVICE_URL:http://localhost:8105}
+      connect-timeout: 2000
+      read-timeout: 5000
+    "kyc-service":
+      url: ${KYC_SERVICE_URL:http://localhost:8114}
+      connect-timeout: 2000
+      read-timeout: 5000
+    "sanctions-service":
+      url: ${SANCTIONS_SERVICE_URL:http://localhost:8123}
+      connect-timeout: 2000
+      read-timeout: 10000
   smallrye-reactive-messaging:
     kafka:
       bootstrap-servers: localhost:29092
@@ -234,6 +257,14 @@ openbank:
       # SANDBOX ONLY: return the codes to the caller so a demo can fill them in. Never in production.
       reveal-codes: ${OPENBANK_ONBOARDING_OTP_REVEAL_CODES:false}
       # hmac-key: from OPENBANK_ONBOARDING_OTP_HMAC_KEY; absent = a random key per process.
+    # Step 9: Bank iD over OIDC. public-url is what the applicant's BROWSER opens; redirect-uri is
+    # customer-edge's public callback. The client secret comes from OPENBANK_ONBOARDING_BANK_ID_CLIENT_SECRET.
+    bank-id:
+      public-url: ${OPENBANK_ONBOARDING_BANK_ID_PUBLIC_URL:http://localhost:8163}
+      redirect-uri: ${OPENBANK_ONBOARDING_BANK_ID_REDIRECT_URI:http://localhost:8128/customer/v1/onboarding/bank-id/callback}
+    first-payment:
+      # SANDBOX ONLY: the app may ask the applicant's "other bank" (simulator) to send the first payment.
+      simulate-enabled: ${OPENBANK_ONBOARDING_FIRST_PAYMENT_SIMULATE_ENABLED:false}
 
 "%dev":
   quarkus:

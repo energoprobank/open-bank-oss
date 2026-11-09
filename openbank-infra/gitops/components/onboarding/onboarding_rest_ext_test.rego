@@ -26,3 +26,7 @@ test_no_other_machine_may if {
 test_the_edge_gets_nothing_else_here if {
 	not "service-onboarding-edge-m2m" in allowed_reasons with input as {"principal": edge_sa, "action": "onboarding.records.read"}
 }
+
+test_edge_relays_the_bank_id_callback if {
+	"service-onboarding-edge-m2m" in allowed_reasons with input as {"principal": edge_sa, "action": "onboarding.bank-id.callback"}
+}

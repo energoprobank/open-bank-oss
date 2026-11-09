@@ -79,6 +79,11 @@ class InMemoryStore :
         identities[v.id] = v
     }
     override fun identityVerification(id: UUID) = identities[id]
+
+    override fun identityVerificationByState(state: String) = identities.values.firstOrNull { it.oidcState == state }
+
+    override fun identityVerifications(partyId: UUID) =
+        identities.values.filter { it.partyId == partyId }.sortedBy { it.createdAt }
     override fun updateIdentityVerification(v: IdentityVerification) {
         identities[v.id] = v
     }

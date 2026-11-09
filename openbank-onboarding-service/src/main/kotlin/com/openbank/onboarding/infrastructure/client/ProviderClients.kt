@@ -212,6 +212,7 @@ data class OnboardingDetailsDto(
     val nationalId: String,
     val phone: String,
     val address: AddressDto,
+    val nationality: String? = null,
 )
 
 data class TaxResidencyDto(val country: String, val tin: String?)
@@ -259,6 +260,7 @@ class PartyMasterDataAdapter(@RestClient private val client: PartyMasterDataClie
                 details.nationalId,
                 details.phone,
                 AddressDto(details.street, null, details.city, details.postalCode, details.country),
+                details.nationality,
             ),
         )
     }
@@ -276,24 +278,33 @@ class PartyMasterDataAdapter(@RestClient private val client: PartyMasterDataClie
             )
         }
 
-    /** party-service's own explanation (ApiError `detail` / `message`), e.g. which field is wrong. */
-    private fun reason(e: WebApplicationException): String? = runCatching {
+    /** party-service's ApiError body (`code`, `detail` / `message`), read once. */
+    private fun body(e: WebApplicationException): Map<String, Any?> = runCatching {
         @Suppress("UNCHECKED_CAST")
-        val body = e.response.readEntity(Map::class.java) as Map<String, Any?>
-        (body["detail"] ?: body["message"])?.toString()?.take(MAX_REASON)
-    }.getOrNull()
+        e.response.readEntity(Map::class.java) as Map<String, Any?>
+    }.getOrDefault(emptyMap())
 
     private fun translate(call: () -> Unit) {
         try {
             call()
         } catch (e: WebApplicationException) {
+            val body = body(e)
+            val reason = (body["detail"] ?: body["message"])?.toString()?.take(MAX_REASON)
             throw when (e.status()) {
-                HTTP_BAD_REQUEST -> IllegalArgumentException(reason(e) ?: "The bank could not accept these details")
+                HTTP_BAD_REQUEST -> IllegalArgumentException(reason ?: "The bank could not accept these details")
                 HTTP_NOT_FOUND -> ResourceNotFoundException("No such applicant", "APPLICATION_NOT_FOUND")
-                HTTP_CONFLICT -> ResourceConflictException(
-                    "These details can no longer be changed",
-                    "APPLICATION_DECIDED",
-                )
+                // Step 9: party-service says WHY — a minor, a number another customer has, dedup down.
+                HTTP_CONFLICT -> when (body["code"]) {
+                    "UNDERAGE" -> ResourceConflictException("An account can be opened from the age of 18", "UNDERAGE")
+                    "NATIONAL_ID_TAKEN" -> ResourceConflictException(
+                        "This national number already belongs to a customer of the bank",
+                        "ALREADY_CUSTOMER",
+                    )
+                    "DEDUP_UNAVAILABLE" -> com.openbank.onboarding.application.port.out.IdentityCheckUnavailable(
+                        "National-number deduplication",
+                    )
+                    else -> ResourceConflictException("These details can no longer be changed", "APPLICATION_DECIDED")
+                }
                 else -> e
             }
         }

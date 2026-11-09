@@ -9,6 +9,7 @@ import com.openbank.libs.authz.Authorize
 import com.openbank.onboarding.application.port.out.PersonalDetailsWrite
 import com.openbank.onboarding.application.port.out.ProviderCheck
 import com.openbank.onboarding.application.port.out.TaxResidencyWrite
+import com.openbank.onboarding.application.usecase.AccountOpeningService
 import com.openbank.onboarding.application.usecase.IdentityView
 import com.openbank.onboarding.application.usecase.LivenessService
 import com.openbank.onboarding.application.usecase.OnboardingApplicationService
@@ -101,7 +102,10 @@ class EnergoProPrefillResource(private val service: OnboardingApplicationService
 @Consumes(MediaType.APPLICATION_JSON)
 @RolesAllowed(MACHINE)
 @Blocking
-class OnboardingApplicationResource(private val service: OnboardingApplicationService) {
+class OnboardingApplicationResource(
+    private val service: OnboardingApplicationService,
+    private val opening: AccountOpeningService,
+) {
 
     @GET
     @Authorize(action = "onboarding.application.read", resource = "#partyId")
@@ -121,11 +125,14 @@ class OnboardingApplicationResource(private val service: OnboardingApplicationSe
     @PUT
     @Path("/personal-details")
     @Authorize(action = "onboarding.application.update", resource = "#partyId")
-    @Operation(summary = "Date of birth, national number, phone and address (written through to party-service)")
+    @Operation(
+        summary = "Date of birth, national number, nationality, phone and address — identity resolution " +
+            "(pid, fail closed) first, then written through to party-service",
+    )
     fun personalDetails(@PathParam("partyId") partyId: UUID, body: PersonalDetailsRequest?): Response {
         val req = requireNotNull(body) { "request body is required" }
         val address = requireNotNull(req.address) { "address is required" }
-        service.savePersonalDetails(
+        opening.savePersonalDetails(
             partyId,
             PersonalDetailsWrite(
                 dateOfBirth = requireNotNull(req.dateOfBirth) { "date_of_birth is required" },
@@ -135,6 +142,7 @@ class OnboardingApplicationResource(private val service: OnboardingApplicationSe
                 city = requireNotNull(address.city) { "address.city is required" },
                 postalCode = requireNotNull(address.postalCode) { "address.postal_code is required" },
                 country = requireNotNull(address.country) { "address.country is required" }.uppercase(),
+                nationality = req.nationality?.trim()?.uppercase(),
             ),
         )
         return Response.noContent().build()
@@ -294,6 +302,8 @@ data class PersonalDetailsRequest(
     @JsonProperty("birth_number") val birthNumber: String? = null,
     val phone: String? = null,
     val address: AddressRequest? = null,
+    /** Step 9: ISO 3166-1 alpha-2 citizenship. */
+    val nationality: String? = null,
 )
 
 data class ResidencyRequest(val country: String? = null, val tin: String? = null)
