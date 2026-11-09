@@ -128,8 +128,8 @@ async function probeService(
   const start = Date.now()
 
   // Local compose: the container's own healthcheck already ran /q/health/ready on the unpublished
-  // management port, so take its verdict (see dockerHealth.ts). Containers that do not exist locally
-  // are not deployed here, not down.
+  // management port, so take its verdict (see dockerHealth.ts). A container that exists but is
+  // stopped is down; one that does not exist is filtered out by GET as not deployed.
   if (docker) {
     const health = docker.get(svc.container)
     if (health === undefined || health === 'not-running') {
@@ -253,7 +253,10 @@ export async function GET() {
   const discovery = await fromDiscovery()
   const socket = dockerSocket()
   const docker = discovery.services === null && socket ? await dockerHealthByContainer(socket) : null
-  const services = discovery.services ?? (await Promise.all(staticServices().map(s => probeService(s, docker))))
+  // With Docker as the source, a catalog service that has no container is not deployed here: leave it
+  // out, as Kubernetes discovery does, so the pages show "Not deployed" instead of "Offline".
+  const probed = docker ? staticServices().filter(s => docker.has(s.container)) : staticServices()
+  const services = discovery.services ?? (await Promise.all(probed.map(s => probeService(s, docker))))
   const source = discovery.status === 'static' ? 'static' : 'kubernetes'
 
   const byContainer: Record<string, ServiceHealthEntry> = {}
