@@ -126,6 +126,8 @@ data class BillView(
     val status: String,
     @JsonProperty("collection_iban") val collectionIban: String,
     val reference: String,
+    /** The bank's payment of this bill, once paid: the target of a bill-cashback coupon. */
+    @JsonProperty("payment_id") val paymentId: String? = null,
 ) {
     companion object {
         fun of(b: BillWithStatus) = BillView(
@@ -137,6 +139,7 @@ data class BillView(
             b.status,
             b.bill.collectionIban,
             b.bill.reference,
+            b.paymentId?.toString(),
         )
     }
 }

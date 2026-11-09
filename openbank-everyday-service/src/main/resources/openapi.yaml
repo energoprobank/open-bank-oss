@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: OpenBank Everyday Service API
-  version: 1.1.0
+  version: 1.2.0
   description: >-
     Everyday money (experience v2 step 3): biller registry, the Energo-Pro electricity account and its
     bills, bill reminders. Machine callers only (customer-edge, with the party id from the customer's token).
@@ -130,6 +130,7 @@ components:
         status: {type: string, enum: [DUE, PAID, OVERDUE]}
         collection_iban: {type: string}
         reference: {type: string}
+        payment_id: {type: string, format: uuid, nullable: true, description: "The bank's payment of this bill, once paid; the target of a bill-cashback coupon."}
     ElectricityAccount:
       type: object
       properties:

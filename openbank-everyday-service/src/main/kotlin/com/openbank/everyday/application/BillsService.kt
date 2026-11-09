@@ -69,7 +69,11 @@ interface BillPaymentStore {
     /** False when the payment was already recorded (an event delivered twice). */
     fun insertBillPayment(p: BillPayment): Boolean
 
-    fun billPayments(partyId: UUID): List<BillPayment>
+    /**
+     * The bank's payments to [billerId] of these bill references. A biller's reference identifies one
+     * bill of one linked customer number, so this does not depend on which party a payment event named.
+     */
+    fun billPayments(billerId: String, references: Collection<String>): List<BillPayment>
 
     fun pendingNotices(limit: Int): List<BillPayment>
 
@@ -88,8 +92,11 @@ data class ElectricityView(
     val nextEstimate: BigDecimal?,
 )
 
-/** A bill with the status the customer should see: PAID as soon as the bank paid it. */
-data class BillWithStatus(val bill: Bill, val status: String)
+/**
+ * A bill with the status the customer should see: PAID as soon as the bank paid it, before Energo-Pro
+ * hears of it. [paymentId] is the bank's payment of it — what a bill-cashback coupon is used on.
+ */
+data class BillWithStatus(val bill: Bill, val status: String, val paymentId: UUID? = null)
 
 data class PaymentSeen(
     val paymentId: UUID,
@@ -121,7 +128,7 @@ class BillsService(
 
     fun electricity(partyId: UUID): ElectricityView {
         val link = store.electricityLink(partyId) ?: return ElectricityView(false, null, null, null, null)
-        val bills = billsWithStatus(partyId, link)
+        val bills = billsWithStatus(link)
         val supplier = store.billers(link.market).firstOrNull { it.connected }?.name
         val current = bills.firstOrNull()
         // Next month's bill: the average of the last three, as Energo-Pro's advance would be.
@@ -134,7 +141,7 @@ class BillsService(
 
     fun bills(partyId: UUID): List<BillWithStatus> {
         val link = store.electricityLink(partyId) ?: return emptyList()
-        return billsWithStatus(partyId, link)
+        return billsWithStatus(link)
     }
 
     /**
@@ -202,10 +209,16 @@ class BillsService(
         false
     }
 
-    private fun billsWithStatus(partyId: UUID, link: ElectricityLink): List<BillWithStatus> {
-        val paidRefs = payments.billPayments(partyId).map { it.reference }.toSet()
+    private fun billsWithStatus(link: ElectricityLink): List<BillWithStatus> {
         val bills = energoPro.bills(link.customerNumber) ?: return emptyList()
-        return bills.map { BillWithStatus(it, if (it.reference in paidRefs) "PAID" else it.status) }
+        val biller =
+            store.billers(link.market).firstOrNull { it.connected }
+                ?: return bills.map { BillWithStatus(it, it.status) }
+        val paid = payments.billPayments(biller.id, bills.map { it.reference }).associateBy { it.reference }
+        return bills.map { bill ->
+            val payment = paid[bill.reference]
+            BillWithStatus(bill, if (payment != null) "PAID" else bill.status, payment?.paymentId)
+        }
     }
 
     companion object {

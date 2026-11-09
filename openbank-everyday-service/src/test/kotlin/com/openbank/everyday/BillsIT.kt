@@ -19,6 +19,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.hamcrest.Matchers.equalTo
 import org.hamcrest.Matchers.hasItem
 import org.hamcrest.Matchers.hasSize
+import org.hamcrest.Matchers.isIn
 import org.hamcrest.Matchers.not
 import org.hamcrest.Matchers.nullValue
 import org.junit.jupiter.api.Test
@@ -100,17 +101,24 @@ class BillsIT {
         payments.send(paymentEvent(People.JANA, "2001234561", "2010", null, "1480.40"))
         payments.send("""{"eventType":"DOMESTIC_PAYMENT_STATUS_CHANGED"}""")
         payments.send("not json")
-        // The bill, paid to Energo-Pro's account with leading zeros as a client might type it
-        payments.send(paymentEvent(People.JANA, "0002001234561", "2010", FakeEnergoPro.DUE_REFERENCE, "1480.40"))
+        // The bill, paid to Energo-Pro's account with leading zeros as a client might type it. The event
+        // names the edge's service account, not Jana: domestic-payment records the caller's token
+        // subject (seen live, 2026-11-09). The bill is still hers, by its reference.
+        payments.send(
+            paymentEvent(EDGE_SERVICE_ACCOUNT, "0002001234561", "2010", FakeEnergoPro.DUE_REFERENCE, "1480.40"),
+        )
 
         // The handler is @Blocking: the event is processed on a worker thread, after send() returns.
         awaitCount(
-            "SELECT count(*) FROM bill_payments WHERE party_id = '${People.JANA}' AND notice_sent_at IS NOT NULL",
+            "SELECT count(*) FROM bill_payments WHERE reference = '${FakeEnergoPro.DUE_REFERENCE}' AND notice_sent_at IS NOT NULL",
             1,
         )
+        val paymentIds = ids(
+            "SELECT payment_id FROM bill_payments WHERE biller_id = 'EP-CZ' AND reference = '${FakeEnergoPro.DUE_REFERENCE}'",
+        )
         given().get("${base(People.JANA)}/energo-pro").then().body("current_bill.status", equalTo("PAID"))
+            .body("current_bill.payment_id", isIn(paymentIds))
         assertThat(energoPro.notices).contains(FakeEnergoPro.DUE_REFERENCE)
-        awaitCount("SELECT count(*) FROM bill_payments WHERE party_id = '${People.JANA}'", 2)
 
         given().delete("${base(People.JANA)}/energo-pro/link").then().statusCode(204)
         given().get("${base(People.JANA)}/energo-pro").then().body("linked", equalTo(false))
@@ -140,7 +148,14 @@ class BillsIT {
         assertThat(count(sql)).isEqualTo(expected)
     }
 
+    private fun ids(sql: String): List<String> = ds.connection.use { c ->
+        c.createStatement().use { st ->
+            st.executeQuery(sql).use { rs -> generateSequence { if (rs.next()) rs.getString(1) else null }.toList() }
+        }
+    }
+
     private companion object {
+        val EDGE_SERVICE_ACCOUNT: UUID = UUID.fromString("5379a6f8-962e-4d37-a037-f36907e60bc0")
         const val AWAIT_MS = 10_000L
         const val POLL_MS = 100L
     }

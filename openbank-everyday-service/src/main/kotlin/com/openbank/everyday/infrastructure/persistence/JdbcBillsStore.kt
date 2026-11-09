@@ -83,8 +83,18 @@ class JdbcBillsStore(dataSource: DataSource) :
         p.paidAt,
     ) == 1
 
-    override fun billPayments(partyId: UUID): List<BillPayment> =
-        query("SELECT * FROM bill_payments WHERE party_id = ? ORDER BY paid_at DESC", partyId, map = ::payment)
+    override fun billPayments(billerId: String, references: Collection<String>): List<BillPayment> =
+        if (references.isEmpty()) {
+            emptyList()
+        } else {
+            // One text[] parameter (pgjdbc binds a String[] as text[]).
+            query(
+                "SELECT * FROM bill_payments WHERE biller_id = ? AND reference = ANY(?) ORDER BY paid_at, payment_id",
+                billerId,
+                references.toTypedArray(),
+                map = ::payment,
+            )
+        }
 
     override fun pendingNotices(limit: Int): List<BillPayment> = query(
         """SELECT p.* FROM bill_payments p JOIN billers b ON b.biller_id = p.biller_id
