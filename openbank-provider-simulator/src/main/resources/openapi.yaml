@@ -1,10 +1,16 @@
 openapi: 3.0.3
 info:
   title: OpenBank Provider Simulator API
-  version: 1.3.0
+  version: 1.4.0
   description: >-
     NON-PRODUCTION stand-in for third-party providers (Energo-Pro customer system, e-mail/SMS gateway,
-    Czech Bank iD, identity verification and liveness). Machine callers only (M2M token).
+    Czech Bank iD, identity verification and liveness, CZ/BG registers, the customer's other bank).
+    Machine callers use the M2M token; the Bank iD OIDC endpoints under /bankid (served at the root,
+    not under /api/v1) and sending an other-bank payment are anonymous, as their real counterparts are
+    to this platform. Identity scenarios per national id (EXPIRED_DOCUMENT, INVALID_DOCUMENT,
+    CHIP_FORGED, LIVENESS_FAIL, FACE_MISMATCH, FACE_GREY, OCR_NAME_DIFFERS, BANKID_OTHER_PERSON,
+    INSOLVENT, FIRST_PAYMENT_OTHER_NAME, UNDERAGE_DOCUMENT, GRAO_MISMATCH) make a provider disagree;
+    with none, every provider finds the applicant as submitted.
 servers:
   - url: /api/v1
 security:
@@ -124,10 +130,201 @@ paths:
       responses:
         "200": {description: The verification, content: {application/json: {schema: {$ref: "#/components/schemas/Verification"}}}}
         "404": {description: Unknown or expired}
+  /sim/scenarios:
+    get:
+      summary: Every person with identity scenarios (file and runtime; runtime wins)
+      responses:
+        "200": {description: Scenario entries, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/ScenarioEntry"}}}}}
+  /sim/scenarios/{nationalId}:
+    parameters:
+      - {name: nationalId, in: path, required: true, schema: {type: string}, description: "RČ or EGN, any spelling (9-10 digits)"}
+    put:
+      summary: Set a person's scenarios (an empty list overrides the file with none)
+      requestBody:
+        required: true
+        content: {application/json: {schema: {type: object, required: [scenarios], properties: {scenarios: {type: array, items: {$ref: "#/components/schemas/IdentityScenario"}}, note: {type: string, maxLength: 500}}}}}
+      responses:
+        "200": {description: The entry, content: {application/json: {schema: {$ref: "#/components/schemas/ScenarioEntry"}}}}
+        "400": {description: Not a national id, or an unknown scenario}
+    delete:
+      summary: Remove a person's runtime scenarios (the file's, if any, hold again)
+      responses:
+        "204": {description: Removed (or there were none)}
+  /bankid/oidc/expected-logins:
+    post:
+      summary: "SIMULATOR side channel: who will confirm the /bankid/auth request with this state"
+      requestBody:
+        required: true
+        content: {application/json: {schema: {type: object, required: [state, applicant], properties: {state: {type: string, maxLength: 512}, applicant: {$ref: "#/components/schemas/Applicant"}}}}}
+      responses:
+        "201": {description: "{state, expires_at}"}
+        "400": {description: Invalid}
+  /.well-known/openid-configuration:
+    servers: [{url: /bankid}]
+    get:
+      summary: OpenID Provider metadata (issuer <public-url>/bankid)
+      security: []
+      responses: {"200": {description: Provider metadata}}
+  /.well-known/jwks.json:
+    servers: [{url: /bankid}]
+    get:
+      summary: Empty key set (id_tokens are HS256, MACed with the client's secret)
+      security: []
+      responses: {"200": {description: "{keys: []}"}}
+  /auth:
+    servers: [{url: /bankid}]
+    get:
+      summary: Consent page (HTML; bank picker, button id bankid-confirm "Potvrdit / Confirm")
+      security: []
+      parameters:
+        - {name: response_type, in: query, required: true, schema: {type: string, enum: [code]}}
+        - {name: client_id, in: query, required: true, schema: {type: string}}
+        - {name: redirect_uri, in: query, required: true, schema: {type: string, format: uri}}
+        - {name: scope, in: query, required: true, schema: {type: string}, description: must include openid}
+        - {name: state, in: query, required: true, schema: {type: string}, description: must have an expected login}
+        - {name: nonce, in: query, schema: {type: string}}
+        - {name: code_challenge, in: query, required: true, schema: {type: string}}
+        - {name: code_challenge_method, in: query, required: true, schema: {type: string, enum: [S256]}}
+      responses:
+        "200": {description: The consent page, content: {text/html: {}}}
+        "400": {description: An error page (unknown state, bad parameters), content: {text/html: {}}}
+  /auth/confirm:
+    servers: [{url: /bankid}]
+    post:
+      summary: The consent form
+      security: []
+      requestBody:
+        required: true
+        content: {application/x-www-form-urlencoded: {schema: {type: object, required: [request_id], properties: {request_id: {type: string}, bank: {type: string}, action: {type: string, enum: [confirm, cancel]}}}}}
+      responses:
+        "302": {description: "To redirect_uri?code=..&state=.. (or error=access_denied&state=..)"}
+        "400": {description: Unknown, expired or already decided request, content: {text/html: {}}}
+  /token:
+    servers: [{url: /bankid}]
+    post:
+      summary: Redeem an authorization code (single use, 60 s; PKCE S256; client_secret_post or client_secret_basic)
+      security: []
+      requestBody:
+        required: true
+        content: {application/x-www-form-urlencoded: {schema: {type: object, required: [grant_type, code, redirect_uri, code_verifier], properties: {grant_type: {type: string, enum: [authorization_code]}, code: {type: string}, redirect_uri: {type: string}, code_verifier: {type: string}, client_id: {type: string}, client_secret: {type: string}}}}}
+      responses:
+        "200": {description: Tokens, content: {application/json: {schema: {type: object, properties: {access_token: {type: string}, token_type: {type: string, enum: [Bearer]}, expires_in: {type: integer, example: 300}, id_token: {type: string}}}}}}
+        "400": {description: "{error: invalid_grant | invalid_request | unsupported_grant_type, error_description}"}
+        "401": {description: "{error: invalid_client}"}
+  /userinfo:
+    servers: [{url: /bankid}]
+    get:
+      summary: The signed-in person's claims (Authorization Bearer = Bank iD's access token)
+      security: []
+      responses:
+        "200": {description: Claims, content: {application/json: {schema: {$ref: "#/components/schemas/BankIdUserInfo"}}}}
+        "401": {description: Missing, unknown, expired or revoked token}
+  /idv/documents:
+    post:
+      summary: Read a document (OCR of the data page and the MRZ)
+      requestBody:
+        required: true
+        content: {application/json: {schema: {type: object, required: [reference, document_type, applicant], properties: {reference: {type: string, maxLength: 128}, document_type: {type: string, enum: [ID_CARD, PASSPORT, RESIDENCE_PERMIT]}, issuing_country: {type: string, example: CZ, default: CZ}, applicant: {$ref: "#/components/schemas/Applicant"}}}}}
+      responses:
+        "201": {description: "{id, ocr, mrz: {check_digits_valid, ...fields}, chip_present}", content: {application/json: {schema: {type: object, properties: {id: {type: string}, ocr: {$ref: "#/components/schemas/DocumentFields"}, mrz: {allOf: [{$ref: "#/components/schemas/DocumentFields"}, {type: object, properties: {check_digits_valid: {type: boolean}}}]}, chip_present: {type: boolean}}}}}}
+        "400": {description: Invalid}
+  /idv/documents/{id}/chip:
+    post:
+      summary: Read the document's NFC chip (DG1, passive authentication of the SOD)
+      parameters: [{name: id, in: path, required: true, schema: {type: string}}]
+      responses:
+        "200": {description: "{dg1, passive_authentication: {status: VALID|INVALID, signer, detail}, photo_ref: chip-photo:<id>}"}
+        "404": {description: Unknown document}
+  /idv/selfies:
+    post:
+      summary: Check a selfie (liveness and face match against the chip photo)
+      requestBody:
+        required: true
+        content: {application/json: {schema: {type: object, required: [reference, document_id], properties: {reference: {type: string}, document_id: {type: string}}}}}
+      responses:
+        "201": {description: "{id, liveness: {score, passed}, face_match: {score, against: CHIP_PHOTO|DOCUMENT_PHOTO}}"}
+        "404": {description: Unknown document}
+  /mvcr/neplatne-doklady:
+    get:
+      summary: CZ register of invalid documents
+      parameters:
+        - {name: doklad, in: query, required: true, schema: {type: string, maxLength: 20}}
+        - {name: serie, in: query, schema: {type: string}}
+      responses:
+        "200": {description: "{doklad, evidovan, duvod: null | ODCIZEN}"}
+  /isir/osoby:
+    get:
+      summary: CZ insolvency register by birth number
+      parameters: [{name: rc, in: query, required: true, schema: {type: string}}]
+      responses:
+        "200": {description: "{rc, zaznamy: [{spisova_znacka, stav, zahajeno}]}"}
+        "400": {description: rc missing or not 9-10 digits}
+  /regix/operations/{operation}:
+    post:
+      summary: BG RegiX operation
+      parameters:
+        - {name: operation, in: path, required: true, schema: {type: string, enum: [GRAO.PersonDataSearch, MVR.GetPersonalIdentityV2, BG.InsolvencyCheck]}}
+      requestBody:
+        required: true
+        content: {application/json: {schema: {type: object, required: [egn], properties: {egn: {type: string}, document_number: {type: string}}}}}
+      responses:
+        "200": {description: "GRAO {egn, first_name, sur_name, family_name, birth_date, gender: M|F}; MVR {document_number, status: VALID|INVALID, valid_to}; insolvency {proceedings: [{case_number, court, status, opened_on}]}"}
+        "404": {description: Unknown operation, or GRAO has no such person}
+  /other-bank/payments:
+    post:
+      summary: Send a payment from the customer's account at another bank (anonymous)
+      security: []
+      requestBody:
+        required: true
+        content: {application/json: {schema: {type: object, required: [payer_name, payer_account, payer_bank_code, amount, currency, creditor_account], properties: {payer_name: {type: string}, payer_account: {type: string}, payer_bank_code: {type: string}, amount: {type: string, example: "1.00"}, currency: {type: string, enum: [CZK, EUR, BGN]}, creditor_account: {type: string}, creditor_bank_code: {type: string}, variable_symbol: {type: string, maxLength: 10}, national_id: {type: string}}}}}
+      responses:
+        "201": {description: "{id, status: SENT}"}
+        "400": {description: Invalid}
+  /other-bank/incoming:
+    get:
+      summary: Payments that reached a creditor account, oldest first
+      parameters:
+        - {name: creditor_account, in: query, required: true, schema: {type: string}}
+        - {name: variable_symbol, in: query, schema: {type: string}}
+      responses:
+        "200": {description: "[{id, payer_name, payer_account, payer_bank_code, payer_bank_name, amount, currency, received_at}]"}
 components:
   securitySchemes:
     bearer: {type: http, scheme: bearer, bearerFormat: JWT}
   schemas:
+    IdentityScenario:
+      type: string
+      enum: [EXPIRED_DOCUMENT, INVALID_DOCUMENT, CHIP_FORGED, LIVENESS_FAIL, FACE_MISMATCH, FACE_GREY, OCR_NAME_DIFFERS, BANKID_OTHER_PERSON, INSOLVENT, FIRST_PAYMENT_OTHER_NAME, UNDERAGE_DOCUMENT, GRAO_MISMATCH]
+    ScenarioEntry:
+      type: object
+      properties:
+        national_id: {type: string}
+        scenarios: {type: array, items: {$ref: "#/components/schemas/IdentityScenario"}}
+        note: {type: string, nullable: true}
+        source: {type: string, enum: [FILE, RUNTIME]}
+    DocumentFields:
+      type: object
+      properties:
+        given_name: {type: string}
+        family_name: {type: string}
+        date_of_birth: {type: string, format: date}
+        sex: {type: string, enum: [M, F]}
+        national_id: {type: string}
+        document_number: {type: string}
+        issuing_country: {type: string}
+        nationality: {type: string}
+        expiry_date: {type: string, format: date}
+    BankIdUserInfo:
+      type: object
+      properties:
+        sub: {type: string}
+        given_name: {type: string}
+        family_name: {type: string}
+        birthdate: {type: string, format: date}
+        gender: {type: string, enum: [male, female]}
+        birthnumber: {type: string}
+        nationalities: {type: array, items: {type: string}}
+        txn: {type: string}
     SupplyPoint:
       type: object
       properties:

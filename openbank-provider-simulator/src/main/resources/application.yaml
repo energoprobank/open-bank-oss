@@ -10,6 +10,12 @@ quarkus:
     name: openbank-provider-simulator
   http:
     port: 8163
+    # Lazy (non-proactive) authentication, as pid-service and customer-edge: the Bank iD browser and
+    # token endpoints are @PermitAll, and /bankid/userinfo receives Bank iD's OWN opaque access token
+    # in `Authorization: Bearer`. Proactive auth would try to validate that as a Keycloak JWT and 401
+    # before the method runs; @RolesAllowed endpoints still authenticate when they are hit.
+    auth:
+      proactive: false
     header:
       X-Content-Type-Options:
         value: nosniff
@@ -81,6 +87,16 @@ openbank:
   git:
     commit: "${GIT_COMMIT:unknown}"
   provider-simulator:
+    # Where browsers and the bank reach this simulator: the Bank iD issuer is <public-url>/bankid,
+    # the acquirer's card page <public-url>/acquirer/pay/{id}.
+    public-url: ${PROVIDER_SIMULATOR_PUBLIC_URL:http://localhost:8163}
+    # Person-registry fixtures (identity scenarios per national id), re-read when the file changes.
+    # Absent = no fixtures; runtime PUT /api/v1/sim/scenarios/{nationalId} works either way.
+    identity-scenarios-file: ${PROVIDER_SIMULATOR_IDENTITY_SCENARIOS_FILE:}
+    bankid:
+      # Confidential OIDC clients, `client_id:secret[,client_id:secret]`. Absent = any client_id with
+      # a non-blank secret is accepted (the id_token is then MACed with the secret it presented).
+      clients: ${PROVIDER_SIMULATOR_BANKID_CLIENTS:}
     # Seconds between two checks of a verification passing (a vendor answers asynchronously).
     step-seconds: ${PROVIDER_SIMULATOR_STEP_SECONDS:1}
     card-factory:
