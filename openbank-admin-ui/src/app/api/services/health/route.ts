@@ -6,6 +6,7 @@ import { NextResponse } from 'next/server'
 import { discoverServicesSnapshot, prettyLabel } from '@/lib/discovery'
 import { getRegistry } from '@/lib/services/fleet'
 import type { ServiceHealthEntry, ServiceStackEntry } from '@/lib/services/healthContract'
+import { dockerHealthByContainer, dockerSocket, type DockerHealth } from '@/lib/health/dockerHealth'
 
 export type { ServiceHealthEntry, ServiceStackEntry } from '@/lib/services/healthContract'
 
@@ -120,10 +121,31 @@ function trimInfoState(currentKeys: Set<string>): void {
 
 async function probeService(
   svc: Omit<ServiceHealthEntry, 'status' | 'reachable' | 'latencyMs'>,
+  docker: Map<string, DockerHealth> | null = null,
 ): Promise<ServiceHealthEntry> {
   const host = process.env.SERVICES_HOST === 'container' ? svc.container : (process.env.SERVICES_HOST ?? 'localhost')
   const base = `http://${host}:${svc.port}`
   const start = Date.now()
+
+  // Local compose: the container's own healthcheck already ran /q/health/ready on the unpublished
+  // management port, so take its verdict (see dockerHealth.ts). Containers that do not exist locally
+  // are not deployed here, not down.
+  if (docker) {
+    const health = docker.get(svc.container)
+    if (health === undefined || health === 'not-running') {
+      return { ...svc, status: 'DOWN', reachable: false, latencyMs: null, stack: null }
+    }
+    const info = await probeInfo(base)
+    return {
+      ...svc,
+      status: health === 'healthy' || health === 'no-healthcheck' ? 'UP' : 'DOWN',
+      reachable: true,
+      latencyMs: null,
+      version: info?.version ?? null,
+      gitCommit: info?.gitCommit ?? null,
+      stack: info?.stack ?? null,
+    }
+  }
 
   // Health probe and info probe run in parallel — info probe is lightweight (cached
   // BuildInfo at JVM startup) and short-timeout so it does not block the health view.
@@ -229,7 +251,9 @@ async function fromDiscovery(): Promise<{ services: ServiceHealthEntry[] | null;
 
 export async function GET() {
   const discovery = await fromDiscovery()
-  const services = discovery.services ?? (await Promise.all(staticServices().map(probeService)))
+  const socket = dockerSocket()
+  const docker = discovery.services === null && socket ? await dockerHealthByContainer(socket) : null
+  const services = discovery.services ?? (await Promise.all(staticServices().map(s => probeService(s, docker))))
   const source = discovery.status === 'static' ? 'static' : 'kubernetes'
 
   const byContainer: Record<string, ServiceHealthEntry> = {}
