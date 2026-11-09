@@ -54,7 +54,10 @@ info:
   # 1.83.0 -> 1.84.0: additive low-balance-alert endpoint and schemas (ADR-0333).
   # 1.85.0 -> 1.86.0: additive — /rewards/* (FLUX rewards, openbank-rewards-service Customer API),
   # capability id rewards.flux; the /loyalty routes are marked deprecated (the app moves to /rewards).
-  version: 1.90.0
+  # 1.90.0 -> 1.91.0 (experience v2 step 9): additive — /onboarding/account-opening/* (the orchestrated
+  # account opening: Bank iD over OIDC, document + chip + selfie, the first payment, submission) and
+  # the public Bank iD redirect target /onboarding/bank-id/callback; personal-details takes nationality.
+  version: 1.91.0
   description: >-
     Customer-facing edge proxy (ADR-0065). Single internet-facing entry point for the
     retail customer app. Validates JWTs from the openbank-customers Keycloak realm,
@@ -186,6 +189,70 @@ paths:
     get:
       summary: The welcome coupon (revealed — claimed — once) and who invited the customer
       responses: { '200': { description: "{coupon?, referrer_name?, promo_code?}" } }
+  /onboarding/account-opening:
+    get:
+      tags: [Onboarding]
+      summary: Where the account opening stands (status, identity, first payment, review reasons)
+      responses: { '200': { description: "{party_id, status, identity, identity_attempts_left, first_payment, review_reasons}" } }
+  /onboarding/account-opening/identity/bank-id:
+    post:
+      tags: [Onboarding]
+      summary: Start Bank iD (OIDC, Czech Republic) — answers redirect_url to open in a web view
+      responses: { '201': { description: Started }, '409': { description: Not available, already verified or too many attempts } }
+  /onboarding/account-opening/identity/documents:
+    post:
+      tags: [Onboarding]
+      summary: Start the document path (document photo, NFC chip, selfie)
+      requestBody: { content: { application/json: { schema: { type: object, properties: { document_type: { type: string, enum: [ID_CARD, PASSPORT, RESIDENCE_PERMIT] }, issuing_country: { type: string } } } } } }
+      responses: { '201': { description: Started }, '409': { description: Already verified or too many attempts } }
+  /onboarding/account-opening/identity/{id}:
+    get:
+      tags: [Onboarding]
+      summary: An identity verification with the checks the bank ran
+      parameters: [ { name: id, in: path, required: true, schema: { type: string, format: uuid } } ]
+      responses: { '200': { description: The verification }, '404': { description: Not found } }
+  /onboarding/account-opening/identity/{id}/document:
+    post:
+      tags: [Onboarding]
+      summary: Read the photographed document (OCR, MRZ, expiry, register of invalid documents)
+      parameters: [ { name: id, in: path, required: true, schema: { type: string, format: uuid } } ]
+      responses: { '200': { description: The verification }, '503': { description: A check is unavailable — retry } }
+  /onboarding/account-opening/identity/{id}/chip:
+    post:
+      tags: [Onboarding]
+      summary: Read the document's NFC chip (passive authentication)
+      parameters: [ { name: id, in: path, required: true, schema: { type: string, format: uuid } } ]
+      responses: { '200': { description: The verification }, '409': { description: Scan the document first } }
+  /onboarding/account-opening/identity/{id}/selfie:
+    post:
+      tags: [Onboarding]
+      summary: Selfie — liveness and a face match to the chip photo
+      parameters: [ { name: id, in: path, required: true, schema: { type: string, format: uuid } } ]
+      responses: { '200': { description: The verification }, '409': { description: Read the chip first } }
+  /onboarding/account-opening/first-payment:
+    get:
+      tags: [Onboarding]
+      summary: Where to send the first payment from the applicant's own account at another bank
+      responses: { '200': { description: "{account_number, bank_code, iban, amount, currency, variable_symbol, received, payment}" } }
+  /onboarding/account-opening/first-payment/simulate:
+    post:
+      tags: [Onboarding]
+      summary: SANDBOX — the applicant's other bank sends the first payment
+      responses: { '200': { description: The instructions with the payment }, '404': { description: Not available outside the sandbox } }
+  /onboarding/account-opening/submit:
+    post:
+      tags: [Onboarding]
+      summary: Submit — screening, risk and the KYC assessment (approved straight through, or a person reviews)
+      responses: { '200': { description: The account opening }, '409': { description: Something is missing (details, financial profile, identity, first payment) }, '503': { description: A check is unavailable — retry } }
+  /onboarding/bank-id/callback:
+    get:
+      tags: [Onboarding]
+      summary: Bank iD redirect target (public; the OIDC state binds it to one verification)
+      parameters:
+        - { name: code, in: query, schema: { type: string } }
+        - { name: state, in: query, required: true, schema: { type: string } }
+        - { name: error, in: query, schema: { type: string } }
+      responses: { '200': { description: An HTML page telling the applicant to return to the app } }
   /consents/energo-pro-data-sharing:
     get:
       summary: Whether the customer shares their banking relationship with the Energo-Pro group

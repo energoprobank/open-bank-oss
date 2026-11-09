@@ -22,8 +22,8 @@ import java.util.UUID
  *
  * The gate is flag-gated (default off) and only fires when a birthdate is present. When on it calls
  * pid /resolve before party-service creates the (sub-keyed) party, so one human resolves to one
- * party across channels. A resolver outage fails open (the create still happens) so onboarding is
- * never blocked by it.
+ * party across channels. A resolver outage now fails CLOSED (503; step 9): the applicant retries
+ * rather than a possible duplicate being created.
  */
 class OnboardingResolutionGateTest {
 
@@ -151,7 +151,7 @@ class OnboardingResolutionGateTest {
     }
 
     @Test
-    fun `resolver unavailable — fails open and creates the party`() {
+    fun `resolver unavailable — fails closed, no party is created`() {
         val upstream = mockk<UpstreamClient>()
         every { upstream.post(match { isResolve(it) }, any(), any(), any()) } returns
             Response.status(503).entity("down").build()
@@ -159,8 +159,8 @@ class OnboardingResolutionGateTest {
 
         val resp = resource(upstream, resolutionEnabled = true).registerParty(bodyWithDob)
 
-        assertThat(resp.status).isEqualTo(201)
-        verify(exactly = 1) { upstream.post(match { isCreate(it) }, any(), any(), any()) }
+        assertThat(resp.status).isEqualTo(503)
+        verify(exactly = 0) { upstream.post(match { isCreate(it) }, any(), any(), any()) }
     }
 
     @Test

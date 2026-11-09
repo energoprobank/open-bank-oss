@@ -6439,7 +6439,8 @@ class CustomerEdgeResource(
      * The identity-resolution dedup gate (ADR-0072 §6 / ADR-0094). Returns a short-circuit Response
      * — reuse of an existing party, or a neutral pending state — when pid resolves this applicant to
      * an existing or ambiguous identity; returns null to proceed with creation. A no-op (null) when
-     * the flag is off, no birthdate is present, or the resolver is unavailable (fail open).
+     * the flag is off or no birthdate is present. A resolver that cannot answer FAILS CLOSED (503,
+     * the applicant retries) — experience v2 step 9: an outage must never let a duplicate through.
      */
     private fun identityResolutionGate(legalName: String, body: String, callerPartyId: String): Response? {
         if (!identityResolutionEnabled) return null
@@ -6492,7 +6493,9 @@ class CustomerEdgeResource(
                     .type(MediaType.APPLICATION_JSON).build()
             }
 
-            ResolveOutcome.NoMatch, ResolveOutcome.Unavailable -> null
+            ResolveOutcome.NoMatch -> null
+            ResolveOutcome.Unavailable -> Response.status(Response.Status.SERVICE_UNAVAILABLE)
+                .entity(IDENTITY_CHECK_UNAVAILABLE_BODY).type(MediaType.APPLICATION_JSON).build()
         }
     }
 
@@ -6500,7 +6503,7 @@ class CustomerEdgeResource(
      * Ask pid `/api/v1/parties/resolve` whether this applicant already exists, mapping the verdict
      * to a [ResolveOutcome]. The plaintext RČ (passed as birthNumberRaw over the M2M leg) is never
      * logged here; pid reduces it to a blind index. Any non-200 / unparseable response maps to
-     * [ResolveOutcome.Unavailable] so onboarding fails open (a resolver outage never blocks it).
+     * [ResolveOutcome.Unavailable], which the gate turns into a 503 (fail closed, step 9).
      */
     private fun resolveIdentityBeforeCreate(
         legalName: String,
@@ -6707,3 +6710,6 @@ internal data class DelegatedPaymentDecision(
     val delegationId: String?,
     val grantorPartyId: UUID?,
 )
+
+private const val IDENTITY_CHECK_UNAVAILABLE_BODY =
+    """{"code":"IDENTITY_CHECK_UNAVAILABLE","message":"We cannot check your identity right now; please try again"}"""
