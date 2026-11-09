@@ -18,6 +18,10 @@ export interface PartyEvidence {
   taxId?: string
   /** Last four digits of the national id, when party-service exposes them. */
   nationalIdLast4?: string
+  riskRating?: string
+  /** When the party's identity was verified at onboarding (ISO timestamp), and how. */
+  identityVerifiedAt?: string
+  identityMethod?: string
   registrationNumber?: string
   nationality?: string
   dateOfBirth?: string
@@ -72,6 +76,8 @@ export function parsePartyEvidence(value: unknown, requestedId: string): PartyEv
     legalName: value.legalName, tradingName: optionalText(value.tradingName),
     email: value.email, phone: optionalText(value.phone), kycStatus: String(value.kycStatus),
     taxId: optionalText(value.taxId), nationalIdLast4: optionalText(value.nationalIdLast4),
+    riskRating: optionalText(value.riskRating), identityVerifiedAt: optionalText(value.identityVerifiedAt),
+    identityMethod: optionalText(value.identityMethod),
     registrationNumber: optionalText(value.registrationNumber),
     nationality: optionalText(value.nationality), dateOfBirth: optionalText(value.dateOfBirth),
     address, createdAt: value.createdAt, updatedAt: value.updatedAt,

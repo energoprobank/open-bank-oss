@@ -31,3 +31,26 @@ describe('party detail evidence contract', () => {
     expect(parsePartyEvidence({ ...party, address: { city: 'Prague' } }, 'party-1')).toBeNull()
   })
 })
+
+describe('party detail evidence contract — identity fields', () => {
+  it('carries the masked tax id verbatim and the new optional identity fields', () => {
+    const parsed = parsePartyEvidence({
+      ...party, taxId: '910813/****', nationalIdLast4: '1234', riskRating: 'LOW',
+      identityVerifiedAt: '2026-11-01T10:00:00Z', identityMethod: 'BANK_ID', nationality: 'CZ', dateOfBirth: '1991-08-13',
+    }, 'party-1')
+    expect(parsed).toMatchObject({
+      taxId: '910813/****', nationalIdLast4: '1234', riskRating: 'LOW',
+      identityVerifiedAt: '2026-11-01T10:00:00Z', identityMethod: 'BANK_ID', nationality: 'CZ', dateOfBirth: '1991-08-13',
+    })
+  })
+
+  it('treats absent, null or malformed new fields as not provided', () => {
+    const absent = parsePartyEvidence(party, 'party-1')
+    expect(absent?.riskRating).toBeUndefined()
+    expect(absent?.identityMethod).toBeUndefined()
+    const malformed = parsePartyEvidence({ ...party, riskRating: 3, identityVerifiedAt: null, nationalIdLast4: null }, 'party-1')
+    expect(malformed).not.toBeNull()
+    expect(malformed?.riskRating).toBeUndefined()
+    expect(malformed?.identityVerifiedAt).toBeUndefined()
+  })
+})

@@ -4,7 +4,7 @@
 
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Users, ArrowLeft, ShieldCheck, ShieldAlert, FileText, RefreshCw, Bell, ChevronDown, Send, Clock } from 'lucide-react'
@@ -22,6 +22,7 @@ import { parsePartyEvidence, type PartyEvidence } from '@/lib/parties/partyEvide
 import { BRAND } from '@/lib/brand'
 import { KycEvidencePanel } from '@/components/kyc/KycEvidencePanel'
 import { KycDecisionActions } from '@/components/kyc/KycDecisionActions'
+import { NationalIdReveal } from '@/components/party/NationalIdReveal'
 import { affectedKycCheck, describeTopMatch, partyScreening, type PartyScreening, type ScreeningCheck } from '@/lib/parties/screeningHold'
 
 const PAGE_SIZE = 25
@@ -219,21 +220,31 @@ function PartyDetailPage() {
               <span style={{ marginLeft: 'auto' }}><StatusBadge status={party.status} /></span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {[
+              {([
                 [t('Typ', 'Type'),                        party.partyType],
                 [t('Obchodní jméno', 'Legal Name'),       party.legalName],
                 [t('Obchodní název', 'Trading Name'),     party.tradingName ?? '—'],
                 [t('E-mail', 'Email'),                    party.email],
                 [t('Telefon', 'Phone'),                   party.phone ?? '—'],
-                // Shown exactly as party-service returns it — the service masks it (e.g. `910813/****`).
-                [t('Daňové ID', 'Tax ID'),                party.taxId ?? '—'],
+                // Shown exactly as party-service returns it — the service masks it (e.g. `910813/****`);
+                // a KYC reviewer may reveal the clear number (audited server-side, hidden after 30 s).
+                [t('Daňové ID', 'Tax ID'),                <NationalIdReveal key={party.id} partyId={party.id} maskedTaxId={party.taxId} />],
                 ...(party.nationalIdLast4 ? [[t('Rodné číslo (poslední 4)', 'National ID (last 4)'), `****${party.nationalIdLast4}`]] : []),
                 [t('Reg. číslo', 'Reg. Number'),          party.registrationNumber ?? '—'],
                 [t('Státní příslušnost', 'Nationality'),  party.nationality ?? '—'],
                 [t('Datum narození', 'Date of Birth'),    party.dateOfBirth ?? '—'],
+                ...(party.riskRating ? [[t('Rizikový profil', 'Risk rating'), party.riskRating.replace(/_/g, ' ')]] : []),
+                ...(party.identityVerifiedAt || party.identityMethod
+                  ? [[t('Identita ověřena', 'Identity verified'), [
+                      party.identityMethod?.replace(/_/g, ' '),
+                      party.identityVerifiedAt && Number.isFinite(Date.parse(party.identityVerifiedAt))
+                        ? new Date(party.identityVerifiedAt).toLocaleString(dateLocale)
+                        : party.identityVerifiedAt,
+                    ].filter(Boolean).join(' · ')]]
+                  : []),
                 [t('Vytvořeno', 'Created'),               new Date(party.createdAt).toLocaleString(dateLocale)],
                 [t('Aktualizováno', 'Updated'),           new Date(party.updatedAt).toLocaleString(dateLocale)],
-              ].map(([label, value]) => (
+              ] as [string, ReactNode][]).map(([label, value]) => (
                 <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
                   <span style={{ color: 'var(--text-muted)' }}>{label}</span>
                   <span style={{ fontWeight: 500, textAlign: 'right', maxWidth: '200px', wordBreak: 'break-all' }}>{value}</span>
