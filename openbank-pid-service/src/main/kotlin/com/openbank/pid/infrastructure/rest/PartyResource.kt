@@ -121,6 +121,7 @@ class PartyResource(
                 keycloakSub = request.keycloakSub,
                 nationalities = request.nationalities,
                 eudiPidSubVerified = request.eudiPidSub,
+                market = request.market ?: "CZ",
             ),
         )
         return Response.ok(party.toResponse()).build()
@@ -154,6 +155,7 @@ class PartyResource(
                 birthplace = request.birthplace,
                 birthNumberRaw = request.birthNumberRaw,
                 nationalities = request.nationalities,
+                market = request.market ?: "CZ",
             ),
         )
         return when (result) {

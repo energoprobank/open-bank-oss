@@ -3,7 +3,9 @@
 openapi: 3.1.0
 info:
   title: PID Service API (Party Identity)
-  version: 1.17.0
+  # 1.17.0 -> 1.18.0 (experience v2 step 9): additive — `market` on resolve/register-identity selects
+  # the national number (CZ rodné číslo, default, or BG ЕГН); tier 1 compares the applicant's name and DOB.
+  version: 1.18.0
   description: Party identity data management — create, update, KYC linking, BankID/ROB sync, identity resolution and four-eyes verification cases (ADR-0072).
   license:
     name: Apache-2.0
@@ -1129,6 +1131,11 @@ components:
           description: |
             Plaintext Czech RČ (rodné číslo). Never stored or logged; reduced to a keyed
             blind index within this request. Omit for foreign nationals.
+        market:
+          type: string
+          enum: [CZ, BG]
+          default: CZ
+          description: Which national number birthNumberRaw is — CZ rodné číslo or BG ЕГН (indexed separately).
         nationalities:
           type: array
           items:
@@ -1406,6 +1413,11 @@ components:
           description: |
             Plaintext Czech RČ (rodné číslo). Never stored or logged; reduced to a keyed
             blind index within this request. Omit for foreign nationals.
+        market:
+          type: string
+          enum: [CZ, BG]
+          default: CZ
+          description: Which national number birthNumberRaw is — CZ rodné číslo or BG ЕГН (indexed separately).
         keycloakSub:
           type: string
           nullable: true

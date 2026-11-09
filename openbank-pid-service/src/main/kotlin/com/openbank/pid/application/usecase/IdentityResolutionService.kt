@@ -16,6 +16,7 @@ import com.openbank.pid.domain.model.ApplicantSnapshot
 import com.openbank.pid.domain.model.CaseVerdict
 import com.openbank.pid.domain.model.ExternalIdType
 import com.openbank.pid.domain.model.Gender
+import com.openbank.pid.domain.model.NationalIdKey
 import com.openbank.pid.domain.model.Party
 import com.openbank.pid.domain.model.VerificationTrigger
 import io.quarkus.logging.Log
@@ -108,11 +109,10 @@ class IdentityResolutionService(
      * Compute the blind index for a raw RČ using the service pepper.
      * Returns `null` when the pepper is absent (CI / no-Vault local dev) or the RČ is invalid.
      */
-    fun computeBlindIndex(birthNumberRaw: String): String? {
+    fun computeBlindIndex(birthNumberRaw: String, market: String = "CZ"): String? {
         val pepper = pepperHex.orElse("").takeIf { it.isNotBlank() } ?: return null
-        val rc = RodneCislo.parse(birthNumberRaw)
-        if (rc is RodneCislo.Invalid) return null
-        return BlindIndex.compute(pepper.decodeHex(), (rc as RodneCislo.Parsed).canonical)
+        val key = NationalIdKey.of(birthNumberRaw, market) ?: return null
+        return BlindIndex.compute(pepper.decodeHex(), key.indexValue)
     }
 
     // ── internal ─────────────────────────────────────────────────────────────────
@@ -139,37 +139,37 @@ class IdentityResolutionService(
             return null
         }
 
-        val rcResult = RodneCislo.parse(raw)
-        if (rcResult is RodneCislo.Invalid) {
+        val key = NationalIdKey.of(raw, command.market)
+        if (key == null) {
             Log.warn(
-                "IdentityResolutionService: RČ parse failed (${rcResult.reason}) — " +
-                    "skipping tier-1, falling through to tier-2",
+                "IdentityResolutionService: national number unparseable — skipping tier-1, falling through to tier-2",
             )
             return null
         }
-        val rc = rcResult as RodneCislo.Parsed
 
         val pepperBytes = pepper.decodeHex()
-        val blindIndex = BlindIndex.compute(pepperBytes, rc.canonical)
+        val blindIndex = BlindIndex.compute(pepperBytes, key.indexValue)
 
         val match = partyRepository.findByExternalId(ExternalIdType.BIRTH_NUMBER, blindIndex)
-            ?: return ResolutionResult.NoMatch // conclusive: no party with this RČ — tier-2 not needed
+            ?: return ResolutionResult.NoMatch // conclusive: no party with this number — tier-2 not needed
 
         // ── Attribute cross-check (collision adjudication, ADR-0072 §1) ──────────
-        // The RČ-derived birthdate and gender must match the stored party. A mismatch
-        // could be a data-entry error, identity fraud, or historic RČ reissue. Do NOT
-        // auto-merge — escalate to the highest-rigour manual case.
-        val birthdateMatch = rc.birthdate == match.coreAttributes.birthdate
-        val genderMatch = rcGenderToModel(rc.gender) == match.coreAttributes.gender ||
-            match.coreAttributes.gender == null // gender not yet recorded → don't block
+        // Step 9: the APPLICANT is compared, not just the number with itself. The number must encode
+        // the birthdate the applicant gave, and the stored person must have that birthdate, sex and
+        // (accents, case and order aside) name. Anything else — a typo, a reissued number, someone
+        // using another person's number — is a person's decision, never an automatic link.
+        val stored = match.coreAttributes
+        val birthdateMatch = key.birthdate == command.birthdate && stored.birthdate == command.birthdate
+        val genderMatch = rcGenderToModel(key.gender) == stored.gender || stored.gender == null
+        val nameMatch = sameName(command.givenName, command.familyName, stored.givenName, stored.familyName)
 
-        return if (birthdateMatch && genderMatch) {
+        return if (birthdateMatch && genderMatch && nameMatch) {
             ResolutionResult.MatchExisting(match.id)
         } else {
             Log.warn(
-                "IdentityResolutionService: RČ blind-index collision with divergent attributes " +
-                    "— partyId=${match.id} birthdateMatch=$birthdateMatch genderMatch=$genderMatch — " +
-                    "routing to manual verification (RN_COLLISION)",
+                "IdentityResolutionService: national-number index hit with divergent attributes " +
+                    "— partyId=${match.id} birthdateMatch=$birthdateMatch genderMatch=$genderMatch " +
+                    "nameMatch=$nameMatch — routing to manual verification (RN_COLLISION)",
             )
             adjudicate(
                 dedupKey = "RN:$blindIndex",
@@ -179,6 +179,13 @@ class IdentityResolutionService(
                 blindIndex = blindIndex,
             )
         }
+    }
+
+    /** Same person's name: the normalised name tokens agree, in any order (given/family swapped is fine). */
+    private fun sameName(given: String, family: String, storedGiven: String, storedFamily: String): Boolean {
+        fun tokens(vararg parts: String) =
+            parts.flatMap { MatchKey.normalize(it).split(' ') }.filter { it.isNotBlank() }.toSet()
+        return tokens(given, family) == tokens(storedGiven, storedFamily)
     }
 
     private suspend fun resolveTier2(command: ResolveIdentityCommand): ResolutionResult {

@@ -220,6 +220,8 @@ data class ResolvePartyRequest(
     val birthplace: String? = null,
     val birthNumberRaw: String? = null,
     val nationalities: List<String> = emptyList(),
+    /** CZ (rodné číslo, default) or BG (ЕГН): which number birthNumberRaw is. */
+    val market: String? = null,
 )
 
 /** Body for `POST /api/v1/parties/{id}/external-ids` — link an identifier to an existing party. */
@@ -258,4 +260,6 @@ data class RegisterIdentityRequest(
     val nationalities: List<String> = emptyList(),
     /** Verified EUDI PID subject identifier (ADR-0094); written as the EUDI_PID_SUB blind index. */
     val eudiPidSub: String? = null,
+    /** CZ (rodné číslo, default) or BG (ЕГН): which number birthNumberRaw is. */
+    val market: String? = null,
 )

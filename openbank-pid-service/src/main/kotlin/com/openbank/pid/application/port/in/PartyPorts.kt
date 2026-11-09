@@ -175,6 +175,8 @@ data class ResolveIdentityCommand(
     val birthplace: String? = null,
     val birthNumberRaw: String? = null,
     val nationalities: List<String> = emptyList(),
+    /** Which national number [birthNumberRaw] is: CZ (rodné číslo, default) or BG (ЕГН). */
+    val market: String = "CZ",
     /**
      * The VERIFIED EUDI PID subject identifier (ADR-0094 tier-0), or null. The `…Verified` suffix is a
      * contract: only [com.openbank.pid.application.usecase.EudiVerifyPresentationService] (post crypto
@@ -238,6 +240,8 @@ data class RegisterIdentityCommand(
     val birthNumberRaw: String? = null,
     val keycloakSub: String? = null,
     val nationalities: List<String> = emptyList(),
+    /** Which national number [birthNumberRaw] is: CZ (rodné číslo, default) or BG (ЕГН). */
+    val market: String = "CZ",
     /**
      * The VERIFIED EUDI PID subject identifier (ADR-0094). When present, its blind index is written as
      * an EUDI_PID_SUB external-id so tier-0 deterministically recognises the wallet holder next time.

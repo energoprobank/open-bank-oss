@@ -219,6 +219,48 @@ class IdentityResolutionServiceTest {
         }
 
     @Test
+    fun `tier-1 — the same number with ANOTHER applicant's name goes to a person, never a link`(): Unit = runBlocking {
+        val bi = blindIndexOf(validRc)
+        coEvery { repo.findByExternalId(ExternalIdType.BIRTH_NUMBER, bi) } returns makeParty()
+
+        val result = svc.resolve(cmd(givenName = "Petr", familyName = "Svoboda", birthNumberRaw = validRc))
+
+        assertThat(result).isInstanceOf(ResolutionResult.NeedsManualVerification::class.java)
+        assertThat(
+            (result as ResolutionResult.NeedsManualVerification).trigger,
+        ).isEqualTo(VerificationTrigger.RN_COLLISION)
+    }
+
+    @Test
+    fun `tier-1 — accents, case and name order do not make a different person`(): Unit = runBlocking {
+        val bi = blindIndexOf(validRc)
+        coEvery { repo.findByExternalId(ExternalIdType.BIRTH_NUMBER, bi) } returns makeParty(familyName = "Novák")
+        coEvery { repo.findCandidatesByMatchKey(any()) } returns emptyList()
+
+        val result = svc.resolve(cmd(givenName = "NOVAK", familyName = "jan", birthNumberRaw = validRc))
+
+        assertThat(result).isInstanceOf(ResolutionResult.MatchExisting::class.java)
+    }
+
+    @Test
+    fun `tier-1 — an applicant whose date of birth disagrees with their own number goes to a person`(): Unit =
+        runBlocking {
+            val bi = blindIndexOf(validRc)
+            coEvery { repo.findByExternalId(ExternalIdType.BIRTH_NUMBER, bi) } returns makeParty()
+
+            val result = svc.resolve(cmd(birthdate = validRcBirthdate.plusDays(1), birthNumberRaw = validRc))
+
+            assertThat(result).isInstanceOf(ResolutionResult.NeedsManualVerification::class.java)
+        }
+
+    @Test
+    fun `an EGN is indexed in its own space, so it never meets a rodne cislo`() {
+        val egn = "7501010010"
+        assertThat(svc.computeBlindIndex(egn, "BG")).isEqualTo(BlindIndex.compute(testPepperBytes, "BG:$egn"))
+        assertThat(svc.computeBlindIndex(egn, "BG")).isNotEqualTo(svc.computeBlindIndex(egn, "CZ"))
+    }
+
+    @Test
     fun `tier-1 — RC collision against party with null gender is NOT a collision`(): Unit = runBlocking {
         val bi = blindIndexOf(validRc)
         // gender not yet recorded on the stored party → don't block; tier-2 must NOT run

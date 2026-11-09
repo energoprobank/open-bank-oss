@@ -132,7 +132,7 @@ quarkus:
       connect-timeout: 2000
       read-timeout: 2000
     pid-service:
-      url: ${PID_SERVICE_URL:http://localhost:8103}
+      url: ${PID_SERVICE_URL:http://localhost:8105}
       connect-timeout: 2000
       read-timeout: 2000
     party-service:

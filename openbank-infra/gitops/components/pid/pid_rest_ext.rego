@@ -97,3 +97,21 @@ allowed_reasons contains "service-delegation-party-read" if {
 	machine_named("service-account-openbank-delegation")
 	input.action == "party.read"
 }
+
+# Experience v2 step 9: onboarding-service resolves EVERY applicant before the party record is
+# written (fail closed) and registers the new person afterwards, so the next sign-up with the same
+# national number is recognised. Pinned to its own identity, never a role.
+allowed_reasons contains "service-onboarding-identity-resolution" if {
+	input.principal.type == "HUMAN"
+	machine_named("service-account-openbank-onboarding")
+	input.action in {"identity.resolve", "identity.register"}
+}
+
+# Step 9 data repair: an ADMIN (a person) may register an existing customer's identity in the golden
+# record, so dedup sees customers who signed up before pid was in the path. Idempotent in pid.
+allowed_reasons contains "staff-identity-register-backfill" if {
+	input.principal.type == "HUMAN"
+	not principal_is_machine
+	"ROLE_ADMIN" in input.principal.roles
+	input.action == "identity.register"
+}

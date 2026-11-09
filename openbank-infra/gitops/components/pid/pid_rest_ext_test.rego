@@ -189,3 +189,14 @@ test_b6_staff_keep_party_read if {
 		d.allow == true
 	}
 }
+
+test_onboarding_resolves_and_registers_identities if {
+	onboarding := {"service_account": true, "client_id": "openbank-onboarding", "type": "HUMAN", "id": "service-account-openbank-onboarding", "roles": ["ROLE_API"]}
+	"service-onboarding-identity-resolution" in rest.allowed_reasons with input as {"principal": onboarding, "action": "identity.resolve"}
+	"service-onboarding-identity-resolution" in rest.allowed_reasons with input as {"principal": onboarding, "action": "identity.register"}
+	not "service-onboarding-identity-resolution" in rest.allowed_reasons with input as {"principal": onboarding, "action": "identity.case.decide"}
+}
+
+test_a_human_admin_may_register_an_existing_identity if {
+	"staff-identity-register-backfill" in rest.allowed_reasons with input as {"principal": {"service_account": false, "type": "HUMAN", "id": "u-admin", "roles": ["ROLE_ADMIN"]}, "action": "identity.register"}
+}

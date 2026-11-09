@@ -5,7 +5,6 @@
 package com.openbank.pid.application.usecase
 
 import com.openbank.libs.identity.BlindIndex
-import com.openbank.libs.identity.RodneCislo
 import com.openbank.pid.application.port.`in`.RegisterIdentityCommand
 import com.openbank.pid.application.port.`in`.RegisterIdentityUseCase
 import com.openbank.pid.application.port.out.PartyRepository
@@ -16,6 +15,7 @@ import com.openbank.pid.domain.model.ExternalId
 import com.openbank.pid.domain.model.ExternalIdType
 import com.openbank.pid.domain.model.KycAttributes
 import com.openbank.pid.domain.model.KycLevel
+import com.openbank.pid.domain.model.NationalIdKey
 import com.openbank.pid.domain.model.Party
 import com.openbank.pid.domain.model.PartyStatus
 import com.openbank.pid.domain.model.VerificationSource
@@ -58,7 +58,7 @@ class IdentityRegistrationService(
 
     override suspend fun register(command: RegisterIdentityCommand): Party {
         val now = OffsetDateTime.now(clock)
-        val blindIndex = blindIndexFor(command.birthNumberRaw)
+        val blindIndex = blindIndexFor(command.birthNumberRaw, command.market)
         val eudiIndex = eudiBlindIndexFor(command.eudiPidSubVerified)
 
         blindIndex?.let { rejectIfBoundElsewhere(ExternalIdType.BIRTH_NUMBER, it, command.partyId) }
@@ -152,7 +152,7 @@ class IdentityRegistrationService(
         }
     }
 
-    private fun blindIndexFor(raw: String?): String? {
+    private fun blindIndexFor(raw: String?, market: String): String? {
         if (raw.isNullOrBlank()) return null
         val pepper = pepperHex.orElse("").takeIf { it.isNotBlank() } ?: run {
             Log.warn(
@@ -160,12 +160,11 @@ class IdentityRegistrationService(
             )
             return null
         }
-        val parsed = RodneCislo.parse(raw)
-        if (parsed !is RodneCislo.Parsed) {
-            Log.warn("IdentityRegistrationService: RČ unparseable — registering without the RČ blind index")
+        val key = NationalIdKey.of(raw, market) ?: run {
+            Log.warn("IdentityRegistrationService: national number unparseable — registering without its blind index")
             return null
         }
-        return BlindIndex.compute(pepper.decodeHex(), parsed.canonical)
+        return BlindIndex.compute(pepper.decodeHex(), key.indexValue)
     }
 
     /** Blind index of a verified EUDI PID subject identifier (ADR-0094). Generic — not RČ-parsed. */
