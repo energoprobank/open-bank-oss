@@ -302,6 +302,7 @@ class PartyResource {
                 nationalId = requireNotNull(body.nationalId) { "nationalId is required" },
                 phone = requireNotNull(body.phone) { "phone is required" },
                 address = requireNotNull(body.address) { "address is required" }.toDomain(),
+                nationality = body.nationality,
             ),
         )
         return Response.ok(party.toResponse()).build()
@@ -881,6 +882,8 @@ data class OnboardingDetailsRequest(
     val nationalId: String? = null,
     val phone: String? = null,
     val address: AddressRequest? = null,
+    /** ISO 3166-1 alpha-2 citizenship (step 9). */
+    val nationality: String? = null,
 )
 
 data class TaxResidencyRequest(val country: String? = null, val tin: String? = null)
@@ -920,6 +923,13 @@ fun Party.toResponse() = mapOf(
     "classification" to classification,
     "status" to status,
     "legalName" to legalName,
+    // Step 9: the complete person record. A natural person's national number is stored encrypted
+    // and only ever shown masked here (birth part + ****); the clear value is GET /{id}/identity/national-id.
+    "dateOfBirth" to dateOfBirth, "nationality" to nationality,
+    "taxId" to displayedTaxId(),
+    "nationalIdLast4" to taxId?.takeIf { partyType == PartyType.INDIVIDUAL }?.takeLast(LAST4),
+    "riskRating" to riskRating,
+    "identityVerifiedAt" to identityVerifiedAt, "identityMethod" to identityMethod,
     "tradingName" to tradingName, "email" to email, "phone" to phone,
     // ADR-0284: register facts of a legal entity (null for a person).
     "registrationNumber" to registrationNumber, "registrationCountry" to registrationCountry, "legalForm" to legalForm,
@@ -1021,3 +1031,17 @@ data class DiscoverableRequest(val discoverable: Boolean = false)
 
 private const val HTTP_BAD_REQUEST = 400
 private const val HTTP_UNPROCESSABLE_ENTITY = 422
+
+private const val LAST4 = 4
+private const val BIRTH_PART = 6
+
+/** A person's national number masked to its birth part (e.g. 910813 then four asterisks); a company's tax id as is. */
+fun Party.displayedTaxId(): String? = taxId?.let { id ->
+    if (partyType != PartyType.INDIVIDUAL || id.length <= BIRTH_PART) {
+        id
+    } else if (market == "CZ") {
+        id.take(BIRTH_PART) + "/" + "*".repeat(id.length - BIRTH_PART)
+    } else {
+        id.take(BIRTH_PART) + "*".repeat(id.length - BIRTH_PART)
+    }
+}

@@ -35,6 +35,7 @@ import com.openbank.party.application.port.`in`.TaxSelfCertificationCommand
 import com.openbank.party.application.port.`in`.UpdateMarketingConsentCommand
 import com.openbank.party.application.port.`in`.UpdatePartyCommand
 import com.openbank.party.application.port.`in`.UploadDocumentCommand
+import com.openbank.party.application.port.`in`.VerifiedIdentityCommand
 import com.openbank.party.application.port.out.GdprAggregationPort
 import com.openbank.party.application.port.out.MarketingConsentForwardingPort
 import com.openbank.party.application.port.out.MarketingConsentTrackingRepository
@@ -76,6 +77,12 @@ import java.util.UUID
 
 private const val RC_KEY_VERSION = 1
 private const val MAX_PHONE = 32
+private const val ADULT_AGE = 18
+private const val MAX_DOCUMENT_NUMBER = 32
+private val PRAGUE: java.time.ZoneId = java.time.ZoneId.of("Europe/Prague")
+private val ISO_COUNTRIES: Set<String> = java.util.Locale.getISOCountries().toSet()
+private val IDENTITY_METHODS = setOf("BANK_ID", "DOCUMENT")
+private val RISK_RATINGS = setOf("LOW", "MEDIUM", "HIGH", "VERY_HIGH")
 private const val MAX_RESIDENCIES = 10
 
 /**
@@ -139,6 +146,7 @@ class PartyKeycloakSubAlreadyBoundException(sub: String) : RuntimeException("Key
 class PartyMergeRejectedException(message: String) : RuntimeException(message)
 
 @ApplicationScoped
+@Suppress("LargeClass") // the party aggregate's use cases; step 9's identity ones joined the onboarding ones here
 class PartyService : PartyUseCase {
 
     @Inject lateinit var partyRepo: PartyRepository
@@ -170,6 +178,16 @@ class PartyService : PartyUseCase {
     /** ADR-0072: pepper for RČ blind index. Optional — dedup is silently skipped when absent. */
     @org.eclipse.microprofile.config.inject.ConfigProperty(name = "openbank.identity.rc-pepper")
     lateinit var rcPepper: Optional<String>
+
+    /**
+     * Experience v2 step 9: when true, the pepper MUST be configured — a party-service that cannot
+     * deduplicate national numbers refuses onboarding details rather than silently storing duplicates.
+     */
+    @org.eclipse.microprofile.config.inject.ConfigProperty(
+        name = "openbank.identity.dedup-required",
+        defaultValue = "false",
+    )
+    var dedupRequired: Boolean = false
 
     override suspend fun createParty(cmd: CreatePartyCommand): Party {
         partyRepo.findByEmail(cmd.email)?.let {
@@ -415,6 +433,49 @@ class PartyService : PartyUseCase {
      * number is validated for the party's market, must encode the declared birthdate, and is set once.
      */
     override suspend fun updateOnboardingDetails(cmd: OnboardingDetailsCommand): Party {
+        val (market, nationalId, nationality) = validateOnboardingDetails(cmd)
+        val (index, indexVersion) = nationalIdBlindIndex(market, nationalId.canonical)
+        if (index != null) {
+            partyRepo.findByRcBlindIndex(index)?.takeIf { it.id != cmd.id && it.status != PartyStatus.MERGED }?.let {
+                throw ResourceConflictException(
+                    "This ${market.nationalIdName} already belongs to a customer of the bank",
+                    "NATIONAL_ID_TAKEN",
+                )
+            }
+        }
+        val result = partyRepo.modify(cmd.id) { party ->
+            if (party.status != PartyStatus.PENDING_KYC) {
+                throw ResourceConflictException(
+                    "Personal details can only be given while the account opening is in progress",
+                )
+            }
+            if (party.taxId != null && party.taxId != nationalId.canonical) {
+                throw ResourceConflictException("A different national number is already recorded for this party")
+            }
+            val updated = party.copy(
+                dateOfBirth = nationalId.birthdate.toString(),
+                taxId = nationalId.canonical,
+                nationality = nationality ?: party.nationality,
+                phone = cmd.phone.trim(),
+                address = cmd.address,
+                rcBlindIndex = index ?: party.rcBlindIndex,
+                rcIndexKeyVersion = indexVersion ?: party.rcIndexKeyVersion,
+                updatedAt = Instant.now(clock),
+            )
+            PartyWrite(
+                updated,
+                PartyEvents.updated(party, updated, Instant.now(clock), PartyActor.system("onboarding")),
+            )
+        } ?: throw PartyNotFoundException(cmd.id)
+        changeMetrics.changeClassified(PartyChange.classify(result.before, result.after).materiality)
+        return result.after
+    }
+
+    /** Step 9: the applicant's details are as strict as the app's, adults only. */
+    @Suppress("ThrowsCount") // one refusal per rule: date, nationality, number, minor
+    private suspend fun validateOnboardingDetails(
+        cmd: OnboardingDetailsCommand,
+    ): Triple<Market, com.openbank.libs.domain.account.NationalId, String?> {
         val dateOfBirth = try {
             java.time.LocalDate.parse(cmd.dateOfBirth)
         } catch (e: java.time.format.DateTimeParseException) {
@@ -426,35 +487,108 @@ class PartyService : PartyUseCase {
         ) {
             "address needs street, city and postal code"
         }
-        val result = partyRepo.modify(cmd.id) { party ->
-            if (party.status != PartyStatus.PENDING_KYC) {
+        val nationality = cmd.nationality?.trim()?.uppercase()?.also {
+            require(it in ISO_COUNTRIES) { "nationality must be an ISO 3166-1 alpha-2 country code" }
+        }
+        val today = java.time.LocalDate.now(clock.withZone(PRAGUE))
+        val existing = partyRepo.findById(cmd.id) ?: throw PartyNotFoundException(cmd.id)
+        val market = Market.of(existing.market) ?: Market.DEFAULT
+        val nationalId = market.nationalId(cmd.nationalId, today)
+            ?: throw IllegalArgumentException("nationalId is not a valid ${market.nationalIdName}")
+        require(nationalId.birthdate == dateOfBirth) { "nationalId does not encode dateOfBirth" }
+        if (nationalId.ageOn(today) < ADULT_AGE) {
+            throw ResourceConflictException("An account can be opened from the age of 18", "UNDERAGE")
+        }
+        return Triple(market, nationalId, nationality)
+    }
+
+    /**
+     * The national-number blind index for either market (CZ as before; BG domain-separated as
+     * `BG:<egn>` so an EGN can never collide with an RČ). Null without a pepper — unless dedup is
+     * required, which refuses instead (step 9: no silent duplicates).
+     */
+    private fun nationalIdBlindIndex(market: Market, canonical: String): Pair<String?, Int?> {
+        val pepper = rcPepper.filter { it.isNotBlank() }.orElse(null)
+        if (pepper == null) {
+            if (dedupRequired) {
                 throw ResourceConflictException(
-                    "Personal details can only be given while the account opening is in progress",
+                    "National-number deduplication is not configured",
+                    "DEDUP_UNAVAILABLE",
                 )
             }
-            val market = Market.of(party.market) ?: Market.DEFAULT
-            val nationalId = market.canonicalNationalId(cmd.nationalId)
-                ?: throw IllegalArgumentException("nationalId is not a valid ${market.nationalIdName}")
-            require(market.birthdateOf(nationalId) == dateOfBirth) { "nationalId does not encode dateOfBirth" }
-            if (party.taxId != null && party.taxId != nationalId) {
-                throw ResourceConflictException("A different national number is already recorded for this party")
+            return null to null
+        }
+        val value = if (market == Market.CZ) canonical else "${market.name}:$canonical"
+        return BlindIndex.compute(pepper.toByteArray(Charsets.UTF_8), value) to RC_KEY_VERSION
+    }
+
+    override suspend fun backfillNationalId(id: UUID, nationalId: String): Party {
+        val existing = partyRepo.findById(id) ?: throw PartyNotFoundException(id)
+        require(existing.partyType == PartyType.INDIVIDUAL) { "only a natural person has a national number" }
+        val market = Market.of(existing.market) ?: Market.DEFAULT
+        val today = java.time.LocalDate.now(clock.withZone(PRAGUE))
+        val parsed = market.nationalId(nationalId, today)
+            ?: throw IllegalArgumentException("nationalId is not a valid ${market.nationalIdName}")
+        if (existing.taxId == parsed.canonical) return existing
+        if (existing.taxId != null) {
+            throw ResourceConflictException("A different national number is already recorded for this party")
+        }
+        require(existing.dateOfBirth == null || existing.dateOfBirth == parsed.birthdate.toString()) {
+            "nationalId does not encode the recorded date of birth"
+        }
+        val (index, indexVersion) = nationalIdBlindIndex(market, parsed.canonical)
+        if (index != null) {
+            partyRepo.findByRcBlindIndex(index)?.takeIf { it.id != id && it.status != PartyStatus.MERGED }?.let {
+                throw ResourceConflictException("This national number belongs to another party", "NATIONAL_ID_TAKEN")
             }
-            val (rcIndex, rcKeyVer) = if (market == Market.CZ) computeRcBlindIndex(nationalId) else (null to null)
+        }
+        val result = partyRepo.modify(id) { party ->
             val updated = party.copy(
-                dateOfBirth = dateOfBirth.toString(),
-                taxId = nationalId,
-                phone = cmd.phone.trim(),
-                address = cmd.address,
-                rcBlindIndex = rcIndex ?: party.rcBlindIndex,
-                rcIndexKeyVersion = rcKeyVer ?: party.rcIndexKeyVersion,
+                taxId = parsed.canonical,
+                dateOfBirth = party.dateOfBirth ?: parsed.birthdate.toString(),
+                rcBlindIndex = index ?: party.rcBlindIndex,
+                rcIndexKeyVersion = indexVersion ?: party.rcIndexKeyVersion,
                 updatedAt = Instant.now(clock),
             )
-            PartyWrite(
-                updated,
-                PartyEvents.updated(party, updated, Instant.now(clock), PartyActor.system("onboarding")),
-            )
+            PartyWrite(updated, PartyEvents.updated(party, updated, Instant.now(clock), PartyActor.system("backfill")))
+        } ?: throw PartyNotFoundException(id)
+        return result.after
+    }
+
+    /** Records the identity the bank verified at account opening (step 9): method, verified document. */
+    override suspend fun recordVerifiedIdentity(cmd: VerifiedIdentityCommand): Party {
+        require(cmd.method in IDENTITY_METHODS) { "method must be one of $IDENTITY_METHODS" }
+        val now = Instant.now(clock)
+        if (cmd.documentType != null) {
+            require(!cmd.documentNumber.isNullOrBlank() && cmd.documentNumber.length <= MAX_DOCUMENT_NUMBER) {
+                "documentNumber is required with a document (at most $MAX_DOCUMENT_NUMBER characters)"
+            }
+            require(!cmd.issuingCountry.isNullOrBlank() && cmd.issuingCountry.uppercase() in ISO_COUNTRIES) {
+                "issuingCountry must be an ISO 3166-1 alpha-2 country code"
+            }
+            partyRepo.findById(cmd.id) ?: throw PartyNotFoundException(cmd.id)
+            val already = documentRepo.findByPartyId(cmd.id).any {
+                it.documentType == cmd.documentType && it.documentNumber == cmd.documentNumber
+            }
+            if (!already) {
+                documentRepo.save(
+                    PartyDocument(
+                        UUID.randomUUID(),
+                        cmd.id,
+                        cmd.documentType,
+                        cmd.documentNumber,
+                        cmd.issuingCountry.uppercase(),
+                        cmd.expiryDate,
+                        now,
+                        now,
+                    ),
+                )
+            }
+        }
+        val result = partyRepo.modify(cmd.id) { party ->
+            val updated = party.copy(identityVerifiedAt = now, identityMethod = cmd.method, updatedAt = now)
+            PartyWrite(updated, PartyEvents.updated(party, updated, now, PartyActor.system("onboarding")))
         } ?: throw PartyNotFoundException(cmd.id)
-        changeMetrics.changeClassified(PartyChange.classify(result.before, result.after).materiality)
         return result.after
     }
 
@@ -621,10 +755,12 @@ class PartyService : PartyUseCase {
     // Each derives the two-key status from the OTHER key as currently committed, so both run as
     // an atomic modify() under a row lock — see PartyRepository.modify for the lost update that
     // a read-in-one-session, write-in-another shape produced.
-    override suspend fun updateKycStatus(partyId: UUID, status: KycStatus): Party {
+    override suspend fun updateKycStatus(partyId: UUID, status: KycStatus, riskRating: String?): Party {
         val result = partyRepo.modify(partyId) { party ->
             val updated = party.copy(
                 kycStatus = status,
+                // Step 9: the KYC decision carries the customer's risk level — the party's rating.
+                riskRating = riskRating?.takeIf { it in RISK_RATINGS } ?: party.riskRating,
                 status = deriveStatus(status, party.amlStatus, party.status),
                 updatedAt = Instant.now(clock),
             )

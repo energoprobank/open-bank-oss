@@ -93,6 +93,11 @@ data class Party(
     val market: String = "CZ",
     /** FATCA/CRS self-certification given at account opening (not the full AML profile, see [amlProfileDeclared]). */
     val taxSelfCertification: TaxSelfCertification? = null,
+    /** When the bank verified the person's identity at account opening, and how (BANK_ID | DOCUMENT). */
+    val identityVerifiedAt: Instant? = null,
+    val identityMethod: String? = null,
+    /** Customer risk rating from the KYC decision (LOW | MEDIUM | HIGH | VERY_HIGH); drives review frequency. */
+    val riskRating: String? = null,
 ) {
     /**
      * Whether a personal AML profile has been declared. A declaration always writes

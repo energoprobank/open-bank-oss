@@ -171,3 +171,18 @@ test_onboarding_may_write_account_opening_details_only if {
 	not "service-onboarding-party-m2m" in allowed_reasons with input as {"principal": onboarding_sa, "action": "party.merge"}
 	not "service-onboarding-party-m2m" in allowed_reasons with input as {"principal": shared_api_only, "action": "party.onboarding-details"}
 }
+
+test_onboarding_records_verified_identity_and_reads_the_national_id if {
+	"service-onboarding-party-m2m" in allowed_reasons with input as {"principal": onboarding_sa, "action": "party.verified-identity"}
+	"service-onboarding-party-m2m" in allowed_reasons with input as {"principal": onboarding_sa, "action": "party.national-id.reveal"}
+}
+
+test_kyc_staff_may_reveal_a_national_id_but_no_other_machine if {
+	"staff-party-national-id-reveal" in allowed_reasons with input as {"principal": {"service_account": false, "type": "HUMAN", "id": "u-kyc", "roles": ["ROLE_KYC_REVIEWER"]}, "action": "party.national-id.reveal"}
+	not "staff-party-national-id-reveal" in allowed_reasons with input as {"principal": {"service_account": true, "client_id": "openbank-edge", "type": "HUMAN", "id": "service-account-openbank-edge", "roles": ["ROLE_ADMIN"]}, "action": "party.national-id.reveal"}
+}
+
+test_only_a_human_admin_may_backfill_a_national_id if {
+	"staff-party-national-id-backfill" in allowed_reasons with input as {"principal": {"service_account": false, "type": "HUMAN", "id": "u-admin", "roles": ["ROLE_ADMIN"]}, "action": "party.national-id.set"}
+	not "staff-party-national-id-backfill" in allowed_reasons with input as {"principal": onboarding_sa, "action": "party.national-id.set"}
+}

@@ -74,6 +74,21 @@ data class OnboardingDetailsCommand(
     val nationalId: String,
     val phone: String,
     val address: Address,
+    /** ISO 3166-1 alpha-2 citizenship; null keeps what the party already holds. */
+    val nationality: String? = null,
+)
+
+/**
+ * The identity the bank verified at account opening (experience v2 step 9): the method and, for
+ * the document path, the document that was read and checked. Recorded by the onboarding service.
+ */
+data class VerifiedIdentityCommand(
+    val id: UUID,
+    val method: String,
+    val documentType: DocumentType?,
+    val documentNumber: String?,
+    val issuingCountry: String?,
+    val expiryDate: String?,
 )
 
 /** FATCA/CRS self-certification at account opening (see [TaxSelfCertification]). */
@@ -180,6 +195,14 @@ interface PartyUseCase {
 
     suspend fun updateOnboardingDetails(cmd: OnboardingDetailsCommand): Party
 
+    suspend fun recordVerifiedIdentity(cmd: VerifiedIdentityCommand): Party
+
+    /**
+     * Step 9 backfill: record a national number for a person who has none (set once, validated for
+     * the market, must agree with a recorded date of birth, deduplicated). Operator data repair only.
+     */
+    suspend fun backfillNationalId(id: UUID, nationalId: String): Party
+
     suspend fun certifyTaxResidency(cmd: TaxSelfCertificationCommand): Party
 
     /**
@@ -207,7 +230,7 @@ interface PartyUseCase {
      * transaction history included as the primary portable dataset.
      */
     suspend fun exportPartyPortabilityData(id: UUID): PartyPortabilityExport
-    suspend fun updateKycStatus(partyId: UUID, status: KycStatus): Party
+    suspend fun updateKycStatus(partyId: UUID, status: KycStatus, riskRating: String? = null): Party
 
     /** Record the AML screening outcome; re-evaluates the KYC+AML activation gate. */
     suspend fun updateAmlStatus(partyId: UUID, amlStatus: AmlStatus): Party

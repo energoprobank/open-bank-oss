@@ -143,6 +143,10 @@ allowed_reasons contains "service-delegation-mandate-read" if {
 # has taken the party from the customer's token:
 #   party.onboarding-details      — PUT /{id}/onboarding-details (only while PENDING_KYC; set-once national number)
 #   party.tax-self-certification  — PUT /{id}/tax-self-certification
+# Step 9 adds, for the same principal:
+#   party.verified-identity       — PUT /{id}/identity/verified (method + verified document)
+#   party.national-id.reveal      — GET /{id}/identity/national-id (the clear number for the identity checks)
+#   party.amlProfile.read         — GET /{id}/aml-profile (source of funds, purpose, PEP — the risk score)
 # Identity-gated, never a role; the shared `service-account-openbank-services` is deliberately absent.
 allowed_reasons contains "service-onboarding-party-m2m" if {
 	input.principal.type == "HUMAN"
@@ -150,5 +154,27 @@ allowed_reasons contains "service-onboarding-party-m2m" if {
 	input.action in {
 		"party.onboarding-details",
 		"party.tax-self-certification",
+		"party.verified-identity",
+		"party.national-id.reveal",
+		"party.amlProfile.read",
 	}
+}
+
+# Step 9: a person who needs the clear national number (KYC reviewer, compliance, admin) may reveal
+# it; every reveal is audited by party-service. Machines other than onboarding never may.
+allowed_reasons contains "staff-party-national-id-reveal" if {
+	input.principal.type == "HUMAN"
+	not principal_is_machine
+	some role in {"ROLE_KYC", "ROLE_KYC_REVIEWER", "ROLE_COMPLIANCE", "ROLE_ADMIN"}
+	role in input.principal.roles
+	input.action == "party.national-id.reveal"
+}
+
+# Step 9 data repair: an ADMIN (a person, never a machine) may record a national number that a
+# person's source data states and the record lacks. Set-once, validated and audited by party-service.
+allowed_reasons contains "staff-party-national-id-backfill" if {
+	input.principal.type == "HUMAN"
+	not principal_is_machine
+	"ROLE_ADMIN" in input.principal.roles
+	input.action == "party.national-id.set"
 }

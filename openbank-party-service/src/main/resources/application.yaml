@@ -270,6 +270,12 @@ mp:
       enabled: false
   authz:
     enforce: false
+  openbank:
+    party:
+      national-id:
+        # A fixed TEST-ONLY key, so every test exercises the encrypted path (step 9).
+        key: "cGFydHktdGVzdC1rZXktLW5vdC1hLXNlY3JldC0zMmI="
+        backfill-enabled: false
 openbank:
   outbox:
     dispatch-enabled: true
@@ -294,6 +300,14 @@ openbank:
   # When absent the dedup gate is silently off — POST /parties/resolve returns 503.
   identity:
     rc-pepper: "${OPENBANK_IDENTITY_RC_PEPPER:}"
+    # Step 9: true refuses onboarding details when the pepper is missing (no silent duplicates).
+    dedup-required: "${OPENBANK_IDENTITY_DEDUP_REQUIRED:false}"
+  # Step 9: a natural person's national number is encrypted at rest (AES-256-GCM). The key comes
+  # from the environment (OPENBANK_PARTY_NATIONAL_ID_KEY, base64 of 32 bytes; never in this file);
+  # encryption-required=true makes a missing key fail the boot.
+  party:
+    national-id:
+      encryption-required: "${OPENBANK_PARTY_NATIONAL_ID_ENCRYPTION_REQUIRED:false}"
 
 # OPA sidecar (ADR-0034). Defaults match the per-service deployment manifest
 # (sidecar bound to 8181, bundle exposing data.openbank.rest.allow). Override

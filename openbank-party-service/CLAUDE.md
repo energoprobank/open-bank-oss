@@ -94,3 +94,23 @@ PII surface are recorded here.
 - **Known gap (not changed here, plan step 7):** `PartyRepositoryImpl.applyFrom` does not copy
   `legalName`, `nationality` (and until step 8 `dateOfBirth`), so the operator PATCH accepts those
   material fields, emits PARTY_UPDATED and then does not persist them.
+
+## National numbers at rest (experience v2 step 9)
+
+- A natural person's national number (rodné číslo / ЕГН) is stored ENCRYPTED in `national_id_ct`
+  (AES-256-GCM, AAD = party id, `v<key>:` prefix; `AesGcmNationalIdCipher`, `@Startup`), and `tax_id` is
+  NULL for that row. A company's tax id stays in `tax_id`. The repository decrypts on read, so the domain
+  still sees `Party.taxId` in clear; the REST detail shows it MASKED (`910813/****`, `nationalIdLast4`).
+  The clear value is `GET /{id}/identity/national-id` (onboarding-service + KYC staff, audited).
+- Config: `OPENBANK_PARTY_NATIONAL_ID_KEY` (base64, 32 bytes) and `…_ENCRYPTION_REQUIRED=true` wherever
+  real people are onboarded (a missing key then fails the boot). Without a key nothing is encrypted (dev).
+- `NationalIdEncryptionBackfill` (every 10 min, suspend) encrypts rows still in clear and derives a missing
+  date of birth from the number. Idempotent.
+- The blind index (`rc_blind_index`) covers BOTH markets now (BG domain-separated as `BG:<egn>`).
+  `openbank.identity.dedup-required=true` refuses onboarding details without a pepper (409 DEDUP_UNAVAILABLE).
+- Onboarding details are as strict as the app (future dates, 9-digit ≥ 1954, +20/+70 before 2004) and
+  adults only (409 UNDERAGE); a number another party holds is 409 NATIONAL_ID_TAKEN.
+- `applyFrom` now persists `legalName` and `nationality` (the operator PATCH used to drop them silently),
+  and the detail answers `dateOfBirth`, `nationality`, `riskRating` (from the KYC decision event),
+  `identityVerifiedAt`/`identityMethod`.
+- V29 rollback: see the migration header (a value already moved to `national_id_ct` must be decrypted back first).

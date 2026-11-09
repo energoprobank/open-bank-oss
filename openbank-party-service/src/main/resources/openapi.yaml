@@ -19,7 +19,11 @@ info:
   # 1.27.0 -> 1.28.0: additive only — GET /api/v1/reporting/parties/{id}/tax-facts (ADR-0340 B1,
   # the CRS/FATCA TIN boundary: the derived statuses and residencies WITH TINs, readable by
   # service-account-openbank-tax-reporting alone, audit-logged without TINs).
-  version: 1.30.0
+  # 1.30.0 -> 1.31.0 (experience v2 step 9): additive — onboarding-details takes a nationality and
+  # refuses under-18 / taken national numbers (409 UNDERAGE / NATIONAL_ID_TAKEN / DEDUP_UNAVAILABLE);
+  # PUT /{id}/identity/verified and GET /{id}/identity/national-id; the party detail documents the
+  # complete person record with the national number MASKED (stored encrypted).
+  version: 1.31.0
   description: Legal entity and individual party management with document storage.
   license:
     name: Apache-2.0
@@ -147,11 +151,70 @@ paths:
                 nationalId: { type: string, description: "Rodné číslo (CZ) or ЕГН (BG), by the party's market" }
                 phone: { type: string, maxLength: 32 }
                 address: { $ref: '#/components/schemas/AddressDto' }
+                nationality: { type: string, description: ISO 3166-1 alpha-2 citizenship }
       responses:
         '200': { description: The updated party }
-        '400': { description: Invalid national number, or it does not encode the date of birth }
+        '400': { description: Invalid national number (incl. a future birthdate), or it does not encode the date of birth }
         '404': { description: Party not found }
-        '409': { description: Application already decided, or a different national number is recorded }
+        '409': { description: Application already decided, a different national number is recorded, UNDERAGE, NATIONAL_ID_TAKEN or DEDUP_UNAVAILABLE }
+  /api/v1/parties/{id}/identity/verified:
+    put:
+      tags: [Parties]
+      summary: Record how the bank verified the person at account opening (onboarding service only)
+      operationId: recordVerifiedIdentity
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [method]
+              properties:
+                method: { type: string, enum: [BANK_ID, DOCUMENT] }
+                documentType: { type: string, enum: [NATIONAL_ID, PASSPORT, DRIVING_LICENCE, COMPANY_REGISTRATION, TAX_ID] }
+                documentNumber: { type: string, maxLength: 32 }
+                issuingCountry: { type: string, description: ISO 3166-1 alpha-2 }
+                expiryDate: { type: string, format: date }
+      responses:
+        '200': { description: The updated party }
+        '400': { description: Unknown method or document type, or an incomplete document }
+        '404': { description: Party not found }
+  /api/v1/parties/{id}/identity/national-id:
+    put:
+      tags: [Parties]
+      summary: Record a missing national number from source data (ADMIN; set once, validated, deduplicated, audited)
+      operationId: backfillNationalId
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [nationalId], properties: { nationalId: { type: string } } }
+      responses:
+        '200': { description: The updated party }
+        '400': { description: Not a valid national number, a company, or it disagrees with the recorded date of birth }
+        '409': { description: A different number is recorded, or NATIONAL_ID_TAKEN }
+    get:
+      tags: [Parties]
+      summary: The person's national number in clear (audited; onboarding service and KYC staff)
+      operationId: revealNationalId
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: The national number
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  partyId: { type: string, format: uuid }
+                  market: { type: string }
+                  nationalId: { type: string, nullable: true }
+        '404': { description: Party not found }
   /api/v1/parties/{id}/tax-self-certification:
     put:
       summary: FATCA/CRS tax-residency self-certification (machine callers)
@@ -923,6 +986,16 @@ components:
         status: { type: string }
         legalName: { type: string }
         kycStatus: { type: string }
+        dateOfBirth: { type: string, format: date, nullable: true }
+        nationality: { type: string, nullable: true }
+        taxId:
+          type: string
+          nullable: true
+          description: A person's national number MASKED to its birth part (e.g. 910813/****); a company's tax id as is.
+        nationalIdLast4: { type: string, nullable: true }
+        riskRating: { type: string, nullable: true, enum: [LOW, MEDIUM, HIGH, VERY_HIGH] }
+        identityVerifiedAt: { type: string, format: date-time, nullable: true }
+        identityMethod: { type: string, nullable: true, enum: [BANK_ID, DOCUMENT] }
         pepFlag:
           type: boolean
           nullable: true

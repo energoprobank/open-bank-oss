@@ -52,6 +52,8 @@ class PartyRepositoryImpl(
     PanacheRepository<PartyEntity> {
     @Inject lateinit var clock: Clock
 
+    @Inject lateinit var nationalIds: com.openbank.party.application.port.out.NationalIdProtection
+
     override suspend fun save(party: Party): Party {
         val e = party.toEntity()
         Panache.withTransaction { persist(e) }.awaitSuspending()
@@ -165,6 +167,7 @@ class PartyRepositoryImpl(
             e.dateOfBirth = null
             e.nationality = null
             e.taxId = null
+            e.nationalIdCt = null
             e.registrationNumber = null
             e.addressLine1 = null
             e.addressLine2 = null
@@ -221,7 +224,13 @@ class PartyRepositoryImpl(
         // Self-service account opening (updateOnboardingDetails / certifyTaxResidency). The market
         // itself is set at creation and never changes, so it is not copied here.
         dateOfBirth = party.dateOfBirth
-        taxId = party.taxId
+        writeNationalId(party)
+        // Step 9: the operator PATCH and onboarding now persist these (they were silently dropped).
+        legalName = party.legalName
+        nationality = party.nationality
+        identityVerifiedAt = party.identityVerifiedAt
+        identityMethod = party.identityMethod
+        riskRating = party.riskRating
         rcBlindIndex = party.rcBlindIndex
         rcIndexKeyVersion = party.rcIndexKeyVersion
         taxSelfCertification = party.taxSelfCertification?.let { objectMapper.writeValueAsString(it) }
@@ -279,7 +288,7 @@ class PartyRepositoryImpl(
         it.tradingName = tradingName
         it.dateOfBirth = dateOfBirth
         it.nationality = nationality
-        it.taxId = taxId
+        it.writeNationalId(this)
         it.registrationNumber = registrationNumber
         it.legalForm = legalForm
         it.registrationCountry = registrationCountry
@@ -310,13 +319,68 @@ class PartyRepositoryImpl(
         it.crsStatus = crsStatus
         it.market = market
         it.taxSelfCertification = taxSelfCertification?.let { c -> objectMapper.writeValueAsString(c) }
+        it.identityVerifiedAt = identityVerifiedAt
+        it.identityMethod = identityMethod
+        it.riskRating = riskRating
+    }
+
+    /**
+     * Step 9: a natural person's national number is stored encrypted (national_id_ct) and tax_id is
+     * left null; a company's tax id (DIČ/VAT) stays as it was. Re-sealed only when the value changes.
+     */
+    private fun PartyEntity.writeNationalId(party: Party) {
+        val clear = party.taxId
+        if (clear == null || party.partyType != PartyType.INDIVIDUAL || !nationalIds.enabled) {
+            taxId = clear
+            if (clear == null) nationalIdCt = null
+            return
+        }
+        val current = nationalIdCt?.let { runCatching { nationalIds.open(party.id, it) }.getOrNull() }
+        if (current != clear) {
+            nationalIdCt = nationalIds.seal(party.id, clear)
+            nationalIdKeyVersion = nationalIdCt?.substringBefore(':')?.removePrefix("v")?.toIntOrNull()
+        }
+        taxId = null
+    }
+
+    /** The clear national number for the domain: tax_id, or the decrypted national_id_ct. */
+    private fun PartyEntity.nationalIdClear(): String? =
+        taxId ?: nationalIdCt?.takeIf { nationalIds.enabled }?.let { nationalIds.open(partyId, it) }
+
+    /**
+     * Step 9 backfill: individuals whose national number is still in clear (written before the key
+     * existed). Encrypts a bounded batch per call; idempotent, so a scheduler can call it until 0.
+     */
+    override suspend fun encryptClearNationalIds(limit: Int): Int {
+        if (!nationalIds.enabled) return 0
+        return Panache.withTransaction {
+            find("partyType = ?1 and taxId is not null", PartyType.INDIVIDUAL.name).page(0, limit).list()
+                .map { rows ->
+                    rows.forEach { e ->
+                        val clear = e.taxId!!
+                        // A missing date of birth is derived from the number that encodes it.
+                        if (e.dateOfBirth == null) {
+                            e.dateOfBirth =
+                                (
+                                    com.openbank.libs.domain.account.Market.of(e.market)
+                                        ?: com.openbank.libs.domain.account.Market.DEFAULT
+                                    )
+                                    .birthdateOf(clear)?.toString()
+                        }
+                        e.nationalIdCt = nationalIds.seal(e.partyId, clear)
+                        e.nationalIdKeyVersion = e.nationalIdCt?.substringBefore(':')?.removePrefix("v")?.toIntOrNull()
+                        e.taxId = null
+                    }
+                    rows.size
+                }
+        }.awaitSuspending()
     }
 
     private fun PartyEntity.toDomain() = Party(
         id = partyId, partyType = PartyType.valueOf(partyType),
         classification = PartyClassification.valueOf(classification), status = PartyStatus.valueOf(status),
         legalName = legalName, tradingName = tradingName, dateOfBirth = dateOfBirth,
-        nationality = nationality, taxId = taxId, registrationNumber = registrationNumber,
+        nationality = nationality, taxId = nationalIdClear(), registrationNumber = registrationNumber,
         legalForm = legalForm, registrationCountry = registrationCountry,
         email = email, phone = phone, discoverable = discoverable, kycStatus = KycStatus.valueOf(kycStatus),
         address = if (addressLine1 !=
@@ -350,6 +414,9 @@ class PartyRepositoryImpl(
         taxSelfCertification = taxSelfCertification?.let {
             objectMapper.readValue(it, TaxSelfCertification::class.java)
         },
+        identityVerifiedAt = identityVerifiedAt,
+        identityMethod = identityMethod,
+        riskRating = riskRating,
     )
 }
 

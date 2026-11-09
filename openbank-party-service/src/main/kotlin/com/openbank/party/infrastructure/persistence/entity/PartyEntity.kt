@@ -112,6 +112,22 @@ class PartyEntity : PanacheEntity() {
     @Column(name = "rc_index_key_version")
     var rcIndexKeyVersion: Int? = null
 
+    /** V29: a natural person's national number, encrypted (NationalIdCipher); tax_id is then null. */
+    @Column(name = "national_id_ct", columnDefinition = "TEXT")
+    var nationalIdCt: String? = null
+
+    @Column(name = "national_id_key_version")
+    var nationalIdKeyVersion: Int? = null
+
+    @Column(name = "identity_verified_at")
+    var identityVerifiedAt: java.time.Instant? = null
+
+    @Column(name = "identity_method")
+    var identityMethod: String? = null
+
+    @Column(name = "risk_rating")
+    var riskRating: String? = null
+
     /** Onboarding consent capture (mobile app "Agreement" step) — null = not asked/answered. */
     @Column(name = "consent_gdpr")
     var consentGdpr: Boolean? = null

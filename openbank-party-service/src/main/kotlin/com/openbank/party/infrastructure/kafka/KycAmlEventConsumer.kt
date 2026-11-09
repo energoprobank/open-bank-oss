@@ -45,8 +45,9 @@ class KycAmlEventConsumer(private val partyUseCase: PartyUseCase, private val ob
                 "KYC_CASE_REJECTED" -> KycStatus.REJECTED
                 else -> return // OPENED / STATUS_CHANGED: no terminal KYC decision yet
             }
+            val risk = node.path("riskLevel").asText().takeIf { it.isNotBlank() }
             EventRetry.withRetry(log, "KYC decision", partyId) {
-                partyUseCase.updateKycStatus(partyId, kyc)
+                partyUseCase.updateKycStatus(partyId, kyc, risk)
             }
             log.infof("KYC %s applied to party %s", kyc, partyId)
         } catch (e: JacksonException) {

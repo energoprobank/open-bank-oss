@@ -106,6 +106,9 @@ interface PartyRepository {
     /** ADR-0072: look up a party by pre-computed RČ blind index (exact match). */
     suspend fun findByRcBlindIndex(index: String): Party?
 
+    /** Step 9 backfill: encrypt up to [limit] national numbers still stored in clear; returns how many. */
+    suspend fun encryptClearNationalIds(limit: Int): Int = 0
+
     /**
      * Scoped update of the marketing-consent projection (ADR-0205 D4) — a targeted UPDATE, not a
      * find-then-mutate-then-save of the whole [Party] aggregate, so it cannot clobber an unrelated
