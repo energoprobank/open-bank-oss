@@ -4,7 +4,7 @@
 # openbank-provider-simulator is a NON-PRODUCTION stand-in for third-party providers (experience v2
 # step 8): Energo-Pro's customer system, the e-mail/SMS gateway, Czech Bank iD and an identity-
 # verification vendor (document, chip, liveness, face match). No datastore; sessions in memory.
-dataDomain: onboarding
+dataDomain: identity
 primaryDatastore: none
 ownsNoDatabase: true
 dataLineageRole: internal
