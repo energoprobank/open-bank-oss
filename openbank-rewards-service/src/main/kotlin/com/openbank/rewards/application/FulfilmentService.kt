@@ -25,7 +25,12 @@ import java.util.UUID
 
 data class UseResult(val coupon: Pair<Coupon, CouponDef>, val fulfilment: Fulfilment)
 
-data class Preview(val before: RateTerms?, val after: RateTerms?, val notes: List<String>)
+/**
+ * Both sides are always present: the customer-edge contract (`RewardsPreview`) requires `before`
+ * and `after`, and the app decodes them as objects. A side with nothing to compare is an empty
+ * [RateTerms], never null — a null `before` made every savings preview fail to decode in the app.
+ */
+data class Preview(val before: RateTerms, val after: RateTerms, val notes: List<String>)
 
 /** What one use will do, computed before any money moves (so it can also be previewed). */
 private data class Command(val outcome: FulfilmentOutcome, val run: () -> String, val creditCost: BigDecimal)
@@ -299,12 +304,28 @@ class FulfilmentService(
                     listOf("CREDIT_BEFORE_NEXT_INSTALMENT"),
                 )
             }
+            BenefitType.DEPOSIT_RATE_BOOST -> depositBoostPreview(coupon, def)
             else -> Preview(
-                null,
-                null,
+                RateTerms.NONE,
+                RateTerms.NONE,
                 listOf("RATE_DELTA_BPS:${def.params.deltaBps ?: 0}", "DURATION_DAYS:${def.params.durationDays ?: 0}"),
             )
         }
+    }
+
+    /**
+     * The current savings rate is the interest service's to tell, and this service has no read grant
+     * there, so `before` stays empty; `after` says until when the boost runs, the same date the use
+     * itself will book (see command()).
+     */
+    private fun depositBoostPreview(coupon: Coupon, def: CouponDef): Preview {
+        val days = def.params.durationDays ?: DEFAULT_DAYS
+        val until = LocalDate.now(engine.clock.withZone(coupon.market.zone)).plusDays(days.toLong())
+        return Preview(
+            RateTerms.NONE,
+            RateTerms.NONE.copy(until = until),
+            listOf("RATE_DELTA_BPS:${def.params.deltaBps ?: 0}", "DURATION_DAYS:$days"),
+        )
     }
 
     private fun command(coupon: Coupon, def: CouponDef, fulfilmentId: UUID): Command = store.tx { tx ->

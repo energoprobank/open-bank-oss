@@ -27,10 +27,14 @@ import jakarta.inject.Inject
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.hamcrest.Matchers.equalTo
+import org.hamcrest.Matchers.hasItems
+import org.hamcrest.Matchers.notNullValue
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
 import java.time.Duration
 import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 import java.util.UUID
 import javax.sql.DataSource
 import jakarta.enterprise.inject.Any as AnyBean
@@ -401,6 +405,25 @@ class RewardsEngineIT {
         assertThat(again.postedDelta).isEqualByComparingTo(BigDecimal.ZERO)
         grant(party, 4)
         assertThat(jobs.postLiability().single { it.market == Market.CZ }.postedDelta).isEqualByComparingTo("1.00")
+    }
+
+    @Test
+    @TestSecurity(user = "service-account-openbank-edge", roles = ["ROLE_API"])
+    fun `HTTP contract - a savings boost preview carries both sides and the end date, never null`() {
+        // The app decodes `before` and `after` as objects (customer-edge RewardsPreview requires
+        // both); a null `before` failed every savings preview with DecodingError.valueNotFound.
+        val party = UUID.randomUUID()
+        val (_, savings) = directory.currentAndSavings(party)
+        val (coupon, _) = customers.addCoupon(party, "DEPOSIT_BOOST")
+        val until = LocalDate.now(ZoneId.of("Europe/Prague")).plusDays(90).toString()
+        given().get(
+            "/api/v1/rewards/parties/$party/coupons/${coupon.couponId}/preview" +
+                "?targetKind=SAVINGS_ACCOUNT&targetId=$savings",
+        ).then().statusCode(200)
+            .body("before", notNullValue())
+            .body("after", notNullValue())
+            .body("after.until", equalTo(until))
+            .body("notes", hasItems("RATE_DELTA_BPS:50", "DURATION_DAYS:90"))
     }
 
     @Test

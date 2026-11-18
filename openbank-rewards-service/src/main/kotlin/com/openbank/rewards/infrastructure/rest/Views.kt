@@ -183,6 +183,7 @@ object Views {
             "aprcPct" to it.aprcPct,
             "instalment" to money(it.instalment, it.currency),
             "amount" to money(it.amount, it.currency),
+            "until" to it.until?.toString(),
         ).filterValues { v -> v != null }
     }
 

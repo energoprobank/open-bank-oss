@@ -237,7 +237,14 @@ data class RateTerms(
     val instalment: BigDecimal?,
     val currency: String?,
     val amount: BigDecimal? = null,
-)
+    /** The last day the changed terms apply, where they are time-boxed (a savings boost). */
+    val until: LocalDate? = null,
+) {
+    companion object {
+        /** A side with nothing to show; serialised as `{}`. */
+        val NONE = RateTerms(null, null, null, null)
+    }
+}
 
 data class LoanRef(
     val loanId: UUID,
